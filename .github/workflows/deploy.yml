@@ -1,0 +1,124 @@
+name: Deploy
+
+# Manual production deploy of subgen (docker compose on the server).
+#
+# The image is BUILT HERE on the runner (the node is RAM-starved and can't compile
+# modernc/sqlite), then streamed to the server over SSH (`docker save | ssh | docker
+# load`) and run with `docker compose up -d`. Bootstrap secrets are injected into the
+# server-side `.env` from the `production` Environment; operational data (panel
+# tokens, nodes, users) lives in the server's `db/` bind-mount and is never touched.
+#
+# Trigger: manual only (Actions → Deploy → Run workflow, or `gh workflow run deploy.yml`).
+# Once the node moves to a beefier host you can drop the build/ship steps and switch
+# to server-side `docker compose up -d --build`.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "git ref (branch / tag / sha) to deploy"
+        default: main
+        required: true
+
+permissions:
+  contents: read
+
+# One deploy at a time; never cancel a deploy mid-flight.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: gate (lint + unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2 # pinned — matches .golangci.yaml (version "2")
+      - name: unit tests (-race)
+        run: make test
+      - name: integration tests (real temp SQLite)
+        run: make integration
+
+  deploy:
+    name: deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production # scopes the secrets/variables to this job
+    env:
+      HOST: ${{ vars.DEPLOY_HOST }}
+      PORT: ${{ vars.DEPLOY_PORT }}
+      USER: ${{ vars.DEPLOY_USER }}
+      DIR: ${{ vars.DEPLOY_DIR }}
+      # No `-i`: the key is written to the default path (~/.ssh/id_ed25519), so ssh/scp
+      # pick it up automatically — avoids a literal `~` inside this env var (it would
+      # NOT be tilde-expanded). known_hosts (pinned) is likewise at the default path.
+      SSH: ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p ${{ vars.DEPLOY_PORT }} ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Build image (linux/amd64)
+        run: docker build --platform linux/amd64 -t subgen:latest .
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Ship image to server
+        run: docker save subgen:latest | gzip | $SSH 'gunzip | docker load'
+
+      - name: Render .env + compose and push to server
+        env:
+          SUBGEN_SECRET: ${{ secrets.SUBGEN_SECRET }}
+          SUBGEN_ADMIN_PASSWORD: ${{ secrets.SUBGEN_ADMIN_PASSWORD }}
+          SUBGEN_PUBLIC_BASE: ${{ vars.SUBGEN_PUBLIC_BASE }}
+          SUBGEN_TLS_CERT: ${{ vars.SUBGEN_TLS_CERT }}
+          SUBGEN_TLS_KEY: ${{ vars.SUBGEN_TLS_KEY }}
+          CERT_HOST_DIR: ${{ vars.CERT_HOST_DIR }}
+        run: |
+          umask 077
+          # Secrets stay in shell vars (not echoed); GitHub also masks them in logs.
+          cat > deploy.env <<EOF
+          SUBGEN_LISTEN=0.0.0.0:2097
+          SUBGEN_PUBLIC_BASE=${SUBGEN_PUBLIC_BASE}
+          SUBGEN_TLS_CERT=${SUBGEN_TLS_CERT}
+          SUBGEN_TLS_KEY=${SUBGEN_TLS_KEY}
+          SUBGEN_ADMIN_USER=admin
+          SUBGEN_SECRET=${SUBGEN_SECRET}
+          SUBGEN_ADMIN_PASSWORD=${SUBGEN_ADMIN_PASSWORD}
+          # consumed by docker-compose.yml for the cert bind-mount (not by subgen):
+          CERT_HOST_DIR=${CERT_HOST_DIR}
+          EOF
+          $SSH "mkdir -p ~/$DIR/db"
+          scp -i ~/.ssh/id_ed25519 -P "$PORT" deploy.env "$USER@$HOST:~/$DIR/.env"
+          scp -i ~/.ssh/id_ed25519 -P "$PORT" docker-compose.prod.yml "$USER@$HOST:~/$DIR/docker-compose.yml"
+          rm -f deploy.env
+
+      - name: Deploy (docker compose up)
+        run: |
+          $SSH "cd ~/$DIR && docker compose up -d --remove-orphans && docker compose ps && docker image prune -f >/dev/null"
+
+      - name: Health check
+        run: |
+          url="${{ vars.SUBGEN_PUBLIC_BASE }}/healthz"
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 5 "$url" >/dev/null; then echo "healthy: $url"; exit 0; fi
+            echo "waiting for health ($i/10)…"; sleep 3
+          done
+          echo "::error::health check failed for $url"; exit 1

@@ -84,21 +84,42 @@ under `/certs` and mount the cert dir (see `docker-compose.yml`).
 
 ## Deploy
 
-`deploy.sh` ships the container to the server — no Go, no registry:
+Production deploy is a **manual GitHub Actions workflow**
+([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)): the image is built on
+the runner (the node is RAM-starved and can't), streamed to the server over SSH, and
+run with `docker compose`. Tests gate the deploy; bootstrap secrets are injected into
+the server-side `.env` from the `production` Environment.
 
 ```sh
-./deploy.sh        # build image → docker save | ssh | docker load → compose up -d
+gh workflow run deploy.yml -f ref=main     # or: Actions → Deploy → Run workflow
 ```
 
-It builds the `linux/amd64` image locally (the node is RAM-starved), streams it over
-SSH, then on the server chowns `db/` to the container's nonroot uid, **stops the
-legacy systemd unit** (first run only — clean cutover), and `docker compose up -d`.
-The SQLite store stays at `db/subgen.db`. Prompts for sudo (chown + unit
-disable). Override host with `SSH_HOST=… SSH_PORT=… SSH_USER=… ./deploy.sh`.
+It runs `lint + unit + integration`, then on the server: `docker load` the image,
+render `.env`, `docker compose up -d` (with `docker-compose.prod.yml`), and a
+`/healthz` check. The `db/` bind-mount (panel tokens, nodes, users) **persists across
+deploys** — CD never touches it.
 
-One-time server setup: Docker installed, the deploy user in the `docker` group,
-`git clone` to `~/subgen`, and `.env` filled in. `.env` and `db/` are
-gitignored, so `git pull` never touches your secrets or store.
+**One-time setup** (operator):
+
+- **GitHub → Settings → Environments → `production`:**
+  - **Secrets:** `SUBGEN_SECRET`, `SUBGEN_ADMIN_PASSWORD` (the *live* values — don't
+    rotate `SUBGEN_SECRET`, it would invalidate every subscription link),
+    `DEPLOY_SSH_KEY` (a dedicated deploy private key).
+  - **Variables:** `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_DIR` (`subgen`),
+    `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan -p <port> <host>`), `SUBGEN_PUBLIC_BASE`,
+    `SUBGEN_TLS_CERT`, `SUBGEN_TLS_KEY` (paths under `/certs`), `CERT_HOST_DIR` (host
+    cert dir, e.g. `/root/cert/<domain>`).
+- **Server:** Docker installed + the deploy user in the `docker` group; append the
+  deploy key's public half to `~/.ssh/authorized_keys`; once,
+  `mkdir -p ~/subgen/db && sudo chown -R 65532:65532 ~/subgen/db`. No git checkout
+  needed — the workflow ships the compose + `.env`.
+- **Cert perms:** the image runs **nonroot** (uid 65532), so the TLS privkey in
+  `CERT_HOST_DIR` must be world-readable (`chmod 644`) for the container to read it —
+  acme's `--reloadcmd` keeps it that way and restarts the container on renewal.
+
+Roll back by re-running the workflow with an older `ref`. Once the node moves to a
+beefier host, you can drop the build/ship steps and switch to server-side
+`docker compose up -d --build`.
 
 ## How it flows
 

@@ -1,0 +1,23 @@
+# Production compose for subgen — shipped to the server by the Deploy workflow
+# (.github/workflows/deploy.yml) as `docker-compose.yml`. The image is pre-loaded on
+# the host (`docker load` over SSH) — it is never built or pulled here. Bootstrap
+# config is the rendered `.env` (from GitHub Secrets/Variables); operational data
+# (panel tokens, nodes, users) persists in ./db across deploys.
+#
+# For LOCAL development use docker-compose.yml (build: .) instead.
+services:
+  subgen:
+    image: subgen:latest
+    pull_policy: never # loaded locally over SSH; never reach for a registry
+    container_name: subgen
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "2097:2097"
+    volumes:
+      - ./db:/app/db
+      # TLS cert dir on the host (acme.sh), read-only. CERT_HOST_DIR is read from
+      # .env (rendered from the CERT_HOST_DIR Variable) so moving servers is a
+      # Variable change, not a file edit. The nonroot container (uid 65532) reads it
+      # via the privkey's 644 perms (acme --reloadcmd keeps them).
+      - ${CERT_HOST_DIR:?set CERT_HOST_DIR in .env}:/certs:ro

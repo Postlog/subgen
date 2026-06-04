@@ -87,23 +87,26 @@ client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve s
 
 ## Operations
 
-- **Where:** runs on RU1 as a **Docker container** from the git checkout at
-  `/home/server/subgen` (`docker-compose.yml`, `env_file: .env`, store
-  bind-mounted from `db/`, TLS via the acme cert mounted read-only, public
-  port `2097/tcp`). The legacy systemd unit is stopped/disabled.
+- **Where:** runs on RU1 as a **Docker container** from `~/subgen`
+  (`docker-compose.yml` + `.env` shipped by the Deploy workflow, store bind-mounted
+  from `db/`, TLS via the acme cert mounted read-only, public port `2097/tcp`). The
+  legacy systemd unit is stopped/disabled.
 - **Edit routing/nodes/users:** all in the `/admin` panel (see below). A single
   Save on the Конфиг Mihomo page persists proxy-groups + rules + providers + base
   YAML in one transaction; it takes effect on the next `/sub` request (the store is
   read live). Node/user actions invalidate the fleet cache so proxies refresh
   immediately.
-- **Edit bootstrap/secrets:** change `.env`, then redeploy (or
-  `docker compose up -d` on the node). Changing which rule-providers are mirrored
-  also needs a restart (the mirror set is fixed at startup).
-- **Deploy:** `deploy.sh` — builds the `linux/amd64` image locally, ships it
-  over SSH (`docker save | ssh | docker load`, no registry), then `docker compose
-  up -d` on the node. First run stops the legacy systemd unit (clean cutover) and
-  chowns `db/` to the container's nonroot uid. Go/registry **not** required
-  on the node (Docker is). It does **not** push to git. Prompts for sudo.
+- **Edit bootstrap/secrets:** they live in the GitHub `production` Environment
+  (Secrets `SUBGEN_SECRET` / `SUBGEN_ADMIN_PASSWORD`, Variables for host/domain/TLS
+  paths) — change them there and re-run **Deploy**. Changing which rule-providers are
+  mirrored also needs a restart (the mirror set is fixed at startup).
+- **Deploy:** the **Deploy** GitHub Actions workflow (`.github/workflows/deploy.yml`,
+  manual `workflow_dispatch`): `lint + unit + integration` gate, then build the
+  `linux/amd64` image on the runner, stream it over SSH (`docker save | ssh | docker
+  load`), render `.env` from Secrets/Variables, ship `docker-compose.prod.yml`,
+  `docker compose up -d`, `/healthz` check. Build is off-node (RU1 can't compile); the
+  `db/` bind-mount persists across deploys. The one-time GitHub/server setup (Secrets,
+  Variables, deploy key, cert perms) is in `README.md`.
 - **Debug:** `go run ./cmd/subctl -dump-fleet` (lists every subId, its token and proxies);
   `-print <subId>` (renders one config to stdout). Both read `./.env`.
 - **Run locally:** `cp .env.example .env`, set `SUBGEN_SECRET`,

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>subgen — вход</title>
+<link rel="stylesheet" href="/admin/static/bootstrap.min.css">
+<link rel="stylesheet" href="/admin/static/app.css">
+</head>
+<body>
+<main class="login-wrap">
+  <div class="login-card card">
+    <div class="card-body p-4">
+      <h1 class="login-brand mb-1">sub<span class="dot">gen</span></h1>
+      <form id="loginForm">
+        <div class="mb-3"><input class="form-control" name="user" placeholder="Логин" autocomplete="username" autofocus></div>
+        <div class="mb-3"><input class="form-control" type="password" name="password" placeholder="Пароль" autocomplete="current-password"></div>
+        <button class="btn btn-primary w-100" type="submit">Войти</button>
+        <div id="loginErr" class="alert alert-danger mt-3 py-2 mb-0" hidden></div>
+      </form>
+    </div>
+  </div>
+</main>
+<script>
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = JSON.stringify({ user: e.target.user.value, password: e.target.password.value });
+  let d = { ok: false };
+  try {
+    const r = await fetch("/admin/login", { method: "POST", body, headers: { "Content-Type": "application/json", Accept: "application/json" } });
+    d = await r.json();
+  } catch (_) { /* show generic error below */ }
+  if (d.ok) { location.assign("/admin/users"); return; }
+  const el = document.getElementById("loginErr");
+  el.textContent = d.err || "Неверный логин или пароль";
+  el.hidden = false;
+});
+</script>
+</body>
+</html>

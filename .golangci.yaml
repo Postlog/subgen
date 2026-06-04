@@ -1,0 +1,84 @@
+# golangci-lint v2 config. Docs: https://golangci-lint.run/usage/configuration/
+version: "2"
+
+run:
+  build-tags:
+    - apitest
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bodyclose
+    - depguard
+    - errcheck
+    - gochecknoinits
+    - gocritic
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - makezero
+    - revive
+    - staticcheck # in v2 staticcheck subsumes gosimple
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - wsl_v5 # successor of the deprecated `wsl`
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: use the standard library errors + fmt.Errorf("%w", …)
+            - pkg: io/ioutil
+              desc: deprecated; use io and os
+    gosec:
+      excludes:
+        - G104 # unchecked errors — errcheck (below) owns this, with our exclusions
+    errcheck:
+      # Deferred cleanup whose error is genuinely ignorable; real unchecked errors
+      # are still caught everywhere else.
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (*os.File).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*database/sql.DB).Close
+        - (*github.com/postlog/subgen/internal/repository.Store).Close
+    revive:
+      rules:
+        - name: var-naming # snake_case package names are intentional here
+          disabled: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    rules:
+      # Test fixtures use weak randomness; helper params are sometimes constant.
+      - path: _test\.go
+        linters:
+          - gosec
+          - unparam
+      # The apitest harness (api/*.go) boots the service as a subprocess and replays
+      # session cookies — gosec's G204/G124 are about that test-only code, never shipped.
+      - path: apitest/
+        linters:
+          - gosec
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/postlog/subgen
+
+issues:
+  max-same-issues: 0
+  max-issues-per-linter: 0

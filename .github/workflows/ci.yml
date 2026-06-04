@@ -1,0 +1,64 @@
+name: CI
+
+# Lint + every test suite for subgen, on each push / PR.
+# Mirrors the Makefile: `make lint`, `make test` (unit, -race),
+# `make integration` (-tags integration, real temp SQLite), `make apitest`
+# (-tags apitest, against two real 3x-ui panels in docker).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes an in-flight run (saves runner minutes,
+# especially the docker apitest job).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (golangci-lint v2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2 # pinned golangci-lint v2 — matches .golangci.yaml (version "2")
+
+  test:
+    name: tests (unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: unit tests (-race)
+        run: make test
+      - name: integration tests (real temp SQLite)
+        run: make integration
+
+  apitest:
+    name: apitest (real 3x-ui in docker)
+    needs: test # only spin the docker panels once the cheap suites are green
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: API tests
+        # `make apitest` delegates to apitest/Makefile: docker compose up two clean
+        # panels → fetch their api tokens → go test -tags apitest ./apitest/... → down.
+        # ubuntu-latest ships docker + docker compose; the 3x-ui image is public on ghcr.
+        run: make apitest

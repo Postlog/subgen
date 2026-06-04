@@ -1,0 +1,516 @@
+// app.js — the subgen admin SPA (Vue 3, global build, no build step). The backend
+// serves pure JSON under /admin/api/*; this drives it with fetch.
+const { createApp } = Vue;
+
+const app = createApp({
+  data() {
+    return {
+      tab: "users",
+      busy: false,      // a mutation is in flight (disables actions)
+      actingId: 0,      // user id whose row action is in flight (row spinner)
+      toasts: [],
+      _tid: 0,
+      _uidc: 0,         // client-side uid counter (stable keys for drag-n-drop)
+      users: [],
+      nodes: [],
+      schema: null, // config UI schema (rule/group/policy/provider catalogs), from the backend
+      uForm: { open: false, id: 0, name: "", inbounds: [] },
+      nodeForm: { open: false, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [] },
+      provForm: { open: false, idx: -1 }, // which provider the edit modal is editing
+
+      // cfg: structured mihomo config. groups/rules carry a client-side _uid; a
+      // policy ref is encoded as a string `pref` (direct|reject|…|smart|force:<id>|
+      // group:<groupUid>) so it binds straight to a <select>.
+      cfg: { groups: [], rules: [], providers: [], baseYAML: "" },
+    };
+  },
+  computed: {
+    // Every inbound across the fleet, as picker options. label = "<node>-<inbound>"
+    // (the mihomo proxy name); id is node_inbounds.id.
+    inboundOptions() {
+      const out = [];
+      for (const n of this.nodes) {
+        for (const i of (n.inbounds || [])) {
+          out.push({ id: i.id, label: n.name + "-" + i.name, port: i.port });
+        }
+      }
+      return out;
+    },
+    providerNames() { return this.cfg.providers.map((p) => p.name).filter(Boolean); },
+    // The provider the edit modal edits (same object ref → edits
+    // flow straight back into cfg.providers).
+    editProv() { return this.cfg.providers[this.provForm.idx] || null; },
+    // Inline validation hints for the routing config.
+    cfgWarnings() {
+      const w = [];
+      const matches = this.cfg.rules.filter((r) => r.type === "MATCH");
+      if (!matches.length) w.push("Нет правила MATCH — добавьте catch-all в конце.");
+      else if (this.cfg.rules[this.cfg.rules.length - 1].type !== "MATCH") w.push("Правило MATCH должно быть последним.");
+      const provs = new Set(this.providerNames);
+      for (const r of this.cfg.rules) {
+        if (r.type === "RULE-SET" && r.value && !provs.has(r.value)) w.push("RULE-SET ссылается на несуществующего провайдера: " + r.value);
+      }
+      const uids = new Set(this.cfg.groups.map((g) => g._uid));
+      const dangling = (pref) => pref.startsWith("group:") && !uids.has(+pref.slice(6));
+      if (this.cfg.rules.some((r) => dangling(r.pref)) || this.cfg.groups.some((g) => g.members.some((m) => dangling(m.pref))))
+        w.push("Есть ссылка на удалённую группу.");
+      return w;
+    },
+  },
+  methods: {
+    uid() { return ++this._uidc; },
+
+    go(tab) { this.tab = tab; this.load(tab); },
+    async load(tab) {
+      try {
+        if (tab === "users") {
+          await this.loadNodes();
+          this.users = (await this.getJSON("/admin/api/users")).users || [];
+        } else if (tab === "nodes") {
+          await this.loadNodes();
+        } else if (tab === "config") {
+          await this.loadNodes(); // inbound options for the policy pickers
+          if (!this.schema) this.schema = await this.getJSON("/admin/api/config/mihomo/schema");
+          this.loadConfig(await this.getJSON("/admin/api/config/mihomo"));
+        }
+      } catch (e) { this.toast(false, "Загрузка: " + e); }
+    },
+    async loadNodes() { this.nodes = (await this.getJSON("/admin/api/nodes")).nodes || []; },
+
+    // ---- config: load / encode -------------------------------------------------
+    loadConfig(c) {
+      const groups = (c.groups || []).map((g) => ({
+        _uid: this.uid(), name: g.name, type: g.type, url: g.url || "",
+        interval: g.interval || 0, tolerance: g.tolerance || 0, lazy: !!g.lazy, members: [],
+      }));
+      const gUid = groups.map((g) => g._uid); // returned index -> uid
+      (c.groups || []).forEach((g, gi) => {
+        groups[gi].members = (g.members || []).map((m) => ({ _uid: this.uid(), pref: this.refToPref(m, gUid) }));
+      });
+      this.cfg.groups = groups;
+      this.cfg.rules = (c.rules || []).map((r) => ({
+        _uid: this.uid(), type: r.type, value: r.value || "", noResolve: !!r.noResolve, pref: this.refToPref(r.target, gUid),
+      }));
+      this.cfg.providers = c.providers || [];
+      this.cfg.baseYAML = c.baseYAML || "";
+    },
+    // refToPref encodes an API PolicyRef ({kind,inboundId,groupIdx}) into the select
+    // string; a group ref is stored by the referenced group's stable uid.
+    refToPref(ref, gUid) {
+      if (!ref) return "direct";
+      if (ref.kind === "inbound") return "inbound:" + ref.inboundId;
+      if (ref.kind === "group") return "group:" + gUid[ref.groupIdx];
+      return ref.kind;
+    },
+    // prefToRef turns a select string into the JSON PolicyRef the backend expects
+    // (a group ref becomes the group's current array index).
+    prefToRef(pref, uidToIdx) {
+      if (pref.startsWith("inbound:")) return { kind: "inbound", inboundId: Number(pref.slice(8)) };
+      if (pref.startsWith("group:")) { const i = uidToIdx[+pref.slice(6)]; return { kind: "group", groupIdx: i === undefined ? null : i }; }
+      return { kind: pref };
+    },
+
+    // ---- config: editing -------------------------------------------------------
+    addGroup() { this.cfg.groups.push({ _uid: this.uid(), name: "", type: "select", url: "", interval: 0, tolerance: 0, lazy: false, members: [{ _uid: this.uid(), pref: "direct" }] }); },
+    delGroup(i) { this.cfg.groups.splice(i, 1); },
+    addMember(g) { g.members.push({ _uid: this.uid(), pref: "direct" }); },
+    delMember(g, i) { g.members.splice(i, 1); },
+    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", noResolve: false, pref: "direct" }); },
+    delRule(i) { this.cfg.rules.splice(i, 1); },
+    addProvider() { this.cfg.providers.push({ name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
+    openProvider(i) { this.provForm = { open: true, idx: i }; },
+    // checkProvider probes the provider URL via the backend (reachable / file present /
+    // right format) and toasts the outcome. Saves nothing; a per-row _checking flag
+    // drives the inline spinner.
+    async checkProvider(p) {
+      if (!p.url) { this.toast(false, "Сначала укажите URL у провайдера"); return; }
+      p._checking = true;
+      try {
+        const r = await fetch("/admin/api/config/mihomo/provider/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ url: p.url, format: p.format }),
+        });
+        if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); return; }
+        const d = await r.json();
+        this.toast(!!d.ok, d.ok ? d.msg : (d.err || "Ошибка проверки"));
+      } catch (e) { this.toast(false, "Сеть: " + e); }
+      finally { p._checking = false; }
+    },
+    reorder(arr, oldIndex, newIndex) { const [m] = arr.splice(oldIndex, 1); arr.splice(newIndex, 0, m); },
+
+    // schema lookups — the config UI is driven entirely by the backend schema.
+    ruleInfo(t) { return (this.schema?.rules?.types || []).find((r) => r.type === t); },
+    groupInfo(t) { return (this.schema?.proxyGroup?.types || []).find((g) => g.type === t); },
+    isMatch(t) { return !!this.ruleInfo(t)?.isMatch; },
+    isRuleSet(t) { return !!this.ruleInfo(t)?.takesProvider; },
+    supportsNoResolve(t) { return !!this.ruleInfo(t)?.supportsNoResolve; },
+    groupHealthCheck(t) { return !!this.groupInfo(t)?.usesHealthCheck; },
+    groupTolerance(t) { return !!this.groupInfo(t)?.usesTolerance; },
+    // which reference categories a rule target / group member may point at.
+    ruleDestinations(t) { return this.ruleInfo(t)?.destinations || []; },
+    groupItems(t) { return this.groupInfo(t)?.items || []; },
+
+    async saveConfig() {
+      const uidToIdx = {};
+      this.cfg.groups.forEach((g, i) => { uidToIdx[g._uid] = i; });
+
+      const groups = this.cfg.groups.map((g) => ({
+        name: g.name, type: g.type, url: g.url || "",
+        interval: g.interval || 0, tolerance: g.tolerance || 0, lazy: !!g.lazy,
+        members: g.members.map((m) => this.prefToRef(m.pref, uidToIdx)),
+      }));
+
+      const rules = this.cfg.rules.map((r) => ({
+        type: r.type,
+        value: this.isMatch(r.type) ? "" : (r.value || ""),
+        noResolve: !this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve,
+        target: this.prefToRef(r.pref, uidToIdx),
+      }));
+
+      const providers = this.cfg.providers.map((p) => ({
+        name: p.name, behavior: p.behavior || "", format: p.format || "",
+        url: p.url || "", interval: p.interval || 0,
+        mirror: !!p.mirror, mirrorInterval: p.mirror ? (p.mirrorInterval || 0) : 0,
+      }));
+
+      await this.post("/admin/api/config/mihomo/save", { baseYAML: this.cfg.baseYAML, groups, rules, providers });
+    },
+
+    // ---- http / ui -------------------------------------------------------------
+    async getJSON(url) {
+      const r = await fetch(url, { headers: { Accept: "application/json" } });
+      if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); throw new Error("auth"); }
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    },
+    async post(url, body) {
+      this.busy = true;
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        this.toast(!!d.ok, d.ok ? d.msg : (d.err || "Ошибка"));
+        return d;
+      } catch (e) { this.toast(false, "Сеть: " + e); return { ok: false }; }
+      finally { this.busy = false; }
+    },
+    toast(ok, msg) {
+      const id = ++this._tid;
+      this.toasts.push({ id, ok, msg });
+      setTimeout(() => { this.toasts = this.toasts.filter((t) => t.id !== id); }, ok ? 2800 : 6000);
+    },
+    copy(text) {
+      navigator.clipboard.writeText(text).then(
+        () => this.toast(true, "Скопировано"),
+        () => this.toast(false, "Не удалось скопировать"),
+      );
+    },
+    hsize(b) {
+      b = b || 0;
+      if (b < 1024) return b + " B";
+      const u = ["KB", "MB", "GB", "TB", "PB"];
+      let i = -1;
+      do { b /= 1024; i++; } while (b >= 1024 && i < u.length - 1);
+      return b.toFixed(1) + " " + u[i];
+    },
+
+    // ---- users --------------------------------------------------------------
+    openCreateUser() { this.uForm = { open: true, id: 0, name: "", inbounds: [] }; },
+    openEdit(u) {
+      this.uForm = { open: true, id: u.id, name: u.name, inbounds: (u.inbounds || []).map((i) => i.id) };
+    },
+    async submitUser() {
+      const f = this.uForm;
+      const url = f.id ? "/admin/api/users/edit" : "/admin/api/users/create";
+      const params = { inboundIDs: f.inbounds };
+      if (f.id) params.id = f.id; else params.name = f.name;
+      const d = await this.post(url, params);
+      if (d.ok) { this.uForm.open = false; this.load("users"); }
+    },
+    async deleteUser(u) {
+      if (!confirm("Удалить " + u.name + "?")) return;
+      this.actingId = u.id;
+      try { const d = await this.post("/admin/api/users/delete", { id: u.id }); if (d.ok) await this.load("users"); }
+      finally { this.actingId = 0; }
+    },
+    async recreateUser(u) {
+      this.actingId = u.id;
+      try { const d = await this.post("/admin/api/users/recreate", { id: u.id }); if (d.ok) await this.load("users"); }
+      finally { this.actingId = 0; }
+    },
+
+    // ---- nodes --------------------------------------------------------------
+    openCreateNode() { this.nodeForm = { open: true, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [{ id: 0, name: "", port: "" }] }; },
+    openNode(n) {
+      this.nodeForm = {
+        open: true, id: n.id, name: n.name, vpnHost: n.vpnHost, panelBaseURL: n.panelBaseURL,
+        panelBasePath: n.panelBasePath, token: "",
+        inbounds: (n.inbounds || []).map((i) => ({ id: i.id, name: i.name, port: i.port })),
+      };
+    },
+    addInbound() { this.nodeForm.inbounds.push({ id: 0, name: "", port: "" }); },
+    async saveNode() {
+      const f = this.nodeForm;
+      const inbounds = f.inbounds
+        .filter((inb) => inb.port)
+        .map((inb) => ({ id: inb.id || 0, name: inb.name, port: Number(inb.port) }));
+      const d = await this.post("/admin/api/nodes/save", {
+        id: f.id || 0, name: f.name, vpnHost: f.vpnHost, panelBaseURL: f.panelBaseURL,
+        panelBasePath: f.panelBasePath, token: f.token, inbounds,
+      });
+      if (d.ok) { this.nodeForm.open = false; this.load("nodes"); }
+    },
+    async deleteNode(n) {
+      if (!confirm("Удалить узел " + n.name + "?")) return;
+      const d = await this.post("/admin/api/nodes/delete", { id: n.id });
+      if (d.ok) this.load("nodes");
+    },
+
+    closeModals() { this.uForm.open = false; this.nodeForm.open = false; },
+  },
+  mounted() {
+    this.load("users");
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape") this.closeModals(); });
+  },
+});
+
+// v-sortable: drag-to-reorder a list via SortableJS. Pass {handle, item, end} where
+// end(oldIndex, newIndex) reorders the backing array. Stable :key per item keeps Vue
+// and Sortable in sync (Sortable moves the DOM, the array splice mirrors it).
+app.directive("sortable", {
+  mounted(el, binding) {
+    const o = binding.value || {};
+    el._sortable = Sortable.create(el, {
+      handle: o.handle || ".drag", draggable: o.item || ".s-item", animation: 150,
+      onEnd(e) { if (e.oldIndex !== e.newIndex && o.end) o.end(e.oldIndex, e.newIndex); },
+    });
+  },
+  unmounted(el) { if (el._sortable) el._sortable.destroy(); },
+});
+
+// policy-picker: a <select> choosing a routing target / group member. It renders ONLY
+// the reference categories the schema allows for this context (`allowed`): actions
+// (built-in policies), inbounds (every fleet inbound), and other groups — nothing about
+// the taxonomy is hardcoded here. v-model is the encoded `pref` string
+// (<kind> / inbound:<id> / group:<uid>).
+app.component("policy-picker", {
+  props: { modelValue: String, allowed: Array, actions: Array, inbounds: Array, groups: Array },
+  emits: ["update:modelValue"],
+  methods: { has(cat) { return (this.allowed || []).includes(cat); } },
+  template: `
+    <select class="form-select form-select-sm" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
+      <optgroup label="Действия" v-if="has('actions')">
+        <option v-for="a in actions" :key="a.kind" :value="a.kind">{{ a.label }}</option>
+      </optgroup>
+      <optgroup label="Инбаунды" v-if="has('inbounds')">
+        <option v-for="f in inbounds" :key="f.id" :value="'inbound:'+f.id">{{ f.label }}</option>
+      </optgroup>
+      <optgroup label="Группы" v-if="has('groups') && groups.length">
+        <option v-for="(g,i) in groups" :key="g._uid" :value="'group:'+g._uid">{{ g.name || ('группа '+(i+1)) }}</option>
+      </optgroup>
+    </select>`,
+});
+
+// duration-input: a human-friendly TTL field over a seconds integer. Renders a number
+// + a unit (sec/min/hour/day); v-model is always seconds. On load it decomposes the
+// seconds into the largest exact unit; a _self guard skips the echo so typing in one
+// unit isn't snapped to another.
+app.component("duration-input", {
+  props: { modelValue: { type: Number, default: 0 } },
+  emits: ["update:modelValue"],
+  data() { return { num: 0, unit: 1, _self: null }; },
+  watch: { modelValue: { immediate: true, handler(v) { if (v !== this._self) this.sync(v || 0); } } },
+  methods: {
+    sync(secs) {
+      let u = 1;
+      for (const k of [86400, 3600, 60]) { if (secs !== 0 && secs % k === 0) { u = k; break; } }
+      this.unit = u;
+      this.num = secs / u;
+    },
+    emit() {
+      const v = Math.max(0, Math.round(this.num || 0)) * this.unit;
+      this._self = v;
+      this.$emit("update:modelValue", v);
+    },
+  },
+  template: `
+    <div class="dur-input">
+      <input class="form-control" type="number" min="0" v-model.number="num" @input="emit">
+      <select class="form-select" v-model.number="unit" @change="emit">
+        <option :value="1">сек</option>
+        <option :value="60">мин</option>
+        <option :value="3600">час</option>
+        <option :value="86400">дн</option>
+      </select>
+    </div>`,
+});
+
+// Reusable modal: backdrop + card with a header/body/footer slot, fade+lift
+// transition, click-outside / ✕ to close (the parent owns the `open` flag).
+app.component("modal", {
+  props: { open: Boolean, title: String, lg: Boolean },
+  emits: ["close"],
+  template: `
+    <transition name="modal">
+      <div v-if="open" class="modal-backdrop-custom" @click.self="$emit('close')">
+        <div class="modal-card" :class="{lg}" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <h5>{{ title }}</h5>
+            <button class="icon-btn" @click="$emit('close')" aria-label="Закрыть">✕</button>
+          </div>
+          <div class="modal-body"><slot></slot></div>
+          <div class="modal-foot"><slot name="footer"></slot></div>
+        </div>
+      </div>
+    </transition>`,
+});
+
+// loadMonaco lazily boots the Monaco editor from the CDN via its AMD loader (already
+// on the page) and resolves the global `monaco`. Memoised so every yaml-editor instance
+// shares one load. Workers are shimmed through a data: URL that re-points Monaco's base
+// at the CDN (the usual cross-origin self-hosting dance).
+const MONACO_CDN = "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min";
+let _monacoPromise = null;
+function loadMonaco() {
+  if (_monacoPromise) return _monacoPromise;
+  _monacoPromise = new Promise((resolve, reject) => {
+    window.MonacoEnvironment = {
+      getWorkerUrl() {
+        return "data:text/javascript;charset=utf-8," + encodeURIComponent(
+          "self.MonacoEnvironment={baseUrl:'" + MONACO_CDN + "/'};" +
+          "importScripts('" + MONACO_CDN + "/vs/base/worker/workerMain.js');",
+        );
+      },
+    };
+    window.require.config({ paths: { vs: MONACO_CDN + "/vs" } });
+    window.require(["vs/editor/editor.main"], () => resolve(window.monaco), reject);
+  });
+  return _monacoPromise;
+}
+
+// defineSubgenTheme registers (once) a dark Monaco theme tuned to the subgen palette.
+function defineSubgenTheme(monaco) {
+  if (monaco.editor.__subgenTheme) return;
+  monaco.editor.__subgenTheme = true;
+  monaco.editor.defineTheme("subgen-dark", {
+    base: "vs-dark", inherit: true,
+    rules: [
+      { token: "comment", foreground: "5b6473", fontStyle: "italic" },
+      { token: "type", foreground: "7fcdf0" },     // mapping keys
+      { token: "string", foreground: "9ece6a" },
+      { token: "string.yaml", foreground: "9ece6a" },
+      { token: "number", foreground: "f7b955" },
+      { token: "keyword", foreground: "bb9af7" },   // true/false/null
+      { token: "tag", foreground: "f7768e" },       // anchors / tags
+      { token: "operators", foreground: "737f8d" },
+    ],
+    colors: {
+      "editor.background": "#23252b",
+      "editor.foreground": "#d9d9d9",
+      "editorLineNumber.foreground": "#5a5c63",
+      "editorLineNumber.activeForeground": "#d9d9d9",
+      "editor.lineHighlightBackground": "#ffffff08",
+      "editor.lineHighlightBorder": "#00000000",
+      "editorCursor.foreground": "#3c89e8",
+      "editor.selectionBackground": "#1668dc55",
+      "editor.inactiveSelectionBackground": "#1668dc30",
+      "editorIndentGuide.background1": "#34363d",
+      "editorIndentGuide.activeBackground1": "#45474f",
+      "editorBracketMatch.background": "#1668dc33",
+      "editorBracketMatch.border": "#1668dc80",
+      "scrollbarSlider.background": "#ffffff20",
+      "scrollbarSlider.hoverBackground": "#ffffff30",
+      "scrollbarSlider.activeBackground": "#ffffff40",
+      "editorError.foreground": "#dc4446",
+    },
+  });
+}
+
+// yaml-editor: the base-YAML field, backed by Monaco. Built-in YAML colorisation,
+// current-line highlight and 2-space indentation; live validation runs js-yaml on a
+// debounce and feeds error markers (squiggle + hover) plus a status line. v-model is
+// the text. Monaco loads from the CDN on mount and is disposed on unmount.
+app.component("yaml-editor", {
+  props: { modelValue: { type: String, default: "" } },
+  emits: ["update:modelValue"],
+  data() { return { err: null, ready: false, _t: 0 }; },
+  async mounted() {
+    const monaco = await loadMonaco();
+    if (this._gone) return; // unmounted while the CDN was loading
+    this._monaco = monaco;
+    defineSubgenTheme(monaco);
+    this._ed = monaco.editor.create(this.$refs.host, {
+      value: this.modelValue || "",
+      language: "yaml",
+      theme: "subgen-dark",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      tabSize: 2, insertSpaces: true, detectIndentation: false,
+      fontSize: 13, lineHeight: 20,
+      fontFamily: "ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace",
+      renderLineHighlight: "all", scrollBeyondLastLine: false, smoothScrolling: true,
+      lineNumbersMinChars: 3, glyphMargin: false, folding: true, wordWrap: "off",
+      padding: { top: 8, bottom: 8 }, fixedOverflowWidgets: true,
+      scrollbar: { verticalScrollbarSize: 12, horizontalScrollbarSize: 12, useShadows: false },
+    });
+    this.ready = true;
+    this._ed.onDidChangeModelContent(() => {
+      const v = this._ed.getValue();
+      this.$emit("update:modelValue", v);
+      this.schedule(v);
+    });
+    this.validate(this.modelValue || "");
+  },
+  beforeUnmount() {
+    this._gone = true;
+    clearTimeout(this._t);
+    if (this._ed) this._ed.dispose();
+  },
+  watch: {
+    // keep Monaco in sync when the model is replaced from outside (e.g. config reload),
+    // without clobbering the caret during normal typing (guarded by value equality).
+    modelValue(v) { if (this._ed && v !== this._ed.getValue()) this._ed.setValue(v || ""); },
+  },
+  methods: {
+    schedule(v) { clearTimeout(this._t); this._t = setTimeout(() => this.validate(v), 250); },
+    validate(v) {
+      const monaco = this._monaco, model = this._ed && this._ed.getModel();
+      if (!monaco || !model) return;
+      const txt = v || "";
+      if (!txt.trim()) { this.err = null; monaco.editor.setModelMarkers(model, "yaml", []); return; }
+      try {
+        jsyaml.load(txt);
+        this.err = null;
+        monaco.editor.setModelMarkers(model, "yaml", []);
+      } catch (ex) {
+        const m = ex.mark || {};
+        const line = (m.line || 0) + 1, col = (m.column || 0) + 1;
+        this.err = { line, col, msg: ex.reason || ex.message };
+        monaco.editor.setModelMarkers(model, "yaml", [{
+          severity: monaco.MarkerSeverity.Error,
+          message: ex.reason || ex.message,
+          startLineNumber: line, startColumn: col, endLineNumber: line, endColumn: col + 1,
+        }]);
+      }
+    },
+    gotoErr() {
+      if (!this.err || !this._ed) return;
+      this._ed.revealLineInCenter(this.err.line);
+      this._ed.setPosition({ lineNumber: this.err.line, column: this.err.col });
+      this._ed.focus();
+    },
+  },
+  template: `
+    <div class="ye">
+      <div class="ye-mon" ref="host"><span v-if="!ready" class="ye-loading">загрузка редактора…</span></div>
+      <div class="ye-status" :class="err ? 'is-err' : ''" @click="gotoErr">
+        <template v-if="err"><span class="ye-dot"></span>строка {{ err.line }}:{{ err.col }} — {{ err.msg }}</template>
+      </div>
+    </div>`,
+});
+
+app.mount("#app");

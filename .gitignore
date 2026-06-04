@@ -1,0 +1,34 @@
+# subgen — build artifacts, secrets, operational data (junk only).
+
+# Compiled binary (`go build` with no -o lands here)
+/subgen
+
+# Secrets — .env lives here; .env.example stays tracked
+*.env
+
+# Rendered per-client configs contain real UUIDs/keys — never commit
+examples/*.local.yaml
+
+# SQLite store + any stray test dbs
+db/
+*.db
+
+# Go coverage output
+coverage.out
+*.coverprofile
+
+# Go workspace (local, per-machine)
+go.work
+go.work.sum
+
+# IDE / editor project config
+.idea/
+.vscode/
+
+# OS / editor noise
+.DS_Store
+._*
+*.swp
+*.swo
+*~
+*.log

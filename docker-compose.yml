@@ -1,0 +1,24 @@
+# subgen via Docker. Bootstrap config from .env (same file as the systemd deploy);
+# operational data persisted in the ./db bind mount.
+#
+# In .env set SUBGEN_LISTEN=0.0.0.0:2097 so the process listens inside the
+# container. For TLS, point SUBGEN_TLS_CERT/KEY at paths under /certs and mount the
+# cert dir read-only (see the commented volume below).
+#
+# The ./db host dir must be writable by the image's nonroot user (uid 65532):
+#   mkdir -p db && sudo chown -R 65532:65532 db
+# To migrate from the systemd deploy, copy the existing db/subgen.db into
+# ./db first.
+
+services:
+  subgen:
+    build: .
+    image: subgen:latest
+    container_name: subgen
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "2097:2097"
+    volumes:
+      - ./db:/app/db
+      # - /root/cert:/certs:ro   # if SUBGEN_TLS_CERT/KEY live under /certs

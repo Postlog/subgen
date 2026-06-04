@@ -1,0 +1,18 @@
+# Two clean 3x-ui 3.2.6 panels for subgen API tests. Each `up` (after `down`)
+# starts fresh containers: the db under /etc/x-ui is in-image, so a fresh
+# container = fresh panel with a freshly auto-generated apiToken (admin/admin,
+# port 2053, base path "/"). The test suite fetches the token and creates the
+# inbounds it needs. Bound to localhost only.
+services:
+  panel1:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    container_name: subgen-apitest-panel1
+    ports:
+      - "127.0.0.1:13053:2053"
+    restart: "no"
+  panel2:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    container_name: subgen-apitest-panel2
+    ports:
+      - "127.0.0.1:13054:2053"
+    restart: "no"

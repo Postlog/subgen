@@ -1,8 +1,13 @@
 # subgen
 
 Per-client **mihomo (Clash.Meta) subscription server**. It renders a full mihomo
-YAML config per subscriber and serves it at `/sub/{token}`, and ships a small admin
+YAML config per subscriber and serves it at `/sub/{kind}/{token}`, and ships a small admin
 panel for managing nodes, the mihomo config (proxy-groups + routing rules) and users.
+
+There is one shared **base** config plus optional **per-user custom configs** (a full
+snapshot of the base that the operator then edits freely); a subscriber is served their
+custom config when one exists, else the base. The engine is a URL segment (`{kind}`,
+`mihomo` today) so the same token can serve other formats later (xray/sing-box).
 
 It exists because 3x-ui's built-in Clash subscription only emits a flat `proxies`
 list — no proxy-groups, rules or rule-providers — so it can't express the routing
@@ -15,12 +20,13 @@ Two clean halves:
 - **Bootstrap** (listener, TLS, secret, admin creds, db path) → environment
   variables, loaded from a local [`.env`](.env.example) file. Nothing secret in git.
 - **Operational data** (nodes/panels, proxy-groups, routing rules, rule-providers,
-  the base YAML, users) → the **SQLite store** (`db/subgen.db`), edited entirely
-  through the admin panel at `/admin`. A fresh store starts **empty** — the operator
-  fills in everything through the panel. No defaults are seeded. Inside the one file
-  the tables are split logically: mihomo-config tables are prefixed `mihomo_`,
-  subgen-admin tables (nodes/inbounds/users) are not (SQLite has no in-file schemas
-  and FKs can't cross attached DBs, so a single file keeps the inbound↔rule/member
+  the base YAML, users, per-user custom configs) → the **SQLite store** (`db/subgen.db`),
+  edited entirely through the admin panel at `/admin`. A fresh store starts **empty** —
+  the operator fills in everything through the panel. No defaults are seeded. Inside the
+  one file the tables are split logically: the config-ownership anchor is
+  `subscription_configs`, mihomo-config tables are prefixed `mihomo_` (scoped by
+  `config_id`), subgen-admin tables (nodes/inbounds/users) are not (SQLite has no in-file
+  schemas and FKs can't cross attached DBs, so a single file keeps the inbound↔rule/member
   FKs intact).
 
 There is no `routing.yaml` anymore — it was split into the two halves above.
@@ -43,6 +49,22 @@ At render time each ref is resolved for the subscriber; an `inbound` ref the sub
 lacks is **dropped** (from rules and from group members), and a group left empty
 falls back to `DIRECT`, so the config always stays referentially intact and
 auto-scales as nodes/inbounds are added.
+
+## Per-user custom configs
+
+By default every subscriber renders from the shared **base** config. The **Конфиг
+Mihomo** tab has a scope selector (**Пользователи: Все** = base, or a specific user);
+**Добавить кастомный конфиг…** clones the base into an independent **custom config**
+bound to that user, which you then edit like any other config. It is a **snapshot** —
+later base edits do not propagate to existing custom configs. **Удалить** drops the
+custom config and the user falls back to the base.
+
+Ownership lives in a small engine-agnostic anchor table `subscription_configs`
+(`user_id NULL` = base, one custom per user per engine); the `mihomo_*` content tables
+are scoped to it by `config_id`. On a `/sub/{kind}/{token}` request subgen resolves the
+token → user → their custom config for that engine, else the base. Engine selection is
+a per-`kind` renderer registry (mihomo today) — adding xray/sing-box is a new renderer
++ content tables on the same anchor.
 
 ## Run locally
 
@@ -127,7 +149,7 @@ beefier host, you can drop the build/ship steps and switch to server-side
 ```
 node registry (SQLite)  +  3x-ui /panel/api/inbounds/list  ->  BuildFleet  ->  render mihomo YAML
         (Bearer token)                                                            |
-client GET /sub/{token}  --(token=HMAC(secret,subId))-->  resolve subId  ---------+--> YAML + headers
+client GET /sub/{kind}/{token} --(token=HMAC(secret,subId))-->  resolve subId  ---------+--> YAML + headers
 ```
 
 - Panels (3x-ui >= 3.2) are read with `Authorization: Bearer <token>` — no login/CSRF.
@@ -142,6 +164,7 @@ client GET /sub/{token}  --(token=HMAC(secret,subId))-->  resolve subId  -------
 cmd/service/            composition root: load config, wire services, gorilla/mux router, TLS, shutdown
 cmd/subctl/             CLI utility: -dump-fleet / -print <subId>
 migrations/init.sql     SQLite schema (embedded, applied on open)
+migrations/*.manual.sql one-off hand-run migrations (NOT auto-applied; e.g. per_user_configs)
 internal/entity/        kernel domain types + sentinel errors (User, Node, Inbound,
                         Fleet, Subscriber, Proxy, …)
 internal/mihomo/        mihomo-config subdomain: schema (RoutingRule, ProxyGroup, PolicyRef,
@@ -149,7 +172,8 @@ internal/mihomo/        mihomo-config subdomain: schema (RoutingRule, ProxyGroup
 internal/mihomo/render/ mihomo YAML generation (proxies, proxy-groups, rules; per-subscriber PolicyRef resolver)
 internal/config/        .env bootstrap load (env tags) + validation
 internal/clients/xui/   3x-ui API client (stateless; panel passed per call; one method per file)
-internal/repository/    SQLite: Open() -> *sql.DB; users/ nodes/ routing/ (per-entity, one method per file)
+internal/repository/    SQLite: Open() -> *sql.DB; users/ nodes/ routing/ configs/ (per-entity, one method per file)
+                        configs/ is the engine-agnostic config-ownership anchor (base vs per-user custom)
 internal/service/fleet/        fetch panels + BuildFleet + narrow TTL cache (stale-on-error)
 internal/service/ruleset/      background mirror of rule-provider files
 internal/service/provisioning/ user create/edit/delete/recreate + panel reconcile

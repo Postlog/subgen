@@ -7,7 +7,7 @@
 Это честный чёрный ящик: тест собирает бинарь subgen (`go build`), запускает его
 **отдельным процессом** (временная SQLite-БД, тестовые админ-креды, свободный
 loopback-порт, plain HTTP), логинится и дёргает реальные эндпоинты
-(`/admin/api/...`, `/sub/{token}`, `/rules/{file}`, `/healthz`). Никакого доступа к
+(`/admin/api/...`, `/sub/{kind}/{token}`, `/rules/{file}`, `/healthz`). Никакого доступа к
 сервисам/репозиториям изнутри — единственный вход тот же API, что у оператора и SPA.
 Так ловятся именно те баги, что unit-тесты поймать не могут (семантика `del/:email`,
 multi-inbound клиент, поведение хендлеров и envelope `{ok,…}`, точный текст ошибок и т.п.).
@@ -20,8 +20,9 @@ apitest/api/        — общий support-пакет (НЕ _test, под тег
 apitest/auth/       — POST/GET /admin/login, /admin/logout, гейт сессии, статика+SPA-shell.
 apitest/users/      — /admin/api/users/{create,edit,delete,recreate} + GET /admin/api/users.
 apitest/nodes/      — /admin/api/nodes/{save,delete} + GET /admin/api/nodes.
-apitest/config/     — /admin/api/config/mihomo (read / schema / save / provider/check).
-apitest/sub/        — /healthz, /sub/{token}, /rules/{file}.
+apitest/config/     — /admin/api/config/mihomo (read / schema / save / provider/check;
+                      base vs per-user custom: customs / custom/create / custom/delete).
+apitest/sub/        — /healthz, /sub/{kind}/{token}, /rules/{file}.
 ```
 
 Каждый `apitest/<area>` — отдельный `*_test`-пакет, импортирующий `apitest/api`. Внутри —

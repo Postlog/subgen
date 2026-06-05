@@ -25,21 +25,24 @@ Two clean halves:
   (local dev).
 - **Operational data** → the **SQLite store** (`db/subgen.db`): the node
   registry, the mihomo **proxy-groups + routing rules**, rule-providers, the base
-  YAML, and the **user records**. All edited through `/admin`. A fresh store is
-  **empty** — no defaults are seeded; the operator fills in everything through the
-  panel. There is no `routing.yaml`. Inside the one file, tables are split logically:
+  YAML, the **user records**, and **per-user custom configs**. All edited through
+  `/admin`. A fresh store is **empty** — no defaults are seeded; the operator fills in
+  everything through the panel. There is no `routing.yaml`. Inside the one file, tables
+  are split logically: the config-ownership anchor is **`subscription_configs`**
+  (`user_id NULL` = the shared base; one custom row per user per engine `kind`);
   mihomo-config tables are prefixed **`mihomo_`** (`mihomo_proxy_groups`,
   `mihomo_proxy_group_members`, `mihomo_routing_rules`, `mihomo_rule_providers`,
-  `mihomo_settings`); subgen-admin tables (`nodes`, `node_inbounds`, `users`,
-  `user_connections`) are unprefixed. (SQLite has no in-file schemas, and FKs can't
-  cross attached databases — one file keeps the inbound↔rule/member FKs working.)
+  `mihomo_settings`) and are **scoped by `config_id`** (FK → `subscription_configs`);
+  subgen-admin tables (`nodes`, `node_inbounds`, `users`, `user_connections`) are
+  unprefixed. (SQLite has no in-file schemas, and FKs can't cross attached databases —
+  one file keeps the inbound↔rule/member FKs working.)
 
 ## Design
 
 ```
 node registry (SQLite)  +  3x-ui /panel/api/inbounds/list  ─►  BuildFleet  ─►  render mihomo YAML
                                                                               │
-client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve subId ───┴─►  YAML + headers
+client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  resolve subId ───┴─►  YAML + headers
 ```
 
 - **Source-of-truth split:** 3x-ui holds the raw Xray plumbing (inbounds, client
@@ -58,6 +61,16 @@ client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve s
   generated config is always referentially intact and auto-scales as nodes/inbounds
   are added. A proxy's wire-name is the inbound's **label** `<node>-<inbound>`
   (e.g. `🇷🇺 RU1-force`), unique across the fleet.
+- **Base + per-user custom configs:** there is one shared **base** config and, per
+  user, an optional **custom config** — a full **snapshot** of the base, cloned at
+  create time and then edited independently (later base edits do **not** propagate).
+  Ownership is an engine-agnostic anchor (`subscription_configs`: `user_id NULL` = base,
+  one custom per user per `kind`); the `mihomo_*` content is scoped by `config_id`, and
+  the save path replaces only the rows of the targeted config. On `/sub/{kind}/{token}`
+  subgen resolves token → user → their custom config for that engine, else the base.
+  The engine is a URL segment dispatched by a per-`kind` **renderer registry** (mihomo
+  today); adding xray/sing-box is a new renderer + `<engine>_*` content tables on the
+  same anchor — identity/ownership/admin-API don't change.
 - **Users are service-owned:** created in the panel (a unique nickname + any number
   of inbounds); subgen mints a `sub_id` and stores one
   `user_connections` row per chosen inbound. On each panel the user is **one
@@ -77,8 +90,12 @@ client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve s
   present? content matches the declared format? — `.mrs` is detected by the **zstd**
   frame magic `28 B5 2F FD` (an `.mrs` is a zstd container, so no zstd dependency is
   pulled in), `yaml` by a parsed `payload:` list, `text` by non-HTML UTF-8 rule lines.
-  **Manual prod migration** (no in-code migrations):
+  **Manual prod migrations** (no in-code migrations):
   `ALTER TABLE mihomo_rule_providers ADD COLUMN mirror_interval INTEGER NOT NULL DEFAULT 0;`
+  and, for per-user custom configs, the one-off rebuild script
+  `migrations/per_user_configs.manual.sql` (adds `subscription_configs`, scopes the
+  `mihomo_*` tables by `config_id`; run once on a pre-feature DB, back up first — it sets
+  `legacy_alter_table=ON` so the table rebuilds don't repoint FKs).
 - **Resilience:** fleet data is cached (`SUBGEN_CACHE_TTL`, default 5m) with
   stale-on-error; rule-provider files are mirrored from GitHub and served from
   `/rules/<name><ext>` (RU networks often can't reach GitHub). The xui client uses
@@ -93,9 +110,9 @@ client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve s
   legacy systemd unit is stopped/disabled.
 - **Edit routing/nodes/users:** all in the `/admin` panel (see below). A single
   Save on the Конфиг Mihomo page persists proxy-groups + rules + providers + base
-  YAML in one transaction; it takes effect on the next `/sub` request (the store is
-  read live). Node/user actions invalidate the fleet cache so proxies refresh
-  immediately.
+  YAML in one transaction, for the **selected scope** (the shared base, or a user's
+  custom config); it takes effect on the next `/sub` request (the store is read live).
+  Node/user actions invalidate the fleet cache so proxies refresh immediately.
 - **Edit bootstrap/secrets:** they live in the GitHub `prod` Environment
   (Secrets `SUBGEN_SECRET` + the admin login/password, Variables for host/domain/TLS
   paths) — change them there and re-run **Deploy**. Changing which rule-providers are
@@ -189,6 +206,16 @@ over the same TLS; session is a 12h HMAC-signed cookie. Three sections:
   all fleet inbounds, with labels), so the taxonomy isn't baked into the UI. The
   mihomo-config endpoints live under **`/admin/api/config/mihomo`** (read), `…/schema`,
   `…/save`.
+  - **Scope selector (base vs per-user custom):** a **Пользователи** dropdown at the
+    top of the page picks the edited config — **Все** (the shared base) or a specific
+    user's custom config; **Добавить кастомный конфиг…** opens a user picker and
+    **clones the base** into a new custom config bound to that user (a snapshot —
+    independent thereafter). A banner on a custom scope offers **Удалить** (drop it; the
+    user falls back to the base). Read/save carry the scope (`?user=<id>` /
+    `userId` in the save body); management is `…/customs` (list users with a custom
+    config), `…/custom/create`, `…/custom/delete`. The engine is the URL segment
+    (`/config/mihomo/…`), so other engines would mount parallel `/config/<engine>/…`
+    routes over the same `subscription_configs` anchor.
 
 The user form (a modal) lists **one checkbox per inbound** across all nodes (≥1),
 labelled by the inbound **label** `<node>-<inbound>`. Options render node
@@ -209,7 +236,7 @@ YAML editor (Monaco) loads from a CDN. Rotate the admin password by editing
 
 1. `/admin` → **Пользователи** → create (name + one or more inbounds) → **Копировать**
    the link, or read it from the row.
-2. Hand them `https://ru1.freedom.postlog.ru:2097/sub/<token>`.
+2. Hand them `https://ru1.freedom.postlog.ru:2097/sub/mihomo/<token>`.
 3. They add it as a subscription in ClashMi (see [clash-clients.md](https://github.com/Postlog/vpn-toolchain/blob/main/docs/clash-clients.md)).
 
 **Пересоздать** keeps the same `subId` (it only re-binds the panel clients), so

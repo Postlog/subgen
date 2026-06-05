@@ -88,7 +88,7 @@ Production deploy is a **manual GitHub Actions workflow**
 ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)): the image is built on
 the runner (the node is RAM-starved and can't), streamed to the server over SSH, and
 run with `docker compose`. Tests gate the deploy; bootstrap secrets are injected into
-the server-side `.env` from the `production` Environment.
+the server-side `.env` from the `prod` Environment.
 
 ```sh
 gh workflow run deploy.yml -f ref=main     # or: Actions → Deploy → Run workflow
@@ -101,7 +101,7 @@ deploys** — CD never touches it.
 
 **One-time setup** (operator):
 
-- **GitHub → Settings → Environments → `production`:**
+- **GitHub → Settings → Environments → `prod`:**
   - **Secrets:** `SUBGEN_SECRET`, `SUBGEN_ADMIN_USER`, `SUBGEN_ADMIN_PASSWORD` (the
     *live* values — don't rotate `SUBGEN_SECRET`, it would invalidate every subscription
     link; the admin login is treated as a credential too), `DEPLOY_SSH_KEY` (a dedicated

@@ -5,7 +5,7 @@ name: Deploy
 # The image is BUILT HERE on the runner (the node is RAM-starved and can't compile
 # modernc/sqlite), then streamed to the server over SSH (`docker save | ssh | docker
 # load`) and run with `docker compose up -d`. Bootstrap secrets are injected into the
-# server-side `.env` from the `production` Environment; operational data (panel
+# server-side `.env` from the `prod` Environment; operational data (panel
 # tokens, nodes, users) lives in the server's `db/` bind-mount and is never touched.
 #
 # Trigger: manual only (Actions → Deploy → Run workflow, or `gh workflow run deploy.yml`).
@@ -52,7 +52,7 @@ jobs:
     name: deploy
     needs: test
     runs-on: ubuntu-latest
-    environment: production # scopes the secrets/variables to this job
+    environment: prod # scopes the secrets/variables to this job
     env:
       HOST: ${{ vars.DEPLOY_HOST }}
       PORT: ${{ vars.DEPLOY_PORT }}

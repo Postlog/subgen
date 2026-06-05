@@ -96,7 +96,7 @@ client GET /sub/{token}  ──(token = HMAC(secret, subId))──►  resolve s
   YAML in one transaction; it takes effect on the next `/sub` request (the store is
   read live). Node/user actions invalidate the fleet cache so proxies refresh
   immediately.
-- **Edit bootstrap/secrets:** they live in the GitHub `production` Environment
+- **Edit bootstrap/secrets:** they live in the GitHub `prod` Environment
   (Secrets `SUBGEN_SECRET` + the admin login/password, Variables for host/domain/TLS
   paths) — change them there and re-run **Deploy**. Changing which rule-providers are
   mirrored also needs a restart (the mirror set is fixed at startup).

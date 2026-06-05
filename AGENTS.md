@@ -79,7 +79,7 @@ Docker (не systemd). Прод-деплой — ручной GitHub Actions wor
 (`.github/workflows/deploy.yml`, `workflow_dispatch`): образ собирается на runner'е (узел
 RAM-голодный — Go/реестр на узле не нужны), шлётся по SSH (`docker save | ssh | docker load`),
 `.env` рендерится из секретов Environment `production`, `docker compose up -d`. Подробности —
-`README.md` / `docs/subgen.md`. Legacy systemd-юнит (`systemd/`) выключен. SIGHUP-релоада нет —
+`README.md` / `docs/subgen.md`. Legacy systemd-деплой удалён (был `systemd/`). SIGHUP-релоада нет —
 конфиг течёт снизу вверх из стора на каждый запрос. **Миграции БД — только руками** (схема
 `CREATE … IF NOT EXISTS`).
 

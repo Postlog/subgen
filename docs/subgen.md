@@ -107,7 +107,7 @@ client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  res
 - **Where:** runs on RU1 as a **Docker container** from `~/subgen`
   (`docker-compose.yml` + `.env` shipped by the Deploy workflow, store bind-mounted
   from `db/`, TLS via the acme cert mounted read-only, public port `2097/tcp`). The
-  legacy systemd unit is stopped/disabled.
+  legacy systemd unit is stopped/disabled (its `systemd/` dir was removed from the repo).
 - **Edit routing/nodes/users:** all in the `/admin` panel (see below). A single
   Save on the Конфиг Mihomo page persists proxy-groups + rules + providers + base
   YAML in one transaction, for the **selected scope** (the shared base, or a user's

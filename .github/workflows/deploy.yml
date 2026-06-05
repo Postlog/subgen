@@ -32,15 +32,15 @@ jobs:
     name: gate (lint + unit + integration)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2 # pinned — matches .golangci.yaml (version "2")
       - name: unit tests (-race)
@@ -63,7 +63,7 @@ jobs:
       # NOT be tilde-expanded). known_hosts (pinned) is likewise at the default path.
       SSH: ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p ${{ vars.DEPLOY_PORT }} ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 

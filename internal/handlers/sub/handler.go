@@ -130,7 +130,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hdr.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", meta.Filename))
 	hdr.Set("Subscription-Userinfo", userinfo(sub.Up, sub.Down, sub.Total, sub.Expiry))
 
-	_, _ = w.Write(body)
+	_, _ = w.Write(body) //nolint:gosec // server-generated subscription bytes (engine YAML), not user HTML; served with an explicit Content-Type
 }
 
 // configID picks the config to render: a user's custom config for this engine when

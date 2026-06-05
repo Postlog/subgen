@@ -62,6 +62,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			body: matchOnly,
 			buildMocks: func(m *mocks) {
 				rules, groups, rps := wantSave()
+
 				m.configs.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), nil)
 				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(7), rules, groups, rps, "dns: {}").Return(targetErr)
 			},
@@ -72,6 +73,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			wantOK: true,
 			buildMocks: func(m *mocks) {
 				rules, groups, rps := wantSave()
+
 				m.configs.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), nil)
 				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(7), rules, groups, rps, "dns: {}").Return(nil)
 			},
@@ -82,6 +84,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			wantOK: true,
 			buildMocks: func(m *mocks) {
 				rules, groups, rps := wantSave()
+
 				m.configs.EXPECT().UserConfigID(gomock.Any(), int64(42), entity.ConfigKindMihomo).Return(int64(9), true, nil)
 				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(9), rules, groups, rps, "dns: {}").Return(nil)
 			},

@@ -40,13 +40,14 @@ func TestHandler_ServeHTTP(t *testing.T) {
 	}
 
 	t.Parallel()
+
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-
 			cfgs := NewMockconfigLister(ctrl)
 			usrs := NewMockuserLister(ctrl)
+
 			if tc.buildMocks != nil {
 				tc.buildMocks(cfgs, usrs)
 			}

@@ -43,6 +43,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 	}
 
 	t.Parallel()
+
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

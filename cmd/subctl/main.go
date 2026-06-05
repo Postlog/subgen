@@ -18,8 +18,10 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo/render"
 	"github.com/postlog/subgen/internal/repository"
+	"github.com/postlog/subgen/internal/repository/configs"
 	"github.com/postlog/subgen/internal/repository/nodes"
 	"github.com/postlog/subgen/internal/repository/routing"
+	"github.com/postlog/subgen/internal/repository/users"
 	"github.com/postlog/subgen/internal/service/fleet"
 	"github.com/postlog/subgen/internal/token"
 )
@@ -58,6 +60,8 @@ func run() error {
 
 	nodesRepo := nodes.New(db)
 	routingRepo := routing.New(db)
+	usersRepo := users.New(db)
+	configsRepo := configs.New(db, routingRepo)
 
 	fl, err := fleet.New(xui.New(), nodesRepo, cfg.CacheTTL).Fleet(ctx)
 	if err != nil {
@@ -65,7 +69,7 @@ func run() error {
 	}
 
 	if *printSub != "" {
-		return printOne(ctx, cfg, routingRepo, fl, *printSub)
+		return printOne(ctx, cfg, usersRepo, configsRepo, routingRepo, fl, *printSub)
 	}
 
 	base := strings.TrimRight(cfg.PublicBase, "/")
@@ -76,7 +80,7 @@ func run() error {
 		fmt.Printf("subId=%s emails=%v proxies=%d\n", id, sub.Emails, len(sub.Proxies))
 
 		if base != "" {
-			fmt.Printf("    url: %s/sub/%s\n", base, tok)
+			fmt.Printf("    url: %s/sub/mihomo/%s\n", base, tok)
 		}
 
 		for _, p := range sub.Proxies {
@@ -87,14 +91,20 @@ func run() error {
 	return nil
 }
 
-// printOne renders one subscriber's config to stdout.
-func printOne(ctx context.Context, cfg config.Config, routingRepo *routing.Repository, fl *entity.Fleet, subID string) error {
+// printOne renders one subscriber's config to stdout, resolving the user's custom
+// mihomo config when present (else the base) — mirroring the /sub handler.
+func printOne(ctx context.Context, cfg config.Config, usersRepo *users.Repository, configsRepo *configs.Repository, routingRepo *routing.Repository, fl *entity.Fleet, subID string) error {
 	sub := fl.Sub(subID)
 	if sub == nil {
 		return fmt.Errorf("subId %q not found", subID)
 	}
 
-	opts, err := renderOptions(ctx, cfg, routingRepo)
+	configID, err := resolveConfigID(ctx, usersRepo, configsRepo, subID)
+	if err != nil {
+		return fmt.Errorf("config scope: %w", err)
+	}
+
+	opts, err := renderOptions(ctx, cfg, routingRepo, configID)
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
@@ -109,23 +119,46 @@ func printOne(ctx context.Context, cfg config.Config, routingRepo *routing.Repos
 	return nil
 }
 
-func renderOptions(ctx context.Context, cfg config.Config, routingRepo *routing.Repository) (render.Options, error) {
-	rules, err := routingRepo.Rules(ctx)
+// resolveConfigID maps a subId to its render config id (custom config when present,
+// else base, else 0 for an empty config).
+func resolveConfigID(ctx context.Context, usersRepo *users.Repository, configsRepo *configs.Repository, subID string) (int64, error) {
+	userID, err := usersRepo.IDBySubID(ctx, subID)
+	if err != nil {
+		return 0, err
+	}
+
+	if id, ok, err := configsRepo.UserConfigID(ctx, userID, entity.ConfigKindMihomo); err != nil {
+		return 0, err
+	} else if ok {
+		return id, nil
+	}
+
+	if id, ok, err := configsRepo.BaseConfigID(ctx, entity.ConfigKindMihomo); err != nil {
+		return 0, err
+	} else if ok {
+		return id, nil
+	}
+
+	return 0, nil
+}
+
+func renderOptions(ctx context.Context, cfg config.Config, routingRepo *routing.Repository, configID int64) (render.Options, error) {
+	rules, err := routingRepo.Rules(ctx, configID)
 	if err != nil {
 		return render.Options{}, err
 	}
 
-	groups, err := routingRepo.ProxyGroups(ctx)
+	groups, err := routingRepo.ProxyGroups(ctx, configID)
 	if err != nil {
 		return render.Options{}, err
 	}
 
-	provs, err := routingRepo.RuleProviders(ctx)
+	provs, err := routingRepo.RuleProviders(ctx, configID)
 	if err != nil {
 		return render.Options{}, err
 	}
 
-	base, err := routingRepo.Setting(ctx, "base_yaml")
+	base, err := routingRepo.Setting(ctx, configID, "base_yaml")
 	if err != nil {
 		return render.Options{}, err
 	}

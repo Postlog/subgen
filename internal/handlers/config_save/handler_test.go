@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
@@ -23,6 +24,7 @@ func wantSave() (rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []m
 }
 
 type mocks struct {
+	configs *MockconfigResolver
 	routing *MockmihomoSaver
 }
 
@@ -60,7 +62,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			body: matchOnly,
 			buildMocks: func(m *mocks) {
 				rules, groups, rps := wantSave()
-				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), rules, groups, rps, "dns: {}").Return(targetErr)
+				m.configs.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), nil)
+				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(7), rules, groups, rps, "dns: {}").Return(targetErr)
 			},
 		},
 		{
@@ -69,7 +72,25 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			wantOK: true,
 			buildMocks: func(m *mocks) {
 				rules, groups, rps := wantSave()
-				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), rules, groups, rps, "dns: {}").Return(nil)
+				m.configs.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), nil)
+				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(7), rules, groups, rps, "dns: {}").Return(nil)
+			},
+		},
+		{
+			name:   "success.user_scope",
+			body:   `{"userId":42,"baseYAML":"dns: {}","rules":[{"type":"MATCH","target":{"kind":"direct"}}]}`,
+			wantOK: true,
+			buildMocks: func(m *mocks) {
+				rules, groups, rps := wantSave()
+				m.configs.EXPECT().UserConfigID(gomock.Any(), int64(42), entity.ConfigKindMihomo).Return(int64(9), true, nil)
+				m.routing.EXPECT().SaveMihomoConfig(gomock.Any(), int64(9), rules, groups, rps, "dns: {}").Return(nil)
+			},
+		},
+		{
+			name: "error.user_scope_missing",
+			body: `{"userId":42,"baseYAML":"dns: {}","rules":[{"type":"MATCH","target":{"kind":"direct"}}]}`,
+			buildMocks: func(m *mocks) {
+				m.configs.EXPECT().UserConfigID(gomock.Any(), int64(42), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
 		},
 	}
@@ -81,12 +102,12 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := &mocks{routing: NewMockmihomoSaver(ctrl)}
+			m := &mocks{configs: NewMockconfigResolver(ctrl), routing: NewMockmihomoSaver(ctrl)}
 			if tc.buildMocks != nil {
 				tc.buildMocks(m)
 			}
 
-			h := New(m.routing)
+			h := New(m.configs, m.routing)
 			req := httptest.NewRequest(http.MethodPost, "/admin/api/config/save", strings.NewReader(tc.body))
 
 			rec := httptest.NewRecorder()

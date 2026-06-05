@@ -23,7 +23,7 @@ func TestRepository_Rules(t *testing.T) {
 
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
-		got, err := routing.New(dbtest.OpenDB(t)).Rules(t.Context())
+		got, err := routing.New(dbtest.OpenDB(t)).Rules(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
@@ -33,6 +33,7 @@ func TestRepository_Rules(t *testing.T) {
 		db := dbtest.OpenDB(t)
 		seed := dbtest.SeedNode(t, nodes.New(db))
 		repo := routing.New(db)
+		cfg := dbtest.SeedConfig(t, db)
 
 		groups := []mihomo.ProxyGroup{
 			{Name: "g", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyDirect}}},
@@ -48,9 +49,9 @@ func TestRepository_Rules(t *testing.T) {
 			{Type: mihomo.RuleMatch,
 				Target: mihomo.PolicyRef{Kind: mihomo.PolicyReject}},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), rules, groups, nil, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, ""))
 
-		got, err := repo.Rules(t.Context())
+		got, err := repo.Rules(t.Context(), cfg)
 		require.NoError(t, err)
 		require.Len(t, got, 4)
 
@@ -75,7 +76,7 @@ func TestRepository_Rules(t *testing.T) {
 		assert.Nil(t, got[1].Target.GroupID)
 
 		// [2] group target: GroupID set to the persisted group id, InboundID nil.
-		groupsBack, err := repo.ProxyGroups(t.Context())
+		groupsBack, err := repo.ProxyGroups(t.Context(), cfg)
 		require.NoError(t, err)
 		require.Len(t, groupsBack, 1)
 		assert.Equal(t, mihomo.PolicyGroup, got[2].Target.Kind)

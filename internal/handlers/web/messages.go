@@ -18,6 +18,8 @@ const (
 	msgNoConnection      = "Выберите хотя бы одно подключение"
 	msgNodeNotFound      = "Узел не найден"
 	msgInboundNotFound   = "Указанный инбаунд не найден"
+	msgUserConfigExists  = "У пользователя уже есть кастомный конфиг"
+	msgUserConfigMissing = "У пользователя нет кастомного конфига"
 
 	// mihomo-config validation (decode/validate live in internal/mihomo).
 	msgGroupNameEmpty   = "Укажите название proxy-группы"
@@ -67,6 +69,10 @@ func UserMessage(err error) string {
 		return msgNodeNotFound
 	case errors.Is(err, entity.ErrInboundNotFound):
 		return msgInboundNotFound
+	case errors.Is(err, entity.ErrUserConfigExists):
+		return msgUserConfigExists
+	case errors.Is(err, entity.ErrUserConfigNotFound):
+		return msgUserConfigMissing
 	case errors.Is(err, mihomo.ErrGroupNameEmpty):
 		return msgGroupNameEmpty
 	case errors.Is(err, mihomo.ErrGroupNameTaken):

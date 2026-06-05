@@ -27,9 +27,13 @@ import (
 	"github.com/postlog/subgen/internal/cert"
 	"github.com/postlog/subgen/internal/clients/xui"
 	"github.com/postlog/subgen/internal/config"
+	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/config_api"
+	"github.com/postlog/subgen/internal/handlers/config_customs"
 	"github.com/postlog/subgen/internal/handlers/config_save"
 	"github.com/postlog/subgen/internal/handlers/config_schema"
+	"github.com/postlog/subgen/internal/handlers/custom_create"
+	"github.com/postlog/subgen/internal/handlers/custom_delete"
 	"github.com/postlog/subgen/internal/handlers/healthz"
 	"github.com/postlog/subgen/internal/handlers/login"
 	"github.com/postlog/subgen/internal/handlers/logout"
@@ -46,6 +50,7 @@ import (
 	"github.com/postlog/subgen/internal/handlers/users_api"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/repository"
+	"github.com/postlog/subgen/internal/repository/configs"
 	"github.com/postlog/subgen/internal/repository/nodes"
 	"github.com/postlog/subgen/internal/repository/routing"
 	"github.com/postlog/subgen/internal/repository/users"
@@ -88,8 +93,10 @@ func run() error {
 	usersRepo := users.New(db)
 	nodesRepo := nodes.New(db)
 	routingRepo := routing.New(db)
+	configsRepo := configs.New(db, routingRepo)
 
-	provs, err := routingRepo.RuleProviders(ctx)
+	// The mirror serves rule-provider files referenced by any config (base + custom).
+	provs, err := routingRepo.AllRuleProviders(ctx)
 	if err != nil {
 		return fmt.Errorf("rule providers: %w", err)
 	}
@@ -102,7 +109,7 @@ func run() error {
 	mirror := ruleset.New(provs)
 	go mirror.Run(ctx)
 
-	router := buildRouter(cfg, usersRepo, nodesRepo, routingRepo, fleetSvc, prov, mirror)
+	router := buildRouter(cfg, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov, mirror)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -161,24 +168,30 @@ func serve(cfg config.Config, srv *http.Server) error {
 
 // buildRouter constructs the gorilla/mux router, wiring each per-action handler
 // with the concrete dependencies it declares.
-func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, fleetSvc *fleet.Service, prov *provisioning.Service, mirror *ruleset.Mirror) http.Handler {
+func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service, mirror *ruleset.Mirror) http.Handler {
 	r := mux.NewRouter()
 
-	r.Handle("/sub/{token}", sub.New(
-		usersRepo, fleetSvc, routingRepo,
-		cfg.Secret, cfg.PublicBase, cfg.ProfileTitle, cfg.Filename, cfg.ProfileUpdateInterval,
+	// Per-engine subscription renderers, keyed by config kind. Adding an engine = a
+	// new engineRenderer + one entry here; the route and handler don't change.
+	renderers := map[entity.ConfigKind]sub.EngineRenderer{
+		entity.ConfigKindMihomo: sub.NewMihomoRenderer(routingRepo, cfg.PublicBase, cfg.Filename),
+	}
+
+	r.Handle("/sub/{kind}/{token}", sub.New(
+		usersRepo, fleetSvc, configsRepo, renderers,
+		cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
 	)).Methods(http.MethodGet)
 	r.Handle("/rules/{file}", rules.New(mirror)).Methods(http.MethodGet)
 	r.Handle("/healthz", healthz.New()).Methods(http.MethodGet)
 
 	if cfg.AdminEnabled() {
-		mountAdmin(r, cfg, usersRepo, nodesRepo, routingRepo, fleetSvc, prov)
+		mountAdmin(r, cfg, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov)
 	}
 
 	return r
 }
 
-func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, fleetSvc *fleet.Service, prov *provisioning.Service) {
+func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service) {
 	sess := web.NewSession(cfg.Secret)
 	ra := sess.RequireAdmin
 
@@ -190,10 +203,15 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 	r.HandleFunc("/admin/api/users", ra(users_api.New(usersRepo, fleetSvc, prov, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
 	r.HandleFunc("/admin/api/nodes", ra(nodes_api.New(nodesRepo).ServeHTTP)).Methods(http.MethodGet)
 
-	// mihomo config: read / schema / save, grouped under /admin/api/config/mihomo.
-	r.HandleFunc("/admin/api/config/mihomo", ra(config_api.New(routingRepo).ServeHTTP)).Methods(http.MethodGet)
+	// mihomo config: read / schema / save / custom-config management, grouped under
+	// /admin/api/config/mihomo. Without ?user / userId the scope is the base config;
+	// with it, a user's custom config.
+	r.HandleFunc("/admin/api/config/mihomo", ra(config_api.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodGet)
 	r.HandleFunc("/admin/api/config/mihomo/schema", ra(config_schema.New().ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/config/mihomo/save", ra(config_save.New(routingRepo).ServeHTTP)).Methods(http.MethodPost)
+	r.HandleFunc("/admin/api/config/mihomo/save", ra(config_save.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
+	r.HandleFunc("/admin/api/config/mihomo/customs", ra(config_customs.New(configsRepo, usersRepo).ServeHTTP)).Methods(http.MethodGet)
+	r.HandleFunc("/admin/api/config/mihomo/custom/create", ra(custom_create.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
+	r.HandleFunc("/admin/api/config/mihomo/custom/delete", ra(custom_delete.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/config/mihomo/provider/check", ra(provider_check.New(ruleset.NewChecker()).ServeHTTP)).Methods(http.MethodPost)
 
 	// JSON mutations.

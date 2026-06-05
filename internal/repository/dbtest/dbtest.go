@@ -98,6 +98,23 @@ func inboundByName(t *testing.T, repo *nodes.Repository, nodeID int64, name stri
 	return entity.Inbound{}
 }
 
+// SeedConfig creates the base subscription_configs row (kind=mihomo) and returns its
+// id — the config_id the mihomo_* content tables must reference. Routing tests scope
+// every read/write to it. Inserted directly (not via the configs repo) to keep dbtest
+// free of the configs↔routing wiring.
+func SeedConfig(t *testing.T, db *sql.DB) int64 {
+	t.Helper()
+
+	res, err := db.ExecContext(t.Context(),
+		`INSERT INTO subscription_configs(user_id,kind,created_at) VALUES(NULL,?,0)`, entity.ConfigKindMihomo)
+	require.NoError(t, err)
+
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+
+	return id
+}
+
 // Ptr returns a pointer to v — for the *int64 ids inside mihomo.PolicyRef (InboundID /
 // GroupID), which are nil for built-in policies and set for inbound/group refs.
 func Ptr[T any](v T) *T { return &v }

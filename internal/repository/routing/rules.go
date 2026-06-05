@@ -7,11 +7,12 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// Rules returns the routing rules in order, each with its typed target (PolicyRef).
-func (r *Repository) Rules(ctx context.Context) ([]mihomo.RoutingRule, error) {
+// Rules returns the config's routing rules in order, each with its typed target
+// (PolicyRef).
+func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.RoutingRule, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id,position,type,value,no_resolve,target_kind,inbound_id,target_group_id
-		   FROM mihomo_routing_rules ORDER BY position`)
+		   FROM mihomo_routing_rules WHERE config_id=? ORDER BY position`, configID)
 	if err != nil {
 		return nil, err
 	}

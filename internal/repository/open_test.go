@@ -48,19 +48,19 @@ func TestOpen(t *testing.T) {
 
 		rt := routing.New(db)
 
-		rules, err := rt.Rules(t.Context())
+		rules, err := rt.Rules(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, rules)
 
-		groups, err := rt.ProxyGroups(t.Context())
+		groups, err := rt.ProxyGroups(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, groups)
 
-		providers, err := rt.RuleProviders(t.Context())
+		providers, err := rt.RuleProviders(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, providers)
 
-		base, err := rt.Setting(t.Context(), "base_yaml")
+		base, err := rt.Setting(t.Context(), 0, "base_yaml")
 		require.NoError(t, err)
 		assert.Empty(t, base)
 	})
@@ -86,7 +86,9 @@ func TestOpen(t *testing.T) {
 		db1, err := repository.Open(t.Context(), path)
 		require.NoError(t, err)
 
-		_, err = db1.Exec(`INSERT INTO mihomo_settings(key,value) VALUES('base_yaml','hello')`)
+		_, err = db1.Exec(`INSERT INTO subscription_configs(id,user_id,kind,created_at) VALUES(1,NULL,'mihomo',0)`)
+		require.NoError(t, err)
+		_, err = db1.Exec(`INSERT INTO mihomo_settings(config_id,key,value) VALUES(1,'base_yaml','hello')`)
 		require.NoError(t, err)
 		require.NoError(t, db1.Close())
 
@@ -95,7 +97,7 @@ func TestOpen(t *testing.T) {
 		t.Cleanup(func() { _ = db2.Close() })
 
 		var got string
-		require.NoError(t, db2.QueryRow(`SELECT value FROM mihomo_settings WHERE key='base_yaml'`).Scan(&got))
+		require.NoError(t, db2.QueryRow(`SELECT value FROM mihomo_settings WHERE config_id=1 AND key='base_yaml'`).Scan(&got))
 		assert.Equal(t, "hello", got)
 	})
 }

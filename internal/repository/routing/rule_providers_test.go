@@ -21,23 +21,25 @@ func TestRepository_RuleProviders(t *testing.T) {
 
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
-		got, err := routing.New(dbtest.OpenDB(t)).RuleProviders(t.Context())
+		got, err := routing.New(dbtest.OpenDB(t)).RuleProviders(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
 
 	t.Run("success.order_and_mirror_flag", func(t *testing.T) {
 		t.Parallel()
-		repo := routing.New(dbtest.OpenDB(t))
+		db := dbtest.OpenDB(t)
+		repo := routing.New(db)
+		cfg := dbtest.SeedConfig(t, db)
 
 		// Inserted out of name order ("zeta" before "alpha") to prove ORDER BY name.
 		want := []mihomo.RuleProvider{
 			{Name: "zeta", Behavior: "ipcidr", Format: "mrs", Mirror: false, URL: "http://z", Interval: 86400},
 			{Name: "alpha", Behavior: "domain", Format: "yaml", Mirror: true, URL: "http://a", Interval: 3600, MirrorInterval: 600},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), nil, nil, want, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, want, ""))
 
-		got, err := repo.RuleProviders(t.Context())
+		got, err := repo.RuleProviders(t.Context(), cfg)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 

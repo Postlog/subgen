@@ -1,21 +1,30 @@
-// Package config_api handles GET /admin/api/config — the mihomo routing config
+// Package config_api handles GET /admin/api/config/mihomo — the mihomo routing config
 // (proxy-groups, routing rules, rule-providers, base YAML) as JSON for the admin SPA.
+// Without a query it returns the base config; with ?user=<id> it returns that user's
+// custom config (404 if the user has none).
 package config_api
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// Handler serves the mihomo config as JSON.
+// Handler serves a mihomo config (base or a user's custom) as JSON.
 type Handler struct {
+	configs configResolver
 	routing mihomoReader
 }
 
 // New builds the handler.
-func New(routing mihomoReader) *Handler { return &Handler{routing: routing} }
+func New(configs configResolver, routing mihomoReader) *Handler {
+	return &Handler{configs: configs, routing: routing}
+}
 
 type provider struct {
 	Name           string `json:"name"`
@@ -55,10 +64,35 @@ type groupView struct {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	rules, _ := h.routing.Rules(ctx)
-	groups, _ := h.routing.ProxyGroups(ctx)
-	rps, _ := h.routing.RuleProviders(ctx)
-	baseYAML, _ := h.routing.Setting(ctx, "base_yaml")
+
+	configID, found, err := h.resolveConfigID(ctx, r)
+	if err != nil {
+		slog.Error("handler config_api: resolve scope failed", "err", err)
+		http.Error(w, "store unavailable", http.StatusInternalServerError)
+
+		return
+	}
+
+	if !found {
+		// A user scope with no custom config, or a base that was never saved. For the
+		// base we serve an empty config (the editor opens blank); for a missing user
+		// custom we 404 — the SPA only requests one it listed.
+		if r.URL.Query().Get("user") != "" {
+			http.NotFound(w, r)
+			return
+		}
+
+		web.JSON(w, map[string]any{
+			"rules": []ruleView{}, "groups": []groupView{}, "providers": []provider{}, "baseYAML": "",
+		})
+
+		return
+	}
+
+	rules, _ := h.routing.Rules(ctx, configID)
+	groups, _ := h.routing.ProxyGroups(ctx, configID)
+	rps, _ := h.routing.RuleProviders(ctx, configID)
+	baseYAML, _ := h.routing.Setting(ctx, configID, "base_yaml")
 
 	idx := map[int64]int{} // group id -> array index
 	for i, g := range groups {
@@ -97,6 +131,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, map[string]any{
 		"rules": ruleViews, "groups": groupViews, "providers": provs, "baseYAML": baseYAML,
 	})
+}
+
+// resolveConfigID maps the request scope to a config id. No ?user → the base config
+// (found=false when it was never saved). ?user=<id> → that user's custom config
+// (found=false when the user has none). An unparseable ?user is treated as missing.
+func (h *Handler) resolveConfigID(ctx context.Context, r *http.Request) (int64, bool, error) {
+	q := r.URL.Query().Get("user")
+	if q == "" {
+		return h.configs.BaseConfigID(ctx, entity.ConfigKindMihomo)
+	}
+
+	userID, err := strconv.ParseInt(q, 10, 64)
+	if err != nil {
+		return 0, false, nil
+	}
+
+	return h.configs.UserConfigID(ctx, userID, entity.ConfigKindMihomo)
 }
 
 // refToView converts a stored PolicyRef to the wire shape: an inbound ref carries the

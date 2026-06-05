@@ -12,11 +12,14 @@ import (
 	"github.com/postlog/subgen/internal/repository/routing"
 )
 
+// Setting reads a config's free-form setting (base_yaml today), scoped by config id.
+// The value is written through SaveMihomoConfig (the single writer); a missing key
+// returns "" (sql.ErrNoRows swallowed).
 func TestRepository_Setting(t *testing.T) {
 	tt := []struct {
 		name string
 
-		set  bool // write the key first
+		set  bool // write base_yaml first (via SaveMihomoConfig)
 		key  string
 		want string
 	}{
@@ -38,13 +41,15 @@ func TestRepository_Setting(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			repo := routing.New(dbtest.OpenDB(t))
+			db := dbtest.OpenDB(t)
+			repo := routing.New(db)
+			cfg := dbtest.SeedConfig(t, db)
 
 			if tc.set {
-				require.NoError(t, repo.SetSetting(t.Context(), tc.key, tc.want))
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, nil, tc.want))
 			}
 
-			got, err := repo.Setting(t.Context(), tc.key)
+			got, err := repo.Setting(t.Context(), cfg, tc.key)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

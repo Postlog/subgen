@@ -15,6 +15,8 @@ var (
 	ErrNoConnectionSelected  = errors.New("no connection selected")
 	ErrNodeNotFound          = errors.New("node not found")
 	ErrInboundNotFound       = errors.New("inbound not found")
+	ErrUserConfigExists      = errors.New("user already has a custom config")
+	ErrUserConfigNotFound    = errors.New("user has no custom config")
 )
 
 // PanelClientExistsError means a client with the user's nickname (email) already

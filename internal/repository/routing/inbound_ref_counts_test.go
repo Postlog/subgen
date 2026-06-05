@@ -24,7 +24,7 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 
 		// arrange saves the mihomo config that establishes the references; query is the
 		// inbound-id list; want is the expected non-zero counts.
-		arrange func(t *testing.T, repo *routing.Repository, seed dbtest.SeededNode)
+		arrange func(t *testing.T, repo *routing.Repository, cfg int64, seed dbtest.SeededNode)
 		query   func(seed dbtest.SeededNode) []int64
 		want    func(seed dbtest.SeededNode) map[int64]int
 	}{
@@ -35,9 +35,9 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 		},
 		{
 			name: "success.rule_plus_member_combined",
-			arrange: func(t *testing.T, repo *routing.Repository, seed dbtest.SeededNode) {
+			arrange: func(t *testing.T, repo *routing.Repository, cfg int64, seed dbtest.SeededNode) {
 				// "smart" referenced by one rule AND one group member → count 2.
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(),
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
 					[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Smart.ID)},
 					[]mihomo.ProxyGroup{dbtest.GroupWithInbound("sel", seed.Smart.ID)},
 					nil, ""))
@@ -47,8 +47,8 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 		},
 		{
 			name: "success.omits_zero_and_unknown",
-			arrange: func(t *testing.T, repo *routing.Repository, seed dbtest.SeededNode) {
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(),
+			arrange: func(t *testing.T, repo *routing.Repository, cfg int64, seed dbtest.SeededNode) {
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
 					[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Force.ID)}, nil, nil, ""))
 			},
 			// smart has 0, id 99999 doesn't exist — both absent; only force counts.
@@ -64,9 +64,10 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 			db := dbtest.OpenDB(t)
 			seed := dbtest.SeedNode(t, nodes.New(db))
 			repo := routing.New(db)
+			cfg := dbtest.SeedConfig(t, db)
 
 			if tc.arrange != nil {
-				tc.arrange(t, repo, seed)
+				tc.arrange(t, repo, cfg, seed)
 			}
 
 			got, err := repo.InboundRefCounts(t.Context(), tc.query(seed))

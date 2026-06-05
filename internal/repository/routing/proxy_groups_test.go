@@ -21,7 +21,7 @@ func TestRepository_ProxyGroups(t *testing.T) {
 
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
-		got, err := routing.New(dbtest.OpenDB(t)).ProxyGroups(t.Context())
+		got, err := routing.New(dbtest.OpenDB(t)).ProxyGroups(t.Context(), 0)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
@@ -31,6 +31,7 @@ func TestRepository_ProxyGroups(t *testing.T) {
 		db := dbtest.OpenDB(t)
 		seed := dbtest.SeedNode(t, nodes.New(db))
 		repo := routing.New(db)
+		cfg := dbtest.SeedConfig(t, db)
 
 		// group[0] "auto" is a url-test with health-check fields and lazy set; its members
 		// are (in order) an inbound and a built-in direct. group[1] "pick" references
@@ -49,9 +50,9 @@ func TestRepository_ProxyGroups(t *testing.T) {
 				Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}},
 			},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), nil, groups, nil, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, groups, nil, ""))
 
-		got, err := repo.ProxyGroups(t.Context())
+		got, err := repo.ProxyGroups(t.Context(), cfg)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 

@@ -1,0 +1,147 @@
+//go:build integration
+
+package configs_test
+
+import (
+	"database/sql"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/mihomo"
+	"github.com/postlog/subgen/internal/repository/configs"
+	"github.com/postlog/subgen/internal/repository/dbtest"
+	"github.com/postlog/subgen/internal/repository/nodes"
+	"github.com/postlog/subgen/internal/repository/routing"
+	"github.com/postlog/subgen/internal/repository/users"
+)
+
+// CreateUserConfig snapshots the engine's base config into a new per-user config: the
+// content is cloned (groups+members with remapped ids, rules, providers, settings) and
+// independent of the base afterwards. A second create for the same user is rejected.
+func TestRepository_CreateUserConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success.clones_base_content", func(t *testing.T) {
+		t.Parallel()
+		db := dbtest.OpenDB(t)
+		seed := dbtest.SeedNode(t, nodes.New(db))
+		rt := routing.New(db)
+		repo := configs.New(db, rt)
+
+		userID := seedUser(t, db, "alice", "sub-alice")
+
+		// Base config: a group with an inbound member + a group ref, and a rule whose
+		// target is that group; plus a provider and base YAML.
+		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
+		require.NoError(t, err)
+
+		groups := []mihomo.ProxyGroup{
+			{Name: "exit", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
+				{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
+			}},
+			{Name: "top", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
+				{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}, // → "exit"
+			}},
+		}
+		rules := []mihomo.RoutingRule{
+			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(1))}},
+		}
+		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, rules, groups, provs, "dns: {}"))
+
+		// Create the custom config.
+		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
+		require.NoError(t, err)
+		assert.NotEqual(t, baseID, newID)
+
+		// Cloned content matches the base shape, with group refs remapped to the clone's ids.
+		gotGroups, err := rt.ProxyGroups(t.Context(), newID)
+		require.NoError(t, err)
+		require.Len(t, gotGroups, 2)
+		assert.Equal(t, "exit", gotGroups[0].Name)
+		assert.Equal(t, "top", gotGroups[1].Name)
+
+		require.Len(t, gotGroups[0].Members, 1)
+		require.NotNil(t, gotGroups[0].Members[0].InboundID)
+		assert.Equal(t, seed.Smart.ID, *gotGroups[0].Members[0].InboundID)
+
+		require.Len(t, gotGroups[1].Members, 1)
+		require.NotNil(t, gotGroups[1].Members[0].GroupID)
+		assert.Equal(t, gotGroups[0].ID, *gotGroups[1].Members[0].GroupID) // remapped to the clone
+
+		gotRules, err := rt.Rules(t.Context(), newID)
+		require.NoError(t, err)
+		require.Len(t, gotRules, 1)
+		require.NotNil(t, gotRules[0].Target.GroupID)
+		assert.Equal(t, gotGroups[1].ID, *gotRules[0].Target.GroupID) // remapped to the clone's "top"
+
+		gotProvs, err := rt.RuleProviders(t.Context(), newID)
+		require.NoError(t, err)
+		require.Len(t, gotProvs, 1)
+		assert.Equal(t, "ads", gotProvs[0].Name)
+
+		base, err := rt.Setting(t.Context(), newID, "base_yaml")
+		require.NoError(t, err)
+		assert.Equal(t, "dns: {}", base)
+	})
+
+	t.Run("success.independent_snapshot", func(t *testing.T) {
+		t.Parallel()
+		db := dbtest.OpenDB(t)
+		rt := routing.New(db)
+		repo := configs.New(db, rt)
+		userID := seedUser(t, db, "bob", "sub-bob")
+
+		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
+		require.NoError(t, err)
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v1"))
+
+		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
+		require.NoError(t, err)
+
+		// Edit the base after cloning — the custom config must not change.
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v2"))
+
+		got, err := rt.Setting(t.Context(), newID, "base_yaml")
+		require.NoError(t, err)
+		assert.Equal(t, "base: v1", got)
+	})
+
+	t.Run("success.empty_base", func(t *testing.T) {
+		t.Parallel()
+		db := dbtest.OpenDB(t)
+		repo := configs.New(db, routing.New(db))
+		userID := seedUser(t, db, "carol", "sub-carol")
+
+		// No base saved yet — the custom config is created empty (no clone source).
+		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
+		require.NoError(t, err)
+		assert.NotZero(t, newID)
+	})
+
+	t.Run("error.already_exists", func(t *testing.T) {
+		t.Parallel()
+		db := dbtest.OpenDB(t)
+		repo := configs.New(db, routing.New(db))
+		userID := seedUser(t, db, "dave", "sub-dave")
+
+		_, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
+		require.NoError(t, err)
+
+		_, err = repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
+		require.ErrorIs(t, err, entity.ErrUserConfigExists)
+	})
+}
+
+// seedUser creates a user through the real repository and returns its id.
+func seedUser(t *testing.T, db *sql.DB, name, subID string) int64 {
+	t.Helper()
+
+	u := &entity.User{Name: name, SubID: subID}
+	require.NoError(t, users.New(db).Create(t.Context(), u))
+
+	return u.ID
+}

@@ -83,7 +83,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		vr := row{
 			ID:       u.ID,
 			Name:     u.Name,
-			Sub:      subInfo{ID: u.SubID, URL: base + "/sub/" + token.Make(h.secret, u.SubID)},
+			Sub:      subInfo{ID: u.SubID, URL: base + "/sub/mihomo/" + token.Make(h.secret, u.SubID)},
 			Inbounds: inbounds,
 		}
 

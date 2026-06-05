@@ -7,13 +7,13 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// ProxyGroups returns the operator-defined proxy-groups in order, each with its
-// ordered members (typed PolicyRefs). Two queries (groups, then all members) are
-// assembled in memory — the set is small.
-func (r *Repository) ProxyGroups(ctx context.Context) ([]mihomo.ProxyGroup, error) {
+// ProxyGroups returns the config's proxy-groups in order, each with its ordered
+// members (typed PolicyRefs). Two queries (groups, then their members) are assembled
+// in memory — the set is small.
+func (r *Repository) ProxyGroups(ctx context.Context, configID int64) ([]mihomo.ProxyGroup, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id,position,name,type,url,interval,tolerance,lazy
-		   FROM mihomo_proxy_groups ORDER BY position`)
+		   FROM mihomo_proxy_groups WHERE config_id=? ORDER BY position`, configID)
 	if err != nil {
 		return nil, err
 	}

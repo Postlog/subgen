@@ -59,19 +59,42 @@ CREATE TABLE IF NOT EXISTS user_connections (
 CREATE INDEX IF NOT EXISTS idx_uconn_user ON user_connections(user_id);
 CREATE INDEX IF NOT EXISTS idx_uconn_inbound ON user_connections(inbound_id);
 
+-- ============================ subscription configs ============================
+
+-- A subscription config is the ownership/identity anchor for one engine's config:
+-- either the base (user_id NULL — served to everyone without an override) or a
+-- per-user custom (user_id set — a full snapshot, cloned from the base then edited
+-- freely). kind is the engine discriminator (mihomo today; xray/sing-box later) so
+-- base/custom are independent per engine. All engine content rows (mihomo_* below,
+-- future xray_*) hang off a config via config_id; deleting a user (or a config)
+-- cascades its content away. No seed: the base row is created lazily on first save.
+CREATE TABLE IF NOT EXISTS subscription_configs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,  -- NULL = base config
+  kind       TEXT NOT NULL,                                   -- engine: 'mihomo' (later xray/singbox)
+  created_at INTEGER NOT NULL
+);
+-- Exactly one base + at most one custom per (user, engine). COALESCE folds the base
+-- (user_id NULL) to sentinel 0 so it collides with itself (a plain UNIQUE on a
+-- nullable column would let duplicate bases through, since NULLs are distinct).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subcfg_owner
+  ON subscription_configs(COALESCE(user_id, 0), kind);
+
 -- ============================ mihomo config ============================
 
--- Operator-defined mihomo proxy-groups. Members are typed PolicyRefs resolved
--- per-subscriber at render time.
+-- Operator-defined mihomo proxy-groups, scoped to a subscription config. Members are
+-- typed PolicyRefs resolved per-subscriber at render time.
 CREATE TABLE IF NOT EXISTS mihomo_proxy_groups (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  config_id INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
   position  INTEGER NOT NULL,
-  name      TEXT NOT NULL UNIQUE,
+  name      TEXT NOT NULL,               -- unique within a config (see index below)
   type      TEXT NOT NULL,               -- select|url-test|fallback|load-balance|relay
   url       TEXT NOT NULL DEFAULT '',
   interval  INTEGER NOT NULL DEFAULT 0,
   tolerance INTEGER NOT NULL DEFAULT 0,
-  lazy      INTEGER NOT NULL DEFAULT 0
+  lazy      INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(config_id, name)
 );
 
 -- One row per group member, in order. kind is a PolicyKind; inbound_id/ref_group_id
@@ -92,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_mihomo_pgmember_group ON mihomo_proxy_group_membe
 -- inbound_id (inbound) or target_group_id (group). FKs RESTRICT, mirroring members.
 CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
   position        INTEGER NOT NULL,
   type            TEXT NOT NULL,         -- mihomo rule type (DOMAIN-SUFFIX, IP-CIDR, RULE-SET, MATCH, …)
   value           TEXT NOT NULL DEFAULT '',
@@ -105,17 +129,21 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
 -- interval: mihomo client ruleset auto-update TTL (seconds), always rendered.
 -- mirror_interval: subgen mirror refresh period (seconds), used only when mirror=1.
 CREATE TABLE IF NOT EXISTS mihomo_rule_providers (
-  name            TEXT PRIMARY KEY,
+  config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
   behavior        TEXT NOT NULL,
   format          TEXT NOT NULL,
   mirror          INTEGER NOT NULL,
   url             TEXT NOT NULL,
   interval        INTEGER NOT NULL,
-  mirror_interval INTEGER NOT NULL DEFAULT 0
+  mirror_interval INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(config_id, name)
 );
 
--- mihomo base config + free-form settings (currently just base_yaml).
+-- mihomo base config + free-form settings (currently just base_yaml), per config.
 CREATE TABLE IF NOT EXISTS mihomo_settings (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
+  config_id INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
+  key       TEXT NOT NULL,
+  value     TEXT NOT NULL,
+  PRIMARY KEY(config_id, key)
 );

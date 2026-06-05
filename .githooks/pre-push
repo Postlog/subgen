@@ -1,0 +1,17 @@
+#!/bin/sh
+# pre-push: run the full gate (make all = generate + lint + test + integration +
+# apitest) before pushing. apitest spins up 3x-ui panels in Docker, so this needs
+# Docker running and takes a few minutes.
+#
+# Installed via a tracked hooks dir: `git config core.hooksPath .githooks` (run once
+# per clone; the Makefile's `make hooks` target does this for you).
+#
+# Skip a one-off push with: SKIP_HOOKS=1 git push   (or `git push --no-verify`).
+
+if [ "${SKIP_HOOKS:-0}" = "1" ]; then
+	echo "pre-push: SKIP_HOOKS=1 — skipping make all"
+	exit 0
+fi
+
+echo "pre-push: running 'make all' (generate + lint + test + integration + apitest)…"
+exec make all

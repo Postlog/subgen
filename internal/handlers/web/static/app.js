@@ -22,6 +22,13 @@ const app = createApp({
       // policy ref is encoded as a string `pref` (direct|reject|…|smart|force:<id>|
       // group:<groupUid>) so it binds straight to a <select>.
       cfg: { groups: [], rules: [], providers: [], baseYAML: "" },
+
+      // Config scope: which config the editor is bound to. 'base' = the shared base
+      // config; 'user' = a per-user custom config (userId/name set). customs lists the
+      // users that already have a custom config (for the scope selector).
+      cfgScope: { kind: "base", userId: 0, name: "" },
+      customs: [],
+      customPick: { open: false, userId: 0 }, // user picker for "+ custom config"
     };
   },
   computed: {
@@ -37,6 +44,11 @@ const app = createApp({
       return out;
     },
     providerNames() { return this.cfg.providers.map((p) => p.name).filter(Boolean); },
+    // Users that don't yet have a custom config — the candidates for "+ custom config".
+    usersWithoutCustom() {
+      const taken = new Set(this.customs.map((c) => c.userId));
+      return this.users.filter((u) => !taken.has(u.id));
+    },
     // The provider the edit modal edits (same object ref → edits
     // flow straight back into cfg.providers).
     editProv() { return this.cfg.providers[this.provForm.idx] || null; },
@@ -70,12 +82,63 @@ const app = createApp({
           await this.loadNodes();
         } else if (tab === "config") {
           await this.loadNodes(); // inbound options for the policy pickers
+          this.users = (await this.getJSON("/admin/api/users")).users || []; // for the custom-config picker
           if (!this.schema) this.schema = await this.getJSON("/admin/api/config/mihomo/schema");
-          this.loadConfig(await this.getJSON("/admin/api/config/mihomo"));
+          await this.loadCustoms();
+          // Keep the active scope if its custom config still exists; else fall to base.
+          if (this.cfgScope.kind === "user" && !this.customs.some((c) => c.userId === this.cfgScope.userId)) {
+            this.cfgScope = { kind: "base", userId: 0, name: "" };
+          }
+          await this.loadScopeConfig();
         }
       } catch (e) { this.toast(false, "Загрузка: " + e); }
     },
     async loadNodes() { this.nodes = (await this.getJSON("/admin/api/nodes")).nodes || []; },
+
+    // ---- config: scope (base vs per-user custom) -------------------------------
+    async loadCustoms() {
+      this.customs = (await this.getJSON("/admin/api/config/mihomo/customs")).customs || [];
+    },
+    // loadScopeConfig fetches the config for the active scope into the editor.
+    async loadScopeConfig() {
+      const url = this.cfgScope.kind === "user"
+        ? "/admin/api/config/mihomo?user=" + this.cfgScope.userId
+        : "/admin/api/config/mihomo";
+      this.loadConfig(await this.getJSON(url));
+    },
+    // onScopeChange handles the scope <select>: base, a custom config, or "+ new".
+    onScopeChange(val) {
+      if (val === "+new") { this.customPick = { open: true, userId: 0 }; return; }
+      if (val === "base") { this.switchScope({ kind: "base", userId: 0, name: "" }); return; }
+      const userId = +val.slice(5); // "user:<id>"
+      const c = this.customs.find((x) => x.userId === userId);
+      this.switchScope({ kind: "user", userId, name: c ? c.name : "" });
+    },
+    async switchScope(scope) {
+      this.cfgScope = scope;
+      await this.loadScopeConfig();
+    },
+    // createCustom clones the base into a new custom config for the picked user, then
+    // switches the editor to it.
+    async createCustom() {
+      const userId = this.customPick.userId;
+      if (!userId) return;
+      const d = await this.post("/admin/api/config/mihomo/custom/create", { userId });
+      if (!d.ok) return;
+      this.customPick.open = false;
+      await this.loadCustoms();
+      const c = this.customs.find((x) => x.userId === userId);
+      await this.switchScope({ kind: "user", userId, name: c ? c.name : "" });
+    },
+    // deleteCustom drops the active user's custom config and returns to the base.
+    async deleteCustom() {
+      if (this.cfgScope.kind !== "user") return;
+      if (!confirm("Удалить кастомный конфиг пользователя " + this.cfgScope.name + "?")) return;
+      const d = await this.post("/admin/api/config/mihomo/custom/delete", { userId: this.cfgScope.userId });
+      if (!d.ok) return;
+      await this.loadCustoms();
+      await this.switchScope({ kind: "base", userId: 0, name: "" });
+    },
 
     // ---- config: load / encode -------------------------------------------------
     loadConfig(c) {
@@ -174,7 +237,9 @@ const app = createApp({
         mirror: !!p.mirror, mirrorInterval: p.mirror ? (p.mirrorInterval || 0) : 0,
       }));
 
-      await this.post("/admin/api/config/mihomo/save", { baseYAML: this.cfg.baseYAML, groups, rules, providers });
+      const payload = { baseYAML: this.cfg.baseYAML, groups, rules, providers };
+      if (this.cfgScope.kind === "user") payload.userId = this.cfgScope.userId;
+      await this.post("/admin/api/config/mihomo/save", payload);
     },
 
     // ---- http / ui -------------------------------------------------------------

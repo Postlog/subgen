@@ -208,6 +208,17 @@ tr.acting{opacity:.5;}
 
 .cfg-warn{background:rgba(216,150,20,.1);border:1px solid rgba(216,150,20,.32);color:#e0b25a;border-radius:var(--bs-border-radius);padding:.55rem .8rem;margin-bottom:.8rem;font-size:.85rem;line-height:1.55;}
 
+/* ===== config scope (base vs per-user custom) ===== */
+.scope-pick{display:flex;align-items:center;gap:.4rem;}
+.scope-pick .form-select{max-width:240px;}
+.scope-banner{display:flex;align-items:center;gap:.8rem;background:rgba(22,104,220,.12);border:1px solid rgba(22,104,220,.4);color:#7fb2f0;border-radius:var(--bs-border-radius);padding:.55rem .85rem;margin-bottom:1rem;font-size:.88rem;}
+.scope-banner b{color:#cfe1fb;}
+.user-pick{max-height:260px;overflow-y:auto;border:1px solid var(--split);border-radius:var(--bs-border-radius);}
+.user-pick-row{padding:.45rem .7rem;cursor:pointer;font-size:.9rem;border-bottom:1px solid var(--split);transition:background .12s;}
+.user-pick-row:last-child{border-bottom:0;}
+.user-pick-row:hover{background:rgba(255,255,255,.04);}
+.user-pick-row.active{background:rgba(22,104,220,.22);color:#cfe1fb;}
+
 /* ===== modal (ant-modal; elevated bg) ===== */
 .modal-backdrop-custom{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1050;display:flex;align-items:flex-start;justify-content:center;padding:8vh 1rem 2rem;overflow:auto;}
 .modal-card{background:var(--elevated-bg);border:1px solid var(--split);border-radius:var(--bs-border-radius-lg);box-shadow:0 6px 16px rgba(0,0,0,.5);width:100%;max-width:540px;}

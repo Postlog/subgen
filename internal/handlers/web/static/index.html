@@ -101,6 +101,21 @@
     <section v-if="tab==='config'">
       <div class="page-head">
         <h1 class="page-title">Конфиг</h1>
+        <div class="scope-pick ms-auto">
+          <label class="text-dim small me-1">Пользователи:</label>
+          <select class="form-select form-select-sm" :value="cfgScope.kind==='base' ? 'base' : ('user:'+cfgScope.userId)"
+                  @change="onScopeChange($event.target.value)">
+            <option value="base">Все</option>
+            <optgroup label="Кастомные" v-if="customs.length">
+              <option v-for="c in customs" :key="c.userId" :value="'user:'+c.userId">{{ c.name }}</option>
+            </optgroup>
+            <option value="+new">Добавить кастомный конфиг…</option>
+          </select>
+        </div>
+      </div>
+      <div v-if="cfgScope.kind==='user'" class="scope-banner">
+        <span>Кастомный конфиг — <b>{{ cfgScope.name }}</b></span>
+        <button class="btn btn-sm btn-danger-soft ms-auto" :disabled="busy" @click="deleteCustom()">Удалить</button>
       </div>
       <!-- proxy-groups -->
       <div class="card mb-3">
@@ -195,8 +210,24 @@
         </div>
       </div>
 
-      <div class="savebar"><button class="btn btn-primary" :disabled="busy" @click="saveConfig()">Сохранить конфиг</button></div>
+      <div class="savebar"><button class="btn btn-primary" :disabled="busy" @click="saveConfig()">{{ cfgScope.kind==='user' ? ('Сохранить конфиг для ' + cfgScope.name) : 'Сохранить базовый' }}</button></div>
     </section>
+
+    <!-- ============ CUSTOM-CONFIG USER PICKER MODAL ============ -->
+    <modal :open="customPick.open" title="Кастомный конфиг для пользователя" @close="customPick.open=false">
+      <p class="text-dim small mb-2">Будет создана независимая копия базового конфига, привязанная к пользователю.</p>
+      <div v-if="usersWithoutCustom.length" class="user-pick">
+        <div v-for="u in usersWithoutCustom" :key="u.id" class="user-pick-row"
+             :class="{active: customPick.userId===u.id}" @click="customPick.userId=u.id" @dblclick="createCustom()">
+          {{ u.name }}
+        </div>
+      </div>
+      <span v-else class="text-dim small">у всех пользователей уже есть кастомный конфиг</span>
+      <template #footer>
+        <button class="btn btn-secondary" @click="customPick.open=false">Отмена</button>
+        <button class="btn btn-primary" :disabled="busy || !customPick.userId" @click="createCustom()">Создать</button>
+      </template>
+    </modal>
 
         <!-- ============ RULE-PROVIDER EDIT MODAL ============ -->
     <modal :open="provForm.open" :title="(editProv && editProv.name) ? editProv.name : 'Rule-provider'" @close="provForm.open=false">

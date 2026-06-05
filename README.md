@@ -102,9 +102,10 @@ deploys** — CD never touches it.
 **One-time setup** (operator):
 
 - **GitHub → Settings → Environments → `production`:**
-  - **Secrets:** `SUBGEN_SECRET`, `SUBGEN_ADMIN_PASSWORD` (the *live* values — don't
-    rotate `SUBGEN_SECRET`, it would invalidate every subscription link),
-    `DEPLOY_SSH_KEY` (a dedicated deploy private key).
+  - **Secrets:** `SUBGEN_SECRET`, `SUBGEN_ADMIN_USER`, `SUBGEN_ADMIN_PASSWORD` (the
+    *live* values — don't rotate `SUBGEN_SECRET`, it would invalidate every subscription
+    link; the admin login is treated as a credential too), `DEPLOY_SSH_KEY` (a dedicated
+    deploy private key).
   - **Variables:** `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_DIR` (`subgen`),
     `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan -p <port> <host>`), `SUBGEN_PUBLIC_BASE`,
     `SUBGEN_TLS_CERT`, `SUBGEN_TLS_KEY` (paths under `/certs`), `CERT_HOST_DIR` (host

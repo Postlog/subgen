@@ -86,6 +86,7 @@ jobs:
       - name: Render .env + compose and push to server
         env:
           SUBGEN_SECRET: ${{ secrets.SUBGEN_SECRET }}
+          SUBGEN_ADMIN_USER: ${{ secrets.SUBGEN_ADMIN_USER }}
           SUBGEN_ADMIN_PASSWORD: ${{ secrets.SUBGEN_ADMIN_PASSWORD }}
           SUBGEN_PUBLIC_BASE: ${{ vars.SUBGEN_PUBLIC_BASE }}
           SUBGEN_TLS_CERT: ${{ vars.SUBGEN_TLS_CERT }}
@@ -99,8 +100,8 @@ jobs:
           SUBGEN_PUBLIC_BASE=${SUBGEN_PUBLIC_BASE}
           SUBGEN_TLS_CERT=${SUBGEN_TLS_CERT}
           SUBGEN_TLS_KEY=${SUBGEN_TLS_KEY}
-          SUBGEN_ADMIN_USER=admin
           SUBGEN_SECRET=${SUBGEN_SECRET}
+          SUBGEN_ADMIN_USER=${SUBGEN_ADMIN_USER}
           SUBGEN_ADMIN_PASSWORD=${SUBGEN_ADMIN_PASSWORD}
           # consumed by docker-compose.yml for the cert bind-mount (not by subgen):
           CERT_HOST_DIR=${CERT_HOST_DIR}

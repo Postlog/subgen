@@ -28,8 +28,8 @@ import (
 	"github.com/postlog/subgen/internal/clients/xui"
 	"github.com/postlog/subgen/internal/config"
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/config_api"
 	"github.com/postlog/subgen/internal/handlers/config_customs"
+	"github.com/postlog/subgen/internal/handlers/config_get"
 	"github.com/postlog/subgen/internal/handlers/config_save"
 	"github.com/postlog/subgen/internal/handlers/config_schema"
 	"github.com/postlog/subgen/internal/handlers/custom_create"
@@ -39,7 +39,7 @@ import (
 	"github.com/postlog/subgen/internal/handlers/logout"
 	"github.com/postlog/subgen/internal/handlers/node_delete"
 	"github.com/postlog/subgen/internal/handlers/node_save"
-	"github.com/postlog/subgen/internal/handlers/nodes_api"
+	"github.com/postlog/subgen/internal/handlers/nodes_get"
 	"github.com/postlog/subgen/internal/handlers/provider_check"
 	"github.com/postlog/subgen/internal/handlers/rules"
 	"github.com/postlog/subgen/internal/handlers/sub"
@@ -47,7 +47,7 @@ import (
 	"github.com/postlog/subgen/internal/handlers/user_delete"
 	"github.com/postlog/subgen/internal/handlers/user_edit"
 	"github.com/postlog/subgen/internal/handlers/user_recreate"
-	"github.com/postlog/subgen/internal/handlers/users_api"
+	"github.com/postlog/subgen/internal/handlers/users_get"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/repository"
 	"github.com/postlog/subgen/internal/repository/configs"
@@ -200,13 +200,13 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 	r.Handle("/admin/logout", logout.New(sess)).Methods(http.MethodGet)
 
 	// JSON read API (consumed by the Vue SPA).
-	r.HandleFunc("/admin/api/users", ra(users_api.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/nodes", ra(nodes_api.New(nodesRepo).ServeHTTP)).Methods(http.MethodGet)
+	r.HandleFunc("/admin/api/users", ra(users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
+	r.HandleFunc("/admin/api/nodes", ra(nodes_get.New(nodesRepo).ServeHTTP)).Methods(http.MethodGet)
 
 	// mihomo config: read / schema / save / custom-config management, grouped under
 	// /admin/api/config/mihomo. Without ?user / userId the scope is the base config;
 	// with it, a user's custom config.
-	r.HandleFunc("/admin/api/config/mihomo", ra(config_api.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodGet)
+	r.HandleFunc("/admin/api/config/mihomo", ra(config_get.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodGet)
 	r.HandleFunc("/admin/api/config/mihomo/schema", ra(config_schema.New().ServeHTTP)).Methods(http.MethodGet)
 	r.HandleFunc("/admin/api/config/mihomo/save", ra(config_save.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/config/mihomo/customs", ra(config_customs.New(configsRepo, usersRepo).ServeHTTP)).Methods(http.MethodGet)

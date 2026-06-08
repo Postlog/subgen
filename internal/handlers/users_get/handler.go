@@ -1,7 +1,7 @@
-// Package users_api handles GET /admin/api/users — one filtered, paged slice of the
+// Package users_get handles GET /admin/api/users — one filtered, paged slice of the
 // users table as JSON for the admin SPA. Query params: q (name substring), inbound
 // (repeatable node_inbounds.id, OR-filter), page (1-based), perPage.
-package users_api
+package users_get
 
 import (
 	"log/slog"
@@ -68,7 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.users.ListPage(r.Context(), params)
 	if err != nil {
-		slog.Error("handler users_api: list failed", "err", err)
+		slog.Error("handler users_get: list failed", "err", err)
 		http.Error(w, "store unavailable", http.StatusInternalServerError)
 
 		return

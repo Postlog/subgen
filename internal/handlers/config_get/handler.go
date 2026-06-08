@@ -1,8 +1,8 @@
-// Package config_api handles GET /admin/api/config/mihomo — the mihomo routing config
+// Package config_get handles GET /admin/api/config/mihomo — the mihomo routing config
 // (proxy-groups, routing rules, rule-providers, base YAML) as JSON for the admin SPA.
 // Without a query it returns the base config; with ?user=<id> it returns that user's
 // custom config (404 if the user has none).
-package config_api
+package config_get
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	configID, found, err := h.resolveConfigID(ctx, r)
 	if err != nil {
-		slog.Error("handler config_api: resolve scope failed", "err", err)
+		slog.Error("handler config_get: resolve scope failed", "err", err)
 		http.Error(w, "store unavailable", http.StatusInternalServerError)
 
 		return

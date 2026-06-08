@@ -1,4 +1,4 @@
-package users_api
+package users_get
 
 import (
 	"context"

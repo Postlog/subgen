@@ -1,6 +1,6 @@
-// Package nodes_api handles GET /admin/api/nodes — the node registry as JSON for
+// Package nodes_get handles GET /admin/api/nodes — the node registry as JSON for
 // the admin SPA.
-package nodes_api
+package nodes_get
 
 import (
 	"log/slog"
@@ -36,7 +36,7 @@ type row struct {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	nodes, err := h.nodes.List(r.Context())
 	if err != nil {
-		slog.Error("handler nodes_api: list failed", "err", err)
+		slog.Error("handler nodes_get: list failed", "err", err)
 		http.Error(w, "store unavailable", http.StatusInternalServerError)
 
 		return

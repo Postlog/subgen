@@ -4,6 +4,7 @@ package nodes_get
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 
 	"github.com/postlog/subgen/internal/oas"
@@ -21,6 +22,7 @@ func New(nodes nodeLister) *Handler { return &Handler{nodes: nodes} }
 func (h *Handler) NodesGet(ctx context.Context) (oas.NodesGetRes, error) {
 	nodes, err := h.nodes.List(ctx)
 	if err != nil {
+		slog.Error("handler nodes_get: list nodes failed", "err", err)
 		return nil, err
 	}
 

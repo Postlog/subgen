@@ -6,6 +6,7 @@ package config_get
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
@@ -27,6 +28,7 @@ func New(configs configResolver, routing mihomoReader) *Handler {
 func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oas.ConfigGetRes, error) {
 	configID, found, err := h.resolveConfigID(ctx, params)
 	if err != nil {
+		slog.Error("handler config_get: resolve config failed", "user", params.User.Or(0), "err", err)
 		return nil, err
 	}
 

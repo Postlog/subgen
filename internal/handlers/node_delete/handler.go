@@ -3,6 +3,7 @@ package node_delete
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
@@ -27,14 +28,17 @@ func New(nodes nodeRepo, routing routingRepo) *Handler {
 func (h *Handler) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {
 	msg, err := web.InboundsBlocking(ctx, h.nodes, h.routing, req.ID, nil)
 	if err != nil {
+		slog.Error("handler node_delete: inbound-block check failed", "id", req.ID, "err", err)
 		return nil, err
 	}
 
 	if msg != "" {
+		slog.Warn("handler node_delete: inbound still referenced", "id", req.ID)
 		return &oas.NodeDeleteBadRequest{ErrMessage: msg}, nil
 	}
 
 	if err := h.nodes.Delete(ctx, req.ID); err != nil {
+		slog.Error("handler node_delete: delete failed", "id", req.ID, "err", err)
 		return nil, err
 	}
 

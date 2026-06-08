@@ -160,12 +160,14 @@ td.actions{width:1%;white-space:nowrap;}
 }
 .badge.tag .port{color:rgba(255,255,255,.45);}
 .badge.tag.miss{background:rgba(220,68,70,.12);color:#e58a8b;border-color:rgba(220,68,70,.45);}
-.badge.tag.more{background:rgba(255,255,255,.05);color:var(--bs-secondary-color);border-color:var(--split);cursor:default;}
+.badge.tag.more{background:rgba(255,255,255,.05);color:var(--bs-secondary-color);border-color:var(--split);}
 .chips{display:flex;flex-wrap:wrap;gap:.35rem;}
 
 /* connection cell: first inbound + "+X" badge, with a 3x-ui-style hover popover
    listing all of them. The cell shows one line, so every row is the same height. */
 .conn{position:relative;display:inline-flex;align-items:center;gap:.35rem;max-width:100%;}
+/* connections with a "+N"/popover are interactive on hover → pointer cursor */
+.conn:has(.more){cursor:pointer;}
 .conn>.badge.tag{flex:0 0 auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .conn-pop{
   position:absolute;top:calc(100% + 5px);left:0;z-index:60;display:none;

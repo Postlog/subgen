@@ -111,11 +111,11 @@
 
       <div class="card">
         <table class="table table-hover">
-          <colgroup><col style="width:16%"><col style="width:24%"><col style="width:12%"><col style="width:34%"><col style="width:14%"></colgroup>
+          <colgroup><col style="width:16%"><col style="width:23%"><col style="width:12%"><col style="width:31%"><col style="width:18%"></colgroup>
           <thead><tr><th>Имя</th><th>Домен</th><th>Панель</th><th>Инбаунды</th><th></th></tr></thead>
           <tbody>
             <tr v-for="n in nodes" :key="n.id">
-              <td class="fw-semibold cell-ellipsis">{{ n.name }}</td>
+              <td class="uname cell-ellipsis">{{ n.name }}</td>
               <td class="mono small cell-ellipsis">{{ n.vpnHost }}</td>
               <td><a class="panel-link" :href="n.panelBaseURL + n.panelBasePath" target="_blank" rel="noopener" :title="n.panelBaseURL + n.panelBasePath">Панель ↗</a></td>
               <td>

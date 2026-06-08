@@ -20,7 +20,6 @@ type mocks struct {
 	users  *MockuserRepo
 	nodes  *MocknodeRepo
 	client *MockpanelClient
-	cache  *MockfleetCache
 }
 
 func newMocks(ctrl *gomock.Controller) *mocks {
@@ -28,7 +27,6 @@ func newMocks(ctrl *gomock.Controller) *mocks {
 		users:  NewMockuserRepo(ctrl),
 		nodes:  NewMocknodeRepo(ctrl),
 		client: NewMockpanelClient(ctrl),
-		cache:  NewMockfleetCache(ctrl),
 	}
 }
 
@@ -113,7 +111,7 @@ func TestService_CreateUser(t *testing.T) {
 				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return([]entity.PanelInbound{
 					{ID: 1, Port: 4433, Enable: true, Clients: []entity.PanelClient{{Email: "postlog", UUID: uuid.New()}}},
 				}, nil)
-				// no Create, no DelClient, no AddClient, no Invalidate
+				// no Create, no DelClient, no AddClient
 			},
 		},
 		{
@@ -128,7 +126,6 @@ func TestService_CreateUser(t *testing.T) {
 				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return(panelInbounds(), nil).Times(2)
 				// one panel, two inbounds (4433+8443) → single add with both 3x-ui ids.
 				m.client.EXPECT().AddClient(gomock.Any(), gomock.Any(), []int{1, 2}, gomock.Any()).Return(nil)
-				m.cache.EXPECT().Invalidate()
 			},
 		},
 	}
@@ -143,7 +140,7 @@ func TestService_CreateUser(t *testing.T) {
 				tc.buildMocks(m)
 			}
 
-			svc := New(m.users, m.nodes, m.client, m.cache)
+			svc := New(m.users, m.nodes, m.client)
 			u, err := svc.CreateUser(ctx, tc.inName, tc.sel)
 
 			if tc.err != nil {
@@ -175,7 +172,6 @@ func TestService_DeleteUser(t *testing.T) {
 				m.users.EXPECT().Get(gomock.Any(), int64(7)).Return(user, nil)
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 				m.client.EXPECT().DelClient(gomock.Any(), gomock.Any(), "postlog").Return(nil)
-				m.cache.EXPECT().Invalidate()
 				m.users.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
 			},
 		},
@@ -184,7 +180,6 @@ func TestService_DeleteUser(t *testing.T) {
 			buildMocks: func(m *mocks) {
 				m.users.EXPECT().Get(gomock.Any(), int64(7)).Return(user, nil)
 				m.nodes.EXPECT().List(gomock.Any()).Return(nil, nil) // node gone from registry → skip del
-				m.cache.EXPECT().Invalidate()
 				m.users.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
 			},
 		},
@@ -196,7 +191,7 @@ func TestService_DeleteUser(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			m := newMocks(ctrl)
 			tc.buildMocks(m)
-			svc := New(m.users, m.nodes, m.client, m.cache)
+			svc := New(m.users, m.nodes, m.client)
 			require.NoError(t, svc.DeleteUser(ctx, 7))
 		})
 	}

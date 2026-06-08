@@ -27,8 +27,3 @@ type panelClient interface {
 	AddClient(ctx context.Context, t entity.PanelTarget, inboundIDs []int, cs entity.ClientSpec) error
 	DelClient(ctx context.Context, t entity.PanelTarget, email string) error
 }
-
-// fleetCache is the narrow cache-invalidation hook (the fleet service satisfies it).
-type fleetCache interface {
-	Invalidate()
-}

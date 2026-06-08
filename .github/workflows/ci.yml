@@ -1,12 +1,16 @@
 name: CI
 
-# Lint + every test suite for subgen, on each push / PR.
-# Mirrors the Makefile: `make lint`, `make test` (unit, -race),
-# `make integration` (-tags integration, real temp SQLite), `make apitest`
-# (-tags apitest, against two real 3x-ui panels in docker).
+# Lint + every test suite for subgen. These four checks gate every PR into main:
+# branch protection requires all of them green and forbids direct pushes to main, so
+# nothing lands without lint + unit + integration + apitest passing.
+#   lint        — golangci-lint v2 (make lint)
+#   unit        — go test -race (make test)
+#   integration — -tags integration, real temp SQLite (make integration)
+#   apitest     — -tags apitest, two real 3x-ui panels in docker (make apitest)
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -19,7 +23,7 @@ concurrency:
 
 jobs:
   lint:
-    name: lint (golangci-lint v2)
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -32,8 +36,8 @@ jobs:
         with:
           version: v2.12.2 # pinned golangci-lint v2 — matches .golangci.yaml (version "2")
 
-  test:
-    name: tests (unit + integration)
+  unit:
+    name: unit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -43,12 +47,22 @@ jobs:
           cache-dependency-path: go.sum
       - name: unit tests (-race)
         run: make test
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: integration tests (real temp SQLite)
         run: make integration
 
   apitest:
-    name: apitest (real 3x-ui in docker)
-    needs: test # only spin the docker panels once the cheap suites are green
+    name: apitest
+    needs: [unit, integration] # only spin the docker panels once the cheap suites are green
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

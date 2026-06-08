@@ -103,8 +103,8 @@ func run() error {
 
 	// Wiring: clients → services → handlers (data flows bottom-up).
 	xc := xui.New()
-	fleetSvc := fleet.New(xc, nodesRepo, cfg.CacheTTL)
-	prov := provisioning.New(usersRepo, nodesRepo, xc, fleetSvc)
+	fleetSvc := fleet.New(xc, nodesRepo)
+	prov := provisioning.New(usersRepo, nodesRepo, xc)
 
 	mirror := ruleset.New(provs)
 	go mirror.Run(ctx)
@@ -219,8 +219,8 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 	r.HandleFunc("/admin/api/users/edit", ra(user_edit.New(prov).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/users/delete", ra(user_delete.New(prov).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/users/recreate", ra(user_recreate.New(prov).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/nodes/save", ra(node_save.New(nodesRepo, routingRepo, fleetSvc).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/nodes/delete", ra(node_delete.New(nodesRepo, routingRepo, fleetSvc).ServeHTTP)).Methods(http.MethodPost)
+	r.HandleFunc("/admin/api/nodes/save", ra(node_save.New(nodesRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
+	r.HandleFunc("/admin/api/nodes/delete", ra(node_delete.New(nodesRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
 
 	// SPA shell: serve index.html for /admin and any other admin GET (client-side views).
 	shell := ra(func(w http.ResponseWriter, _ *http.Request) { web.ServePage(w, cfg.StaticDir, "index.html") })

@@ -203,39 +203,3 @@ func (mr *MockpanelClientMockRecorder) ListInbounds(ctx, t any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInbounds", reflect.TypeOf((*MockpanelClient)(nil).ListInbounds), ctx, t)
 }
-
-// MockfleetCache is a mock of fleetCache interface.
-type MockfleetCache struct {
-	ctrl     *gomock.Controller
-	recorder *MockfleetCacheMockRecorder
-	isgomock struct{}
-}
-
-// MockfleetCacheMockRecorder is the mock recorder for MockfleetCache.
-type MockfleetCacheMockRecorder struct {
-	mock *MockfleetCache
-}
-
-// NewMockfleetCache creates a new mock instance.
-func NewMockfleetCache(ctrl *gomock.Controller) *MockfleetCache {
-	mock := &MockfleetCache{ctrl: ctrl}
-	mock.recorder = &MockfleetCacheMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockfleetCache) EXPECT() *MockfleetCacheMockRecorder {
-	return m.recorder
-}
-
-// Invalidate mocks base method.
-func (m *MockfleetCache) Invalidate() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Invalidate")
-}
-
-// Invalidate indicates an expected call of Invalidate.
-func (mr *MockfleetCacheMockRecorder) Invalidate() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invalidate", reflect.TypeOf((*MockfleetCache)(nil).Invalidate))
-}

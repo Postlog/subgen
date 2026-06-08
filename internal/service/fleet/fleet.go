@@ -1,7 +1,7 @@
-// Package fleet builds the normalized fleet (subscribers + their proxies) from
-// live panel snapshots and serves it behind a TTL cache with stale-on-error, so a
-// brief panel hiccup never breaks live subscriptions. The cache is narrow — it
-// wraps just this service, not a global snapshot of everything.
+// Package fleet assembles the normalized fleet (subscribers + their proxies) from live
+// panel snapshots, fresh on every call — there is no cache, so the admin health badge
+// and live subscriptions always reflect the panels right now. One unreachable panel is
+// tolerated (its node is skipped); only a total outage (every panel failing) errors.
 package fleet
 
 import (
@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/postlog/subgen/internal/entity"
 )
@@ -19,73 +17,21 @@ import (
 type Service struct {
 	client panelClient
 	nodes  nodeLister
-	ttl    time.Duration
-
-	mu      sync.RWMutex
-	fleet   *entity.Fleet
-	at      time.Time
-	refresh sync.Mutex
 }
 
-// New builds the fleet service. A non-positive ttl defaults to 5m.
-func New(client panelClient, nodes nodeLister, ttl time.Duration) *Service {
-	if ttl <= 0 {
-		ttl = 5 * time.Minute
-	}
-
-	return &Service{client: client, nodes: nodes, ttl: ttl}
+// New builds the fleet service.
+func New(client panelClient, nodes nodeLister) *Service {
+	return &Service{client: client, nodes: nodes}
 }
 
-// Invalidate forces the next Fleet call to refetch (call after a write to a panel
-// or the node registry).
-func (s *Service) Invalidate() {
-	s.mu.Lock()
-	s.at = time.Time{}
-	s.mu.Unlock()
-}
-
-// Fleet returns a fleet no older than ttl, refreshing if needed. Only one refresh
-// runs at a time; on refresh error it returns the last good fleet when one exists.
+// Fleet lists every node's inbounds and assembles the fleet, fresh on every call.
 func (s *Service) Fleet(ctx context.Context) (*entity.Fleet, error) {
-	s.mu.RLock()
-	f, at := s.fleet, s.at
-	s.mu.RUnlock()
-
-	if f != nil && time.Since(at) < s.ttl {
-		return f, nil
-	}
-
-	s.refresh.Lock()
-	defer s.refresh.Unlock()
-
-	// Re-check: another goroutine may have refreshed while we waited.
-	s.mu.RLock()
-	f, at = s.fleet, s.at
-	s.mu.RUnlock()
-
-	if f != nil && time.Since(at) < s.ttl {
-		return f, nil
-	}
-
-	nf, err := s.fetch(ctx)
-	if err != nil {
-		if f != nil {
-			return f, nil // stale-on-error
-		}
-
-		return nil, err
-	}
-
-	s.mu.Lock()
-	s.fleet, s.at = nf, time.Now()
-	s.mu.Unlock()
-
-	return nf, nil
+	return s.fetch(ctx)
 }
 
 // fetch lists every node's inbounds and builds the fleet. One unreachable panel is
-// tolerated (its node is skipped) so clients on healthy nodes keep working — only
-// a total outage (every panel failing) returns an error.
+// tolerated (its node is skipped) so clients on healthy nodes keep working — only a
+// total outage (every panel failing) returns an error.
 func (s *Service) fetch(ctx context.Context) (*entity.Fleet, error) {
 	nodes, err := s.nodes.List(ctx)
 	if err != nil {

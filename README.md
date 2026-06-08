@@ -155,7 +155,7 @@ client GET /sub/{kind}/{token} --(token=HMAC(secret,subId))-->  resolve subId  -
 - Panels (3x-ui >= 3.2) are read with `Authorization: Bearer <token>` — no login/CSRF.
 - `settings` / `streamSettings` may be JSON objects (3.x) or strings (legacy); both handled.
 - `token = HMAC-SHA256(secret, subId)` — proxy UUIDs never appear in the URL.
-- Fleet data is cached (`SUBGEN_CACHE_TTL`, default 5m) with stale-on-error.
+- Fleet is built fresh per request (no cache); an unreachable panel is skipped, only a total outage errors.
 - Mirrored rule-providers are fetched in the background and served from `/rules/<name><ext>`.
 
 ## Layout

@@ -73,9 +73,10 @@ func StartServer(t *testing.T) *Server {
 // the test HMAC secret. It polls /healthz until ready, registers cleanup that stops the
 // process, and returns the handle. A failed build/boot fails the test fast.
 //
-// The admin panel is mounted (AdminUser+AdminPass are set), TLS is off (plain HTTP),
-// and SUBGEN_CACHE_TTL=0 so panel changes are seen immediately. SUBGEN_PUBLIC_BASE is
-// the loopback base, so the users API emits absolute /sub URLs the SDK can GET.
+// The admin panel is mounted (AdminUser+AdminPass are set) and TLS is off (plain HTTP).
+// The fleet is built fresh per request (no cache), so out-of-band panel changes — and
+// the fleet-derived "missing" health badge — are seen immediately. SUBGEN_PUBLIC_BASE
+// is the loopback base, so the users API emits absolute /sub URLs the SDK can GET.
 func StartServerWith(t *testing.T, opts Options) *Server {
 	t.Helper()
 
@@ -109,7 +110,6 @@ func StartServerWith(t *testing.T, opts Options) *Server {
 		"SUBGEN_ADMIN_USER="+AdminUser,
 		"SUBGEN_ADMIN_PASSWORD="+AdminPass,
 		"SUBGEN_PUBLIC_BASE="+base,
-		"SUBGEN_CACHE_TTL=0",
 	)
 	cmd.Stdout = logBuf
 	cmd.Stderr = logBuf

@@ -16,12 +16,11 @@ const msgDeleted = "Узел удалён"
 type Handler struct {
 	nodes   nodeRepo
 	routing routingRepo
-	cache   cacheInvalidator
 }
 
 // New builds the handler.
-func New(nodes nodeRepo, routing routingRepo, cache cacheInvalidator) *Handler {
-	return &Handler{nodes: nodes, routing: routing, cache: cache}
+func New(nodes nodeRepo, routing routingRepo) *Handler {
+	return &Handler{nodes: nodes, routing: routing}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -44,9 +43,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == nil {
-		if err = h.nodes.Delete(r.Context(), id); err == nil {
-			h.cache.Invalidate()
-		}
+		err = h.nodes.Delete(r.Context(), id)
 	}
 
 	if err != nil {

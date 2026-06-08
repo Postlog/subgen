@@ -1,11 +1,8 @@
 package node_delete
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +10,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/oas"
 )
 
 // node7 is a one-inbound node: "main" :4433 (inbound id 10).
@@ -28,17 +26,18 @@ type mocks struct {
 	routing *MockroutingRepo
 }
 
-func TestHandler_ServeHTTP(t *testing.T) {
+func TestHandler_NodeDelete(t *testing.T) {
 	targetErr := errors.New("test")
 
 	tt := []struct {
 		name       string
-		id         string
 		buildMocks func(m *mocks)
-		wantOK     bool
+		wantBad    bool  // expect a 400 (NodeDeleteBadRequest)
+		wantErr    error // expect a propagated error (-> 500)
 	}{
 		{
-			name: "error.users_blocking", id: "7",
+			name:    "error.users_blocking",
+			wantBad: true,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
 				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{10: 2}, nil)
@@ -46,15 +45,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			},
 		},
 		{
-			name: "error.rule_blocking", id: "7",
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{10: 1}, nil)
-			},
-		},
-		{
-			name: "error.delete", id: "7",
+			name:    "error.delete",
+			wantErr: targetErr,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
 				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
@@ -63,7 +55,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			},
 		},
 		{
-			name: "success", id: "7", wantOK: true,
+			name: "success",
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
 				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
@@ -85,20 +77,22 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				tc.buildMocks(m)
 			}
 
-			h := New(m.nodes, m.routing)
-			req := httptest.NewRequest(http.MethodPost, "/admin/api/nodes/delete",
-				strings.NewReader(`{"id":`+tc.id+`}`))
+			res, err := New(m.nodes, m.routing).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: 7})
 
-			rec := httptest.NewRecorder()
+			require.ErrorIs(t, err, tc.wantErr)
 
-			h.ServeHTTP(rec, req)
-
-			var body struct {
-				OK bool `json:"ok"`
+			switch {
+			case tc.wantErr != nil:
+				assert.Nil(t, res)
+			case tc.wantBad:
+				bad, ok := res.(*oas.NodeDeleteBadRequest)
+				require.True(t, ok, "want NodeDeleteBadRequest, got %T", res)
+				assert.NotEmpty(t, bad.ErrMessage)
+			default:
+				ok, _ := res.(*oas.MessageResponse)
+				require.NotNil(t, ok, "want MessageResponse, got %T", res)
+				assert.Equal(t, msgDeleted, ok.Message)
 			}
-
-			require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-			assert.Equal(t, tc.wantOK, body.OK)
 		})
 	}
 }

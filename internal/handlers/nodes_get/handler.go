@@ -1,16 +1,15 @@
-// Package nodes_get handles GET /admin/api/nodes — the node registry as JSON for
-// the admin SPA.
+// Package nodes_get implements the nodesGet operation (GET /admin/api/nodes) — the
+// node registry for the admin SPA.
 package nodes_get
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
 	"sort"
 
-	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-// Handler serves the node registry as JSON.
+// Handler serves the node registry.
 type Handler struct {
 	nodes nodeLister
 }
@@ -18,45 +17,28 @@ type Handler struct {
 // New builds the handler.
 func New(nodes nodeLister) *Handler { return &Handler{nodes: nodes} }
 
-type inboundView struct {
-	ID   int64  `json:"id"`   // node_inbounds.id
-	Name string `json:"name"` // inbound name (the label is "<node>-<name>")
-	Port int    `json:"port"`
-}
-
-type row struct {
-	ID            int64         `json:"id"`
-	Name          string        `json:"name"`
-	VPNHost       string        `json:"vpnHost"`
-	PanelBaseURL  string        `json:"panelBaseURL"`
-	PanelBasePath string        `json:"panelBasePath"`
-	Inbounds      []inboundView `json:"inbounds"`
-}
-
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	nodes, err := h.nodes.List(r.Context())
+// NodesGet implements oas.Handler: it lists the fleet nodes with their inbounds.
+func (h *Handler) NodesGet(ctx context.Context) (oas.NodesGetRes, error) {
+	nodes, err := h.nodes.List(ctx)
 	if err != nil {
-		slog.Error("handler nodes_get: list failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, err
 	}
 
-	rows := make([]row, 0, len(nodes))
+	items := make([]oas.NodesGetOKNodesItem, 0, len(nodes))
+
 	for _, n := range nodes {
-		inbounds := make([]inboundView, 0, len(n.Inbounds))
+		inbounds := make([]oas.NodesGetOKNodesItemInboundsItem, 0, len(n.Inbounds))
 		for _, in := range n.Inbounds {
-			inbounds = append(inbounds, inboundView{ID: in.ID, Name: in.Name, Port: in.Port})
+			inbounds = append(inbounds, oas.NodesGetOKNodesItemInboundsItem{ID: in.ID, Name: in.Name, Port: in.Port})
 		}
 		// Deterministic order by name.
 		sort.Slice(inbounds, func(i, j int) bool { return inbounds[i].Name < inbounds[j].Name })
 
-		rows = append(rows, row{
-			ID: n.ID, Name: n.Name, VPNHost: n.VPNHost,
-			PanelBaseURL: n.PanelBaseURL, PanelBasePath: n.PanelBasePath,
-			Inbounds: inbounds,
+		items = append(items, oas.NodesGetOKNodesItem{
+			ID: n.ID, Name: n.Name, VpnHost: n.VPNHost,
+			PanelBaseURL: n.PanelBaseURL, PanelBasePath: n.PanelBasePath, Inbounds: inbounds,
 		})
 	}
 
-	web.JSON(w, map[string]any{"nodes": rows})
+	return &oas.NodesGetOK{Nodes: items}, nil
 }

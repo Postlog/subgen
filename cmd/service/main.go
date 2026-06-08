@@ -28,6 +28,7 @@ import (
 	"github.com/postlog/subgen/internal/clients/xui"
 	"github.com/postlog/subgen/internal/config"
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/handlers/api"
 	"github.com/postlog/subgen/internal/handlers/config_customs"
 	"github.com/postlog/subgen/internal/handlers/config_get"
 	"github.com/postlog/subgen/internal/handlers/config_save"
@@ -49,6 +50,7 @@ import (
 	"github.com/postlog/subgen/internal/handlers/user_recreate"
 	"github.com/postlog/subgen/internal/handlers/users_get"
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 	"github.com/postlog/subgen/internal/repository"
 	"github.com/postlog/subgen/internal/repository/configs"
 	"github.com/postlog/subgen/internal/repository/nodes"
@@ -109,7 +111,10 @@ func run() error {
 	mirror := ruleset.New(provs)
 	go mirror.Run(ctx)
 
-	router := buildRouter(cfg, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov, mirror)
+	router, err := buildRouter(cfg, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov, mirror)
+	if err != nil {
+		return fmt.Errorf("router: %w", err)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -167,8 +172,10 @@ func serve(cfg config.Config, srv *http.Server) error {
 }
 
 // buildRouter constructs the gorilla/mux router, wiring each per-action handler
-// with the concrete dependencies it declares.
-func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service, mirror *ruleset.Mirror) http.Handler {
+// with the concrete dependencies it declares. Migrated operations are served by the
+// ogen server (the api composite); the rest stay on the legacy per-action handlers
+// until they migrate too.
+func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service, mirror *ruleset.Mirror) (http.Handler, error) {
 	r := mux.NewRouter()
 
 	// Per-engine subscription renderers, keyed by config kind. Adding an engine = a
@@ -182,17 +189,37 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
 	)).Methods(http.MethodGet)
 	r.Handle("/rules/{file}", rules.New(mirror)).Methods(http.MethodGet)
-	r.Handle("/healthz", healthz.New()).Methods(http.MethodGet)
 
-	if cfg.AdminEnabled() {
-		mountAdmin(r, cfg, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov)
+	sess := web.NewSession(cfg.Secret)
+
+	// The ogen server (api composite) — forwards migrated operations to their
+	// per-action handlers, with the admin session cookie + idiomatic errors handled
+	// inside. Mounted per-path, so it serves only the operations already migrated.
+	composite := api.New(sess, api.Handlers{
+		Healthz:    healthz.New(),
+		NodesGet:   nodes_get.New(nodesRepo),
+		NodeDelete: node_delete.New(nodesRepo, routingRepo),
+	})
+
+	oasSrv, err := oas.NewServer(composite, composite, oas.WithErrorHandler(composite.ErrorHandler))
+	if err != nil {
+		return nil, fmt.Errorf("oas server: %w", err)
 	}
 
-	return r
+	r.Handle("/healthz", oasSrv).Methods(http.MethodGet)
+
+	if cfg.AdminEnabled() {
+		// Migrated admin operations go to the ogen server (auth via its SecurityHandler).
+		r.Handle("/admin/api/nodes", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/nodes/delete", oasSrv).Methods(http.MethodPost)
+
+		mountAdmin(r, cfg, sess, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov)
+	}
+
+	return r, nil
 }
 
-func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service) {
-	sess := web.NewSession(cfg.Secret)
+func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service) {
 	ra := sess.RequireAdmin
 
 	r.PathPrefix("/admin/static/").Handler(web.StaticHandler(cfg.StaticDir))
@@ -201,7 +228,6 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 
 	// JSON read API (consumed by the Vue SPA).
 	r.HandleFunc("/admin/api/users", ra(users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/nodes", ra(nodes_get.New(nodesRepo).ServeHTTP)).Methods(http.MethodGet)
 
 	// mihomo config: read / schema / save / custom-config management, grouped under
 	// /admin/api/config/mihomo. Without ?user / userId the scope is the base config;
@@ -220,7 +246,6 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 	r.HandleFunc("/admin/api/users/delete", ra(user_delete.New(prov).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/users/recreate", ra(user_recreate.New(prov).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/nodes/save", ra(node_save.New(nodesRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/nodes/delete", ra(node_delete.New(nodesRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
 
 	// SPA shell: serve index.html for /admin and any other admin GET (client-side views).
 	shell := ra(func(w http.ResponseWriter, _ *http.Request) { web.ServePage(w, cfg.StaticDir, "index.html") })

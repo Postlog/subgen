@@ -48,31 +48,44 @@ func (s *Session) valid(v string) bool {
 	return subtle.ConstantTimeCompare([]byte(s.sign(exp)), []byte(v)) == 1
 }
 
+// CookieName is the admin session cookie name (the ogen security scheme reads it).
+const CookieName = adminCookie
+
 // IsAuthed reports whether the request carries a valid admin session cookie.
 func (s *Session) IsAuthed(r *http.Request) bool {
 	c, err := r.Cookie(adminCookie)
 	return err == nil && s.valid(c.Value)
 }
 
-// Issue sets a fresh 12h admin session cookie.
-func (s *Session) Issue(w http.ResponseWriter) {
+// Valid reports whether a raw cookie value is a currently-valid admin session — used
+// by the ogen security handler, which extracts the cookie value itself.
+func (s *Session) Valid(value string) bool { return s.valid(value) }
+
+// IssueCookie builds (does not write) a fresh 12h admin session cookie.
+func (s *Session) IssueCookie() *http.Cookie {
 	exp := time.Now().Add(adminTTL).Unix()
-	http.SetCookie(w, &http.Cookie{
+
+	return &http.Cookie{
 		Name: adminCookie, Value: s.sign(exp), Path: "/admin",
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: int(adminTTL.Seconds()),
-	})
+	}
 }
 
-// Clear expires the admin session cookie (same attributes as Issue, so it's
-// replaced cleanly).
-func (s *Session) Clear(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+// ClearCookie builds (does not write) a cookie that expires the admin session.
+func (s *Session) ClearCookie() *http.Cookie {
+	return &http.Cookie{
 		Name: adminCookie, Value: "", Path: "/admin",
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
-	})
+	}
 }
+
+// Issue sets a fresh 12h admin session cookie.
+func (s *Session) Issue(w http.ResponseWriter) { http.SetCookie(w, s.IssueCookie()) }
+
+// Clear expires the admin session cookie.
+func (s *Session) Clear(w http.ResponseWriter) { http.SetCookie(w, s.ClearCookie()) }
 
 // RequireAdmin gates a handler behind a valid admin session, redirecting to the
 // login page otherwise.

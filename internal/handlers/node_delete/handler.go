@@ -1,12 +1,11 @@
-// Package node_delete handles POST /admin/nodes/delete.
+// Package node_delete implements the nodeDelete operation (POST /admin/api/nodes/delete).
 package node_delete
 
 import (
-	"fmt"
-	"log/slog"
-	"net/http"
+	"context"
 
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
 const msgDeleted = "Узел удалён"
@@ -23,32 +22,21 @@ func New(nodes nodeRepo, routing routingRepo) *Handler {
 	return &Handler{nodes: nodes, routing: routing}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int64 `json:"id"`
-	}
-
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler node_delete: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	id := req.ID
-
-	msg, err := web.InboundsBlocking(r.Context(), h.nodes, h.routing, id, nil)
-	if err == nil && msg != "" {
-		err = fmt.Errorf("%s", msg)
-	}
-
-	if err == nil {
-		err = h.nodes.Delete(r.Context(), id)
-	}
-
+// NodeDelete implements oas.Handler: it deletes the node, returning 400 when a removed
+// inbound is still referenced.
+func (h *Handler) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {
+	msg, err := web.InboundsBlocking(ctx, h.nodes, h.routing, req.ID, nil)
 	if err != nil {
-		slog.Warn("handler node_delete: delete failed", "id", id, "err", err)
+		return nil, err
 	}
 
-	web.JSONResult(w, msgDeleted, err)
+	if msg != "" {
+		return &oas.NodeDeleteBadRequest{ErrMessage: msg}, nil
+	}
+
+	if err := h.nodes.Delete(ctx, req.ID); err != nil {
+		return nil, err
+	}
+
+	return &oas.MessageResponse{Message: msgDeleted}, nil
 }

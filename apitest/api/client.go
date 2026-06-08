@@ -8,10 +8,13 @@
 //
 //   - Client — a typed HTTP SDK for a running subgen server: one method per endpoint
 //     the suites drive. The server speaks the ogen-generated contract (internal/oas):
-//     mutations answer 2xx {message} / 4xx {errMessage}; reads answer typed JSON. The
-//     SDK builds request bodies from the generated oas.*Req types and normalises the
-//     mutation envelope into a Result {Status, OK, Msg, Err}. See client.go + the
-//     per-area *.go files here.
+//     mutations answer 2xx {message} / 4xx {errMessage}; reads answer typed JSON. As a
+//     black box, the SDK builds request bodies INDEPENDENTLY of the generated types
+//     (plain map[string]any / hand-rolled structs / raw JSON) — so a request that the
+//     generated decoder would accept but the wire contract wouldn't (a renamed field,
+//     etc.) is actually exercised, not hidden by encoding+decoding with the same types.
+//     It normalises the mutation envelope into a Result {Status, OK, Msg, Err}. See
+//     client.go + the per-area *.go files here.
 //   - Server boot — StartServer(t) builds the real subgen binary and runs it as a
 //     subprocess on a free loopback port with a temp SQLite store and the test admin
 //     creds; it polls /healthz and registers cleanup. See server.go.
@@ -32,8 +35,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"time"
-
-	"github.com/postlog/subgen/internal/oas"
 )
 
 // AdminCookie is the name of the session cookie subgen issues on login
@@ -212,8 +213,9 @@ func (c *Client) PostRaw(path, contentType string, body []byte) (Response, error
 	return Response{Status: resp.StatusCode, Body: b, Headers: resp.Header}, nil
 }
 
-// post sends a JSON body (typically a generated oas.*Req) and maps the response into a
-// Result: OK from the 2xx status, Msg/Err from the {message}/{errMessage} envelope.
+// post sends a JSON body (a plain map / hand-rolled struct, never a generated type) and
+// maps the response into a Result: OK from the 2xx status, Msg/Err from the
+// {message}/{errMessage} envelope.
 func (c *Client) post(path string, reqBody any) (Result, error) {
 	var env resultBody
 
@@ -273,12 +275,13 @@ func truncate(b []byte) string {
 
 // ---- auth -------------------------------------------------------------------
 
-// Login posts the admin credentials to POST /admin/api/login (the generated oas.LoginReq
-// body) and, on success (200), captures the session cookie so subsequent /admin calls
-// are authenticated. Wrong credentials are a 401; the caller asserts on the Result. A
-// failed login leaves the client unauthenticated.
+// Login posts the admin credentials to POST /admin/api/login and, on success (200),
+// captures the session cookie so subsequent /admin calls are authenticated. Wrong
+// credentials are a 401; the caller asserts on the Result. A failed login leaves the
+// client unauthenticated. The body is a plain map (not a generated type) so the wire
+// field names are exercised, not assumed.
 func (c *Client) Login(user, password string) (Result, error) {
-	b, err := json.Marshal(oas.LoginReq{User: user, Password: password})
+	b, err := json.Marshal(map[string]string{"user": user, "password": password})
 	if err != nil {
 		return Result{}, fmt.Errorf("marshal login: %w", err)
 	}

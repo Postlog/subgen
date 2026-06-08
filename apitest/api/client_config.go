@@ -2,7 +2,9 @@
 
 package api
 
-import "github.com/postlog/subgen/internal/oas"
+// The Config* types and the request bodies here are hand-rolled / plain maps —
+// independent of the server's generated types — so the apitest exercises the real wire
+// contract (field names, request mapping) as a black box.
 
 // ConfigRef is a PolicyRef on the wire: a built-in kind carries nothing extra; an
 // inbound ref carries the (real) inbound id; a group ref carries the INDEX of the
@@ -118,9 +120,9 @@ func (c *Client) Schema() (Schema, error) {
 }
 
 // CheckProvider POSTs /admin/api/config/mihomo/provider/check (a read-only reachability
-// probe of a rule-provider URL), built from the generated oas.ProviderCheckReq.
+// probe of a rule-provider URL).
 func (c *Client) CheckProvider(url, format string) (Result, error) {
-	return c.post("/admin/api/config/mihomo/provider/check", oas.ProviderCheckReq{URL: url, Format: format})
+	return c.post("/admin/api/config/mihomo/provider/check", map[string]string{"url": url, "format": format})
 }
 
 // CheckProviderRaw POSTs an arbitrary body to the provider-check endpoint (for the

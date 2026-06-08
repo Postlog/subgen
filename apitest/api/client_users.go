@@ -5,15 +5,12 @@ package api
 import (
 	"fmt"
 	"net/url"
-
-	"github.com/postlog/subgen/internal/oas"
 )
 
-// The User* read DTOs below mirror the generated oas users-list response
-// (oas.UsersGetOK and its nested items) field-for-field; they are restated with the
-// same names the scenarios read (so the assertions stay terse) rather than aliased to
-// the verbose generated item types. Request bodies, by contrast, ARE the generated
-// oas.*Req types (built in the methods below).
+// The User* read DTOs below are hand-rolled to mirror the users-list response
+// field-for-field — independent of the server's generated types, so the wire shape is
+// actually asserted. Request bodies are likewise plain maps (see the methods below), not
+// generated request types, so the request mapping is exercised too.
 
 // UserInbound is one (user, inbound) binding as the users API reports it.
 type UserInbound struct {
@@ -48,23 +45,23 @@ type User struct {
 
 // CreateUser POSTs /admin/api/users/create (nickname + the inbound ids to bind).
 func (c *Client) CreateUser(name string, inboundIDs []int64) (Result, error) {
-	return c.post("/admin/api/users/create", oas.UserCreateReq{Name: name, InboundIDs: inboundIDs})
+	return c.post("/admin/api/users/create", map[string]any{"name": name, "inboundIDs": inboundIDs})
 }
 
 // EditUser POSTs /admin/api/users/edit (re-bind a user to a new inbound-id set).
 func (c *Client) EditUser(id int64, inboundIDs []int64) (Result, error) {
-	return c.post("/admin/api/users/edit", oas.UserEditReq{ID: id, InboundIDs: inboundIDs})
+	return c.post("/admin/api/users/edit", map[string]any{"id": id, "inboundIDs": inboundIDs})
 }
 
 // DeleteUser POSTs /admin/api/users/delete.
 func (c *Client) DeleteUser(id int64) (Result, error) {
-	return c.post("/admin/api/users/delete", oas.UserDeleteReq{ID: id})
+	return c.post("/admin/api/users/delete", map[string]any{"id": id})
 }
 
 // RecreateUser POSTs /admin/api/users/recreate (re-provision panel clients from the
 // store after drift).
 func (c *Client) RecreateUser(id int64) (Result, error) {
-	return c.post("/admin/api/users/recreate", oas.UserRecreateReq{ID: id})
+	return c.post("/admin/api/users/recreate", map[string]any{"id": id})
 }
 
 // ListUsers GETs /admin/api/users and returns the rows. The list is server-paged; a

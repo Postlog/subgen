@@ -81,12 +81,6 @@ func (s *Session) ClearCookie() *http.Cookie {
 	}
 }
 
-// Issue sets a fresh 12h admin session cookie.
-func (s *Session) Issue(w http.ResponseWriter) { http.SetCookie(w, s.IssueCookie()) }
-
-// Clear expires the admin session cookie.
-func (s *Session) Clear(w http.ResponseWriter) { http.SetCookie(w, s.ClearCookie()) }
-
 // RequireAdmin gates a handler behind a valid admin session, redirecting to the
 // login page otherwise.
 func (s *Session) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {

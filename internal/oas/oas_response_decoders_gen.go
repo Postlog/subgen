@@ -1374,7 +1374,7 @@ func decodeSubResponse(resp *http.Response) (res SubRes, _ error) {
 			return res, errors.Wrap(err, "parse media type")
 		}
 		switch {
-		case ct == "application/x-yaml":
+		case ct == "text/yaml":
 			reader := resp.Body
 			b, err := io.ReadAll(reader)
 			if err != nil {

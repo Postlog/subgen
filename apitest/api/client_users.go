@@ -5,7 +5,15 @@ package api
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/postlog/subgen/internal/oas"
 )
+
+// The User* read DTOs below mirror the generated oas users-list response
+// (oas.UsersGetOK and its nested items) field-for-field; they are restated with the
+// same names the scenarios read (so the assertions stay terse) rather than aliased to
+// the verbose generated item types. Request bodies, by contrast, ARE the generated
+// oas.*Req types (built in the methods below).
 
 // UserInbound is one (user, inbound) binding as the users API reports it.
 type UserInbound struct {
@@ -40,23 +48,23 @@ type User struct {
 
 // CreateUser POSTs /admin/api/users/create (nickname + the inbound ids to bind).
 func (c *Client) CreateUser(name string, inboundIDs []int64) (Result, error) {
-	return c.post("/admin/api/users/create", map[string]any{"name": name, "inboundIDs": inboundIDs})
+	return c.post("/admin/api/users/create", oas.UserCreateReq{Name: name, InboundIDs: inboundIDs})
 }
 
 // EditUser POSTs /admin/api/users/edit (re-bind a user to a new inbound-id set).
 func (c *Client) EditUser(id int64, inboundIDs []int64) (Result, error) {
-	return c.post("/admin/api/users/edit", map[string]any{"id": id, "inboundIDs": inboundIDs})
+	return c.post("/admin/api/users/edit", oas.UserEditReq{ID: id, InboundIDs: inboundIDs})
 }
 
 // DeleteUser POSTs /admin/api/users/delete.
 func (c *Client) DeleteUser(id int64) (Result, error) {
-	return c.post("/admin/api/users/delete", map[string]any{"id": id})
+	return c.post("/admin/api/users/delete", oas.UserDeleteReq{ID: id})
 }
 
 // RecreateUser POSTs /admin/api/users/recreate (re-provision panel clients from the
 // store after drift).
 func (c *Client) RecreateUser(id int64) (Result, error) {
-	return c.post("/admin/api/users/recreate", map[string]any{"id": id})
+	return c.post("/admin/api/users/recreate", oas.UserRecreateReq{ID: id})
 }
 
 // ListUsers GETs /admin/api/users and returns the rows. The list is server-paged; a
@@ -74,9 +82,10 @@ func (c *Client) ListUsers() ([]User, error) {
 }
 
 // FindUser GETs the users list filtered by the nickname (server-side ?q= search) and
-// returns the matching row, or nil. user_create only returns {ok}, so this is how a
-// scenario recovers the created user's id/subId/sub-URL to drive the rest of its
-// lifecycle — going through the filter so paging never hides a freshly-created user.
+// returns the matching row, or nil. user_create only returns a message (not the new
+// row), so this is how a scenario recovers the created user's id/subId/sub-URL to drive
+// the rest of its lifecycle — going through the filter so paging never hides a
+// freshly-created user.
 func (c *Client) FindUser(name string) (*User, error) {
 	var resp struct {
 		Users []User `json:"users"`

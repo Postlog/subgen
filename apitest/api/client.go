@@ -7,8 +7,11 @@
 // It provides three things:
 //
 //   - Client — a typed HTTP SDK for a running subgen server: one method per endpoint
-//     the suites drive, decoding the {ok,msg|err} envelope (mutations) or the typed
-//     read shapes (User/Node/Config/…). See client.go + the per-area *.go files here.
+//     the suites drive. The server speaks the ogen-generated contract (internal/oas):
+//     mutations answer 2xx {message} / 4xx {errMessage}; reads answer typed JSON. The
+//     SDK builds request bodies from the generated oas.*Req types and normalises the
+//     mutation envelope into a Result {Status, OK, Msg, Err}. See client.go + the
+//     per-area *.go files here.
 //   - Server boot — StartServer(t) builds the real subgen binary and runs it as a
 //     subprocess on a free loopback port with a temp SQLite store and the test admin
 //     creds; it polls /healthz and registers cleanup. See server.go.
@@ -29,6 +32,8 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"time"
+
+	"github.com/postlog/subgen/internal/oas"
 )
 
 // AdminCookie is the name of the session cookie subgen issues on login
@@ -39,12 +44,22 @@ import (
 // over loopback HTTP we replay it explicitly, without touching production code.
 const AdminCookie = "subgen_admin"
 
-// Result is the {ok, msg|err} envelope every mutation handler returns (see
-// web.WriteJSON). Exactly one of Msg/Err is populated, keyed by OK.
+// Result is the normalised view of a mutation response under the ogen contract: a
+// success is 2xx with {message} (→ Msg), a failure is 4xx/5xx with {errMessage} (→
+// Err). OK mirrors the 2xx status; Status carries the exact code for tests that assert
+// it. This replaces the old single-status {ok,msg|err} envelope.
 type Result struct {
-	OK  bool   `json:"ok"`
-	Msg string `json:"msg"`
-	Err string `json:"err"`
+	Status int    // HTTP status code
+	OK     bool   // 2xx
+	Msg    string // common.yaml MessageResponse.message (success)
+	Err    string // common.yaml ErrorResponse.errMessage (failure)
+}
+
+// resultBody is the two-shape JSON envelope a mutation may return: {message} on
+// success, {errMessage} on failure (common.yaml MessageResponse / ErrorResponse).
+type resultBody struct {
+	Message    string `json:"message"`
+	ErrMessage string `json:"errMessage"`
 }
 
 // Message returns the human-facing text of the result (Msg on success, Err on
@@ -144,7 +159,7 @@ func (c *Client) do(method, path string, reqBody, out any) (Response, error) {
 		return Response{}, fmt.Errorf("%s %s: read body: %w", method, path, err)
 	}
 
-	if out != nil {
+	if out != nil && len(body) > 0 {
 		if err := json.Unmarshal(body, out); err != nil {
 			return Response{}, fmt.Errorf("%s %s: decode %d body %q: %w", method, path, resp.StatusCode, truncate(body), err)
 		}
@@ -197,15 +212,19 @@ func (c *Client) PostRaw(path, contentType string, body []byte) (Response, error
 	return Response{Status: resp.StatusCode, Body: b, Headers: resp.Header}, nil
 }
 
-// post sends a JSON body and decodes the {ok,…} envelope into a Result.
+// post sends a JSON body (typically a generated oas.*Req) and maps the response into a
+// Result: OK from the 2xx status, Msg/Err from the {message}/{errMessage} envelope.
 func (c *Client) post(path string, reqBody any) (Result, error) {
-	var res Result
+	var env resultBody
 
-	if _, err := c.do(http.MethodPost, path, reqBody, &res); err != nil {
+	resp, err := c.do(http.MethodPost, path, reqBody, &env)
+	if err != nil {
 		return Result{}, err
 	}
 
-	return res, nil
+	ok := resp.Status >= 200 && resp.Status < 300
+
+	return Result{Status: resp.Status, OK: ok, Msg: env.Message, Err: env.ErrMessage}, nil
 }
 
 // getJSON GETs path and decodes the JSON response into out.
@@ -214,26 +233,33 @@ func (c *Client) getJSON(path string, out any) error {
 	return err
 }
 
-// MsgBadRequest is the user-facing message subgen returns for a malformed request body
-// (mirrors web.MsgBadRequest at the presentation layer). Black-box tests assert the
-// exact text the API produces; re-stating it here keeps each area package from
-// importing the internal handler packages.
-const MsgBadRequest = "некорректный JSON в запросе"
+// Generic ogen-layer messages the central ErrorHandler (internal/handlers/api) returns,
+// re-stated here so black-box tests can assert the exact text without importing the
+// internal handler packages:
+//   - MsgBadRequest — any request/param decode or schema-validation failure (malformed
+//     JSON, an empty required string, a non-positive id, an empty required array).
+//   - MsgUnauthorized — an absent/invalid admin session on a gated operation (401).
+const (
+	MsgBadRequest   = "Некорректный запрос"
+	MsgUnauthorized = "Требуется авторизация"
+)
 
-// DecodeResult unmarshals a raw {ok,msg|err} body into a Result (for the *Raw helpers
-// and any test that posts a hand-built body and still wants the typed envelope back).
+// DecodeResult unmarshals a raw {message|errMessage} body into a Result (for the *Raw
+// helpers and any test that posts a hand-built body and still wants the typed envelope
+// back). OK is inferred from the absence of an errMessage, since the raw body alone
+// carries no status.
 func DecodeResult(body []byte) (Result, error) {
 	return decodeResult(body)
 }
 
-// decodeResult unmarshals a raw {ok,msg|err} body into a Result.
+// decodeResult unmarshals a raw {message|errMessage} body into a Result.
 func decodeResult(body []byte) (Result, error) {
-	var res Result
-	if err := json.Unmarshal(body, &res); err != nil {
+	var env resultBody
+	if err := json.Unmarshal(body, &env); err != nil {
 		return Result{}, fmt.Errorf("decode result %q: %w", truncate(body), err)
 	}
 
-	return res, nil
+	return Result{OK: env.ErrMessage == "", Msg: env.Message, Err: env.ErrMessage}, nil
 }
 
 func truncate(b []byte) string {
@@ -247,24 +273,12 @@ func truncate(b []byte) string {
 
 // ---- auth -------------------------------------------------------------------
 
-// Login posts the admin credentials to /admin/login and, on success, captures the
-// session cookie so subsequent /admin calls are authenticated. It returns the
-// handler's {ok,…} Result; the caller asserts on it. A failed login leaves the client
-// unauthenticated.
+// Login posts the admin credentials to POST /admin/api/login (the generated oas.LoginReq
+// body) and, on success (200), captures the session cookie so subsequent /admin calls
+// are authenticated. Wrong credentials are a 401; the caller asserts on the Result. A
+// failed login leaves the client unauthenticated.
 func (c *Client) Login(user, password string) (Result, error) {
-	return c.loginJSON(map[string]string{"user": user, "password": password})
-}
-
-// LoginRaw posts an arbitrary JSON login body (for malformed/missing-field cases). It
-// captures the session cookie if one comes back and returns the {ok,…} Result plus the
-// HTTP status.
-func (c *Client) LoginRaw(body []byte) (Result, int, error) {
-	res, status, err := c.loginBytes(body, "application/json")
-	return res, status, err
-}
-
-func (c *Client) loginJSON(req any) (Result, error) {
-	b, err := json.Marshal(req)
+	b, err := json.Marshal(oas.LoginReq{User: user, Password: password})
 	if err != nil {
 		return Result{}, fmt.Errorf("marshal login: %w", err)
 	}
@@ -274,11 +288,18 @@ func (c *Client) loginJSON(req any) (Result, error) {
 	return res, err
 }
 
-// loginBytes posts the given body to /admin/login, captures the admin cookie, and
-// decodes the envelope. It is the single place login goes out so cookie capture is
+// LoginRaw posts an arbitrary JSON login body (for malformed/missing-field cases). It
+// captures the session cookie if one comes back and returns the Result plus the HTTP
+// status.
+func (c *Client) LoginRaw(body []byte) (Result, int, error) {
+	return c.loginBytes(body, "application/json")
+}
+
+// loginBytes posts the given body to POST /admin/api/login, captures the admin cookie,
+// and maps the envelope. It is the single place login goes out so cookie capture is
 // consistent across Login/LoginRaw.
 func (c *Client) loginBytes(body []byte, contentType string) (Result, int, error) {
-	req, err := http.NewRequest(http.MethodPost, c.base+"/admin/login", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.base+"/admin/api/login", bytes.NewReader(body))
 	if err != nil {
 		return Result{}, 0, fmt.Errorf("new login request: %w", err)
 	}
@@ -289,7 +310,7 @@ func (c *Client) loginBytes(body []byte, contentType string) (Result, int, error
 
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return Result{}, 0, fmt.Errorf("POST /admin/login: %w", err)
+		return Result{}, 0, fmt.Errorf("POST /admin/api/login: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -302,12 +323,23 @@ func (c *Client) loginBytes(body []byte, contentType string) (Result, int, error
 		}
 	}
 
-	var res Result
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return Result{}, resp.StatusCode, fmt.Errorf("decode login body %q: %w", truncate(raw), err)
+	ok := resp.StatusCode >= 200 && resp.StatusCode < 300
+
+	var env resultBody
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &env); err != nil {
+			return Result{}, resp.StatusCode, fmt.Errorf("decode login body %q: %w", truncate(raw), err)
+		}
 	}
 
-	return res, resp.StatusCode, nil
+	return Result{Status: resp.StatusCode, OK: ok, Msg: env.Message, Err: env.ErrMessage}, resp.StatusCode, nil
+}
+
+// Logout posts to POST /admin/api/logout and returns the raw response (204 + an
+// expiring Set-Cookie). It does not clear the SDK's captured session — tests that need
+// a deauthenticated client use a fresh anonymous one.
+func (c *Client) Logout() (Response, error) {
+	return c.do(http.MethodPost, "/admin/api/logout", nil, nil)
 }
 
 // ---- health -----------------------------------------------------------------

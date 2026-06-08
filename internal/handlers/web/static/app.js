@@ -262,8 +262,8 @@ const app = createApp({
           body: JSON.stringify({ url: p.url, format: p.format }),
         });
         if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); return; }
-        const d = await r.json();
-        this.toast(!!d.ok, d.ok ? d.msg : (d.err || "Ошибка проверки"));
+        const d = await r.json().catch(() => ({}));
+        this.toast(r.ok, r.ok ? (d.message || "OK") : (d.errMessage || "Ошибка проверки"));
       } catch (e) { this.toast(false, "Сеть: " + e); }
       finally { p._checking = false; }
     },
@@ -316,6 +316,9 @@ const app = createApp({
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     },
+    // post sends a JSON mutation and normalises the API's idiomatic contract — 2xx with
+    // {message}, 4xx with {errMessage}, or 204 (no body) — into a {ok, msg, data} shape
+    // the callers use. A 401/403 bounces to the login page.
     async post(url, body) {
       this.busy = true;
       try {
@@ -324,11 +327,19 @@ const app = createApp({
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify(body),
         });
-        const d = await r.json();
-        this.toast(!!d.ok, d.ok ? d.msg : (d.err || "Ошибка"));
-        return d;
+        if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); return { ok: false }; }
+        const d = r.status === 204 ? {} : await r.json().catch(() => ({}));
+        const ok = r.ok;
+        const msg = ok ? (d.message || "Готово") : (d.errMessage || "Ошибка");
+        this.toast(ok, msg);
+        return { ok, msg, data: d };
       } catch (e) { this.toast(false, "Сеть: " + e); return { ok: false }; }
       finally { this.busy = false; }
+    },
+    // logout clears the session (POST), then navigates to the login page itself.
+    async logout() {
+      try { await fetch("/admin/api/logout", { method: "POST", headers: { Accept: "application/json" } }); } catch (_) { /* navigate regardless */ }
+      location.assign("/admin/login");
     },
     toast(ok, msg) {
       const id = ++this._tid;

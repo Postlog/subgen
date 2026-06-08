@@ -1,20 +1,17 @@
-// Package provider_check handles POST /admin/api/config/mihomo/provider/check — a
-// read-only probe of a rule-provider URL: is it reachable, is a file actually there,
-// and does the content match the declared format (mrs / yaml / text)? It saves nothing.
+// Package provider_check implements the providerCheck operation
+// (POST /admin/api/config/mihomo/provider/check) — a read-only probe of a rule-provider
+// URL: is it reachable, is a file actually there, does it match the declared format.
 package provider_check
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
-	"net/http"
 
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-// User-facing message fragments (Russian) — presentation layer.
 const (
-	msgNoURL        = "Укажите URL провайдера"
 	msgUnreachable  = "Не удалось подключиться к URL"
 	msgEmpty        = "Ответ пустой — по URL нет файла"
 	msgUnreachableP = "Не удалось подключиться: " // + technical detail
@@ -28,27 +25,17 @@ type Handler struct {
 // New builds the handler.
 func New(checker providerChecker) *Handler { return &Handler{checker: checker} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		URL    string `json:"url"`
-		Format string `json:"format"`
-	}
+// ProviderCheck implements oas.Handler: a reachable, right-format file is a 200 with a
+// message; any other outcome is a 400.
+func (h *Handler) ProviderCheck(ctx context.Context, req *oas.ProviderCheckReq) (oas.ProviderCheckRes, error) {
+	res := h.checker.Check(ctx, req.URL, req.Format)
 
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler provider_check: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	if req.URL == "" {
-		web.WriteJSON(w, false, msgNoURL)
-		return
-	}
-
-	res := h.checker.Check(r.Context(), req.URL, req.Format)
 	ok, msg := describe(res, req.Format)
-	web.WriteJSON(w, ok, msg)
+	if !ok {
+		return &oas.ProviderCheckBadRequest{ErrMessage: msg}, nil
+	}
+
+	return &oas.MessageResponse{Message: msg}, nil
 }
 
 // describe maps the structured check outcome to a user-facing message.
@@ -62,7 +49,7 @@ func describe(res entity.RulesetCheckResult, format string) (bool, string) {
 		return false, msgEmpty
 	case entity.RulesetCheckFormatMismatch:
 		return false, fmt.Sprintf("Скачалось (%s), но содержимое не похоже на формат «%s»", humanSize(res.Size), format)
-	default: // CheckUnreachable
+	default: // RulesetCheckUnreachable
 		if res.Detail != "" {
 			return false, msgUnreachableP + res.Detail
 		}

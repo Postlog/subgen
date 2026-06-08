@@ -39,7 +39,7 @@ get:
           schema:
             type: string
       content:
-        application/x-yaml:
+        text/yaml:
           schema:
             type: string
     '404':

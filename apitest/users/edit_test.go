@@ -2,7 +2,11 @@
 
 package users_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"net/http"
+
+	"github.com/postlog/subgen/apitest/api"
+)
 
 // Corner cases considered for POST /admin/api/users/edit:
 //   - reconcile.add_inbound      — add a force on a new node; existing node's client uuid
@@ -13,8 +17,8 @@ import "github.com/postlog/subgen/apitest/api"
 //   - reconcile.cross_swap       — smart=N1,force=N2 → smart=N2,force=N1 in one edit.
 //   - reconcile.smart_move       — move the only (smart) inbound to another node.
 //   - noop                       — identical selection must NOT churn the panel (uuid stable).
-//   - err.no_connection          — edit to an empty selection → "выберите подключение", no change.
-//   - err.unknown_user           — id with no user row → {ok:false}, technical error surfaced.
+//   - err.no_connection          — edit to an empty selection → generic 400 (schema minItems:1), no change.
+//   - err.unknown_user           — id with no user row → failure, technical error surfaced.
 //   - err.unknown_inbound        — selection includes a bad inbound id → "инбаунд не найден".
 
 // TestEditReconcile covers the add/remove + same-node + swap reconciliations, asserting
@@ -103,10 +107,13 @@ func (s *UserSuite) TestEditValidation() {
 	u := s.createUser(s.userName(), "N1")
 
 	s.Run("no_connection", func() {
+		// An empty selection trips the schema's minItems:1 → 400 generic, before the
+		// handler's own "выберите подключение" check; the binding is left unchanged.
 		res, err := s.API().EditUser(u.ID, nil)
 		s.Require().NoError(err)
+		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(msgNoConnection, res.Err)
+		s.Equal(api.MsgBadRequest, res.Err)
 		// Unchanged on the panel.
 		s.RequireClient(s.Pan1(), api.N1Smart, u.Name)
 	})

@@ -2,9 +2,11 @@
 package rules
 
 import (
-	"net/http"
+	"bytes"
+	"context"
+	"strings"
 
-	"github.com/gorilla/mux"
+	"github.com/postlog/subgen/internal/oas"
 )
 
 // Handler serves mirrored rule-provider files from memory.
@@ -15,20 +17,23 @@ type Handler struct {
 // New builds the handler.
 func New(mirror ruleFiles) *Handler { return &Handler{mirror: mirror} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	file := mux.Vars(r)["file"]
-	if file == "" {
-		http.NotFound(w, r)
-		return
+// Rules implements oas.Handler. A missing/unknown file is a 404 (RulesNotFound); a hit
+// streams the mirrored bytes with nosniff.
+//
+// Note: ogen pins the 200 media type from the spec (application/octet-stream), so the
+// mirror's per-file content type is not echoed per-request.
+func (h *Handler) Rules(_ context.Context, params oas.RulesParams) (oas.RulesRes, error) {
+	if params.File == "" {
+		return &oas.RulesNotFound{Data: strings.NewReader("not found\n")}, nil
 	}
 
-	data, ctype, ok := h.mirror.Get(file)
+	data, _, ok := h.mirror.Get(params.File)
 	if !ok {
-		http.NotFound(w, r)
-		return
+		return &oas.RulesNotFound{Data: strings.NewReader("not found\n")}, nil
 	}
 
-	w.Header().Set("Content-Type", ctype)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(data) //nolint:gosec // operator-configured rule-provider bytes, not user HTML; served with explicit type + nosniff
+	return &oas.RulesOKHeaders{
+		XContentTypeOptions: oas.NewOptString("nosniff"),
+		Response:            oas.RulesOK{Data: bytes.NewReader(data)},
+	}, nil
 }

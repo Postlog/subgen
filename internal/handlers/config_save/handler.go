@@ -1,22 +1,19 @@
-// Package config_save handles POST /admin/config/save.
+// Package config_save implements the configSave operation
+// (POST /admin/api/config/mihomo/save) — replace the base (or a user's custom) mihomo
+// config.
 package config_save
 
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
-	"net/http"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/mihomo"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgSaved = "Сохранено"
-
-// Handler validates and persists a mihomo config from the config form. The save
-// scope is the base config, or a user's custom config when userId is set. The saved
-// config is read live on the next /sub request, so there is nothing to reload.
+// Handler saves a mihomo config (base or a user's custom).
 type Handler struct {
 	configs configResolver
 	routing mihomoSaver
@@ -27,38 +24,20 @@ func New(configs configResolver, routing mihomoSaver) *Handler {
 	return &Handler{configs: configs, routing: routing}
 }
 
-// saveForm extends the config payload (decoded separately by mihomo.DecodeConfig)
-// with the optional save scope: userId>0 targets that user's custom config.
-type saveForm struct {
-	UserID int64 `json:"userId"`
-}
-
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var raw json.RawMessage
-	if err := web.DecodeJSON(r, &raw); err != nil {
-		slog.Warn("handler config_save: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	var form saveForm
-	if err := json.Unmarshal(raw, &form); err != nil {
-		slog.Warn("handler config_save: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
+// ConfigSave implements oas.Handler. The config part of the request is re-encoded and
+// run through the mihomo decode + validation (the single source of those rules); any
+// failure is a 400.
+func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.ConfigSaveRes, error) {
+	raw, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
 	}
 
 	rules, groups, provs, base, err := mihomo.DecodeConfig(raw)
-	if err != nil {
-		slog.Warn("handler config_save: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
+	if err == nil {
+		err = mihomo.ValidateBaseYAML(base)
 	}
 
-	err = mihomo.ValidateBaseYAML(base)
 	if err == nil {
 		err = mihomo.ValidateProxyGroups(groups)
 	}
@@ -75,29 +54,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = mihomo.ValidateRuleProviderRefs(rules, provs)
 	}
 
-	// Resolve the save scope only after validation passes, so invalid input never
-	// lazily creates the base config row.
-	var configID int64
-	if err == nil {
-		configID, err = h.resolveConfigID(r.Context(), form.UserID)
-	}
-
-	if err == nil {
-		err = h.routing.SaveMihomoConfig(r.Context(), configID, rules, groups, provs, base)
-	}
-	// The fetch path keeps the live SPA state (the group/rule rows) on error, so no
-	// edits are lost — just report the outcome.
 	if err != nil {
-		slog.Warn("handler config_save: save failed", "err", err)
+		return &oas.ConfigSaveBadRequest{ErrMessage: web.UserMessage(err)}, nil
 	}
 
-	web.JSONResult(w, msgSaved, err)
+	// Resolve the save scope only after validation, so invalid input never lazily
+	// creates the base config row.
+	configID, err := h.resolveConfigID(ctx, req.UserId.Or(0))
+	if err != nil {
+		return &oas.ConfigSaveBadRequest{ErrMessage: web.UserMessage(err)}, nil
+	}
+
+	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base); err != nil {
+		return &oas.ConfigSaveBadRequest{ErrMessage: web.UserMessage(err)}, nil
+	}
+
+	return &oas.MessageResponse{Message: "Конфиг сохранён"}, nil
 }
 
-// resolveConfigID maps the save scope to a config id: userId==0 → the base config
-// (lazily created on first save); userId>0 → that user's custom config (must already
-// exist — creation is a separate action). Returns entity.ErrUserConfigNotFound when
-// the user has no custom config.
+// resolveConfigID maps the save scope to a config id: userID 0 ensures/returns the
+// base; otherwise the user's existing custom config (ErrUserConfigNotFound if none).
 func (h *Handler) resolveConfigID(ctx context.Context, userID int64) (int64, error) {
 	if userID == 0 {
 		return h.configs.EnsureBaseConfigID(ctx, entity.ConfigKindMihomo)

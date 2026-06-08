@@ -1,8 +1,9 @@
 //go:build apitest
 
 // Package users_test drives subgen's user endpoints over the real HTTP API against the
-// two docker 3x-ui panels, asserting both the {ok,msg|err} envelope AND the resulting
-// panel client state. It embeds api.Base for the booted server + authenticated SDK +
+// two docker 3x-ui panels, asserting both the response (2xx {message} / 4xx {errMessage},
+// normalised into api.Result) AND the resulting panel client state. It embeds api.Base
+// for the booted server + authenticated SDK +
 // ground-truth probing. One Test* per endpoint/scenario lives in its own *_test.go;
 // corner cases are dotted subtests. The suite runner gates on the panels being
 // configured (it provisions onto them).

@@ -184,19 +184,25 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		entity.ConfigKindMihomo: sub.NewMihomoRenderer(routingRepo, cfg.PublicBase, cfg.Filename),
 	}
 
-	r.Handle("/sub/{kind}/{token}", sub.New(
-		usersRepo, fleetSvc, configsRepo, renderers,
-		cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
-	)).Methods(http.MethodGet)
-	r.Handle("/rules/{file}", rules.New(mirror)).Methods(http.MethodGet)
-
 	sess := web.NewSession(cfg.Secret)
 
-	// The ogen server (api composite) — forwards migrated operations to their
-	// per-action handlers, with the admin session cookie + idiomatic errors handled
-	// inside. Mounted per-path, so it serves only the operations already migrated.
+	// The login handler is shared: the ogen Login operation (POST /admin/api/login) and
+	// the static login PAGE (GET /admin/login, served via its ServeHTTP in mountAdmin).
+	loginHandler := login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)
+
+	// The ogen server (api composite) — forwards every operation to its per-action
+	// handler, with the admin session cookie + idiomatic errors handled inside. Mounted
+	// per-path on the router below.
 	composite := api.New(sess, api.Handlers{
-		Healthz:      healthz.New(),
+		Healthz: healthz.New(),
+		Sub: sub.New(
+			usersRepo, fleetSvc, configsRepo, renderers,
+			cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
+		),
+		Rules:  rules.New(mirror),
+		Login:  loginHandler,
+		Logout: logout.New(sess),
+
 		UsersGet:     users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
 		UserCreate:   user_create.New(prov),
 		UserEdit:     user_edit.New(prov),
@@ -205,6 +211,14 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		NodesGet:     nodes_get.New(nodesRepo),
 		NodeSave:     node_save.New(nodesRepo, routingRepo),
 		NodeDelete:   node_delete.New(nodesRepo, routingRepo),
+
+		ConfigGet:     config_get.New(configsRepo, routingRepo),
+		ConfigSchema:  config_schema.New(),
+		ConfigCustoms: config_customs.New(configsRepo, usersRepo),
+		ConfigSave:    config_save.New(configsRepo, routingRepo),
+		CustomCreate:  custom_create.New(configsRepo),
+		CustomDelete:  custom_delete.New(configsRepo),
+		ProviderCheck: provider_check.New(ruleset.NewChecker()),
 	})
 
 	oasSrv, err := oas.NewServer(composite, composite, oas.WithErrorHandler(composite.ErrorHandler))
@@ -212,10 +226,16 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		return nil, fmt.Errorf("oas server: %w", err)
 	}
 
+	// Public operations.
 	r.Handle("/healthz", oasSrv).Methods(http.MethodGet)
+	r.Handle("/sub/{kind}/{token}", oasSrv).Methods(http.MethodGet)
+	r.Handle("/rules/{file}", oasSrv).Methods(http.MethodGet)
 
 	if cfg.AdminEnabled() {
-		// Migrated admin operations go to the ogen server (auth via its SecurityHandler).
+		// Admin JSON API — all served by the ogen server (auth via its SecurityHandler;
+		// login/logout themselves are unauthenticated).
+		r.Handle("/admin/api/login", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/logout", oasSrv).Methods(http.MethodPost)
 		r.Handle("/admin/api/users", oasSrv).Methods(http.MethodGet)
 		r.Handle("/admin/api/users/create", oasSrv).Methods(http.MethodPost)
 		r.Handle("/admin/api/users/edit", oasSrv).Methods(http.MethodPost)
@@ -224,30 +244,28 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		r.Handle("/admin/api/nodes", oasSrv).Methods(http.MethodGet)
 		r.Handle("/admin/api/nodes/save", oasSrv).Methods(http.MethodPost)
 		r.Handle("/admin/api/nodes/delete", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/config/mihomo", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/config/mihomo/schema", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/config/mihomo/customs", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/config/mihomo/save", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/config/mihomo/custom/create", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/config/mihomo/custom/delete", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/config/mihomo/provider/check", oasSrv).Methods(http.MethodPost)
 
-		mountAdmin(r, cfg, sess, usersRepo, routingRepo, configsRepo)
+		mountAdmin(r, cfg, sess, loginHandler)
 	}
 
 	return r, nil
 }
 
-func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, usersRepo *users.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository) {
+// mountAdmin mounts the non-API admin surface: static assets, the login page, and the
+// SPA shell. The JSON API itself (including login/logout actions) is served by the ogen
+// server (see buildRouter).
+func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, loginHandler *login.Handler) {
 	ra := sess.RequireAdmin
 
 	r.PathPrefix("/admin/static/").Handler(web.StaticHandler(cfg.StaticDir))
-	r.Handle("/admin/login", login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)).Methods(http.MethodGet, http.MethodPost)
-	r.Handle("/admin/logout", logout.New(sess)).Methods(http.MethodGet)
-
-	// mihomo config: read / schema / save / custom-config management, grouped under
-	// /admin/api/config/mihomo. Without ?user / userId the scope is the base config;
-	// with it, a user's custom config.
-	r.HandleFunc("/admin/api/config/mihomo", ra(config_get.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/config/mihomo/schema", ra(config_schema.New().ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/config/mihomo/save", ra(config_save.New(configsRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/config/mihomo/customs", ra(config_customs.New(configsRepo, usersRepo).ServeHTTP)).Methods(http.MethodGet)
-	r.HandleFunc("/admin/api/config/mihomo/custom/create", ra(custom_create.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/config/mihomo/custom/delete", ra(custom_delete.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/config/mihomo/provider/check", ra(provider_check.New(ruleset.NewChecker()).ServeHTTP)).Methods(http.MethodPost)
+	r.Handle("/admin/login", loginHandler).Methods(http.MethodGet)
 
 	// SPA shell: serve index.html for /admin and any other admin GET (client-side views).
 	shell := ra(func(w http.ResponseWriter, _ *http.Request) { web.ServePage(w, cfg.StaticDir, "index.html") })

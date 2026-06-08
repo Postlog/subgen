@@ -2,6 +2,8 @@
 
 package api
 
+import "github.com/postlog/subgen/internal/oas"
+
 // ConfigRef is a PolicyRef on the wire: a built-in kind carries nothing extra; an
 // inbound ref carries the (real) inbound id; a group ref carries the INDEX of the
 // referenced group in the groups array (ids never leave the backend).
@@ -62,14 +64,35 @@ func (c *Client) ReadConfig() (Config, error) {
 }
 
 // SaveConfig POSTs /admin/api/config/mihomo/save with the whole config document and
-// decodes the {ok,…} envelope.
+// maps the response into a Result. The schema marks groups/rules/providers (and each
+// group's members) as required arrays, and the server's decoder rejects a JSON `null`
+// for them — which is what a nil Go slice encodes to — so a partially-built config is
+// normalised to send empty arrays instead.
 func (c *Client) SaveConfig(cfg Config) (Result, error) {
+	if cfg.Rules == nil {
+		cfg.Rules = []ConfigRule{}
+	}
+
+	if cfg.Providers == nil {
+		cfg.Providers = []ConfigProvider{}
+	}
+
+	groups := make([]ConfigGroup, len(cfg.Groups))
+	for i, g := range cfg.Groups {
+		if g.Members == nil {
+			g.Members = []ConfigRef{}
+		}
+
+		groups[i] = g
+	}
+
+	cfg.Groups = groups
+
 	return c.post("/admin/api/config/mihomo/save", cfg)
 }
 
 // SaveConfigRaw POSTs an arbitrary JSON body to the save endpoint (for malformed-JSON
-// and invalid-base-YAML cases the typed Config can't express). Returns the {ok,…}
-// Result.
+// and invalid-base-YAML cases the typed Config can't express). Returns the Result.
 func (c *Client) SaveConfigRaw(body []byte) (Result, error) {
 	resp, err := c.PostRaw("/admin/api/config/mihomo/save", "application/json", body)
 	if err != nil {
@@ -95,13 +118,13 @@ func (c *Client) Schema() (Schema, error) {
 }
 
 // CheckProvider POSTs /admin/api/config/mihomo/provider/check (a read-only reachability
-// probe of a rule-provider URL). Returns the {ok,msg|err} Result.
+// probe of a rule-provider URL), built from the generated oas.ProviderCheckReq.
 func (c *Client) CheckProvider(url, format string) (Result, error) {
-	return c.post("/admin/api/config/mihomo/provider/check", map[string]string{"url": url, "format": format})
+	return c.post("/admin/api/config/mihomo/provider/check", oas.ProviderCheckReq{URL: url, Format: format})
 }
 
 // CheckProviderRaw POSTs an arbitrary body to the provider-check endpoint (for the
-// malformed-JSON case) and returns the {ok,…} Result.
+// malformed-JSON case) and returns the Result.
 func (c *Client) CheckProviderRaw(body []byte) (Result, error) {
 	resp, err := c.PostRaw("/admin/api/config/mihomo/provider/check", "application/json", body)
 	if err != nil {

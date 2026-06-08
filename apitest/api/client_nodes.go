@@ -2,7 +2,17 @@
 
 package api
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/postlog/subgen/internal/oas"
+)
+
+// NodeSpec/InboundSpec mirror the generated oas.NodeSaveReq save payload (their json
+// tags produce the same wire body); they are restated as plain structs so the scenarios
+// can build node specs with bare values rather than the generated request's Opt-wrapped
+// id/token fields. Node mirrors the oas nodes-list row. DeleteNode below uses the
+// generated request type directly.
 
 // InboundSpec is one inbound row in a node save/list payload. ID==0 marks a new
 // inbound; existing inbounds round-trip their node_inbounds.id so edits keep it.
@@ -35,14 +45,21 @@ type Node struct {
 	Inbounds      []InboundSpec `json:"inbounds"`
 }
 
-// SaveNode POSTs /admin/api/nodes/save (create or update a node).
+// SaveNode POSTs /admin/api/nodes/save (create or update a node). The schema marks
+// inbounds as a required array whose JSON `null` (a nil Go slice) the server's decoder
+// rejects, so a nil list is sent as an empty array — the handler's own "at least one
+// inbound" validation then produces the friendly message.
 func (c *Client) SaveNode(n NodeSpec) (Result, error) {
+	if n.Inbounds == nil {
+		n.Inbounds = []InboundSpec{}
+	}
+
 	return c.post("/admin/api/nodes/save", n)
 }
 
 // DeleteNode POSTs /admin/api/nodes/delete.
 func (c *Client) DeleteNode(id int64) (Result, error) {
-	return c.post("/admin/api/nodes/delete", map[string]any{"id": id})
+	return c.post("/admin/api/nodes/delete", oas.NodeDeleteReq{ID: id})
 }
 
 // ListNodes GETs /admin/api/nodes and returns the registry rows.

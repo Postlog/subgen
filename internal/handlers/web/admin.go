@@ -1,3 +1,9 @@
+// Package web holds the shared HTTP plumbing for the admin/sub handlers: user-facing
+// message mapping (lower layers return technical/sentinel errors only), node/inbound
+// validation, the admin session/auth middleware, and the static HTML renderer
+// (embedded shell/login pages + static assets). Each action lives in its own
+// internal/handlers/<action> package; the JSON request/response shapes are owned by
+// the generated ogen layer (internal/oas), not this package.
 package web
 
 import (

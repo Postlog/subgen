@@ -1,13 +1,15 @@
-// Package logout handles GET /admin/logout — clears the admin session.
+// Package logout handles POST /admin/api/logout — clears the admin session cookie and
+// returns 204. No redirect: the SPA navigates to the login page itself.
 package logout
 
 import (
-	"net/http"
+	"context"
 
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-// Handler clears the admin session and redirects to the login page.
+// Handler clears the admin session cookie.
 type Handler struct {
 	sess *web.Session
 }
@@ -15,7 +17,8 @@ type Handler struct {
 // New builds the handler.
 func New(sess *web.Session) *Handler { return &Handler{sess: sess} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.sess.Clear(w)
-	http.Redirect(w, r, "/admin/login", http.StatusFound)
+// Logout implements oas.Handler: it expires the session cookie via Set-Cookie and
+// responds 204 (no body).
+func (h *Handler) Logout(_ context.Context) (*oas.LogoutNoContent, error) {
+	return &oas.LogoutNoContent{SetCookie: oas.NewOptString(h.sess.ClearCookie().String())}, nil
 }

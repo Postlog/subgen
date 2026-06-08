@@ -4,15 +4,14 @@
 package sub
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
-	"net/http"
-
-	"github.com/gorilla/mux"
+	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/oas"
 	"github.com/postlog/subgen/internal/token"
 )
 
@@ -43,66 +42,53 @@ func New(users userResolver, fleet fleetReader, configs configResolver, renderer
 	}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	tok := vars["token"]
-
-	kind := entity.ConfigKind(vars["kind"])
+// Sub implements oas.Handler. An unknown engine kind or an unmatched token is a 404
+// (SubNotFound); a matched token renders the subscriber's profile with the engine's
+// headers. Store/render failures bubble up as 5xx via the central ErrorHandler.
+//
+// Note: ogen pins the 200 media type from the spec (application/yaml), so RenderMeta's
+// content type is not echoed per-request — every engine here serves YAML.
+func (h *Handler) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, error) {
+	kind := entity.ConfigKind(params.Kind)
 
 	renderer, ok := h.renderers[kind]
-	if !ok || tok == "" {
-		http.NotFound(w, r)
-		return
+	if !ok || params.Token == "" {
+		return &oas.SubNotFound{Data: strings.NewReader("not found\n")}, nil
 	}
-
-	ctx := r.Context()
 
 	// Resolve the token against service-owned users only — clients created
 	// directly on a panel are not served.
 	subIDs, err := h.users.SubIDs(ctx)
 	if err != nil {
-		slog.Error("handler sub: list sub ids failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, fmt.Errorf("users.SubIDs: %w", err)
 	}
 
 	var subID string
 
 	for _, id := range subIDs {
-		if token.Match(h.secret, id, tok) {
+		if token.Match(h.secret, id, params.Token) {
 			subID = id
 			break
 		}
 	}
 
 	if subID == "" {
-		http.NotFound(w, r)
-		return
+		return &oas.SubNotFound{Data: strings.NewReader("not found\n")}, nil
 	}
 
 	userID, err := h.users.IDBySubID(ctx, subID)
 	if err != nil {
-		slog.Error("handler sub: resolve user failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, fmt.Errorf("users.IDBySubID: %w", err)
 	}
 
 	configID, err := h.configID(ctx, userID, kind)
 	if err != nil {
-		slog.Error("handler sub: resolve config failed", "err", err)
-		http.Error(w, "config unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, err
 	}
 
 	fleet, err := h.fleet.Fleet(ctx)
 	if err != nil {
-		slog.Error("handler sub: fleet fetch failed", "err", err)
-		http.Error(w, "upstream unavailable", http.StatusBadGateway)
-
-		return
+		return nil, fmt.Errorf("fleet.Fleet: %w", err)
 	}
 
 	sub := fleet.Sub(subID)
@@ -112,10 +98,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, meta, err := renderer.Render(ctx, sub, configID)
 	if err != nil {
-		slog.Error("handler sub: render failed", "err", err)
-		http.Error(w, "render error", http.StatusInternalServerError)
-
-		return
+		return nil, fmt.Errorf("renderer.Render: %w", err)
 	}
 
 	title := h.profileTitle
@@ -123,14 +106,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		title = "Freedom"
 	}
 
-	hdr := w.Header()
-	hdr.Set("Content-Type", meta.ContentType)
-	hdr.Set("Profile-Update-Interval", fmt.Sprintf("%d", h.updateInterval))
-	hdr.Set("Profile-Title", "base64:"+base64.StdEncoding.EncodeToString([]byte(title)))
-	hdr.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", meta.Filename))
-	hdr.Set("Subscription-Userinfo", userinfo(sub.Up, sub.Down, sub.Total, sub.Expiry))
-
-	_, _ = w.Write(body) //nolint:gosec // server-generated subscription bytes (engine YAML), not user HTML; served with an explicit Content-Type
+	return &oas.SubOKHeaders{
+		ProfileUpdateInterval: oas.NewOptString(fmt.Sprintf("%d", h.updateInterval)),
+		ProfileTitle:          oas.NewOptString("base64:" + base64.StdEncoding.EncodeToString([]byte(title))),
+		ContentDisposition:    oas.NewOptString(fmt.Sprintf("attachment; filename=%q", meta.Filename)),
+		SubscriptionUserinfo:  oas.NewOptString(userinfo(sub.Up, sub.Down, sub.Total, sub.Expiry)),
+		Response:              oas.SubOK{Data: bytes.NewReader(body)},
+	}, nil
 }
 
 // configID picks the config to render: a user's custom config for this engine when

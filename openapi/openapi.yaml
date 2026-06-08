@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: subgen admin & subscription API
+  version: "1.0.0"
+  description: >
+    Every subgen endpoint except the static assets (/admin/static/*) and the SPA
+    shell (/admin GET catch-all), which are a filesystem catch-all and not a typed
+    API. Admin JSON endpoints are gated by the adminSession cookie and signal errors
+    idiomatically (4xx + errMessage). One file per endpoint, shared bits in common.yaml.
+paths:
+  /healthz:
+    $ref: './healthz.yaml'
+  /sub/{kind}/{token}:
+    $ref: './sub.yaml'
+  /rules/{file}:
+    $ref: './rules.yaml'
+
+  /admin/api/login:
+    $ref: './login.yaml'
+  /admin/api/logout:
+    $ref: './logout.yaml'
+
+  /admin/api/users:
+    $ref: './users_get.yaml'
+  /admin/api/users/create:
+    $ref: './user_create.yaml'
+  /admin/api/users/edit:
+    $ref: './user_edit.yaml'
+  /admin/api/users/delete:
+    $ref: './user_delete.yaml'
+  /admin/api/users/recreate:
+    $ref: './user_recreate.yaml'
+
+  /admin/api/nodes:
+    $ref: './nodes_get.yaml'
+  /admin/api/nodes/save:
+    $ref: './node_save.yaml'
+  /admin/api/nodes/delete:
+    $ref: './node_delete.yaml'
+
+  /admin/api/config/mihomo:
+    $ref: './config_get.yaml'
+  /admin/api/config/mihomo/schema:
+    $ref: './config_schema.yaml'
+  /admin/api/config/mihomo/customs:
+    $ref: './config_customs.yaml'
+  /admin/api/config/mihomo/save:
+    $ref: './config_save.yaml'
+  /admin/api/config/mihomo/custom/create:
+    $ref: './custom_create.yaml'
+  /admin/api/config/mihomo/custom/delete:
+    $ref: './custom_delete.yaml'
+  /admin/api/config/mihomo/provider/check:
+    $ref: './provider_check.yaml'
+
+components:
+  securitySchemes:
+    adminSession:
+      $ref: './common.yaml#/components/securitySchemes/adminSession'

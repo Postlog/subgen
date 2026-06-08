@@ -1,0 +1,39 @@
+# POST /admin/api/config/mihomo/provider/check — probe a rule-provider URL (reachable /
+# file present / right format). Saves nothing.
+post:
+  operationId: providerCheck
+  summary: Probe a rule-provider URL
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [url, format]
+          properties:
+            url:
+              type: string
+              minLength: 1
+            format:
+              type: string
+  responses:
+    '200':
+      description: probe outcome (reachable, right format)
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: missing url / probe failed
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

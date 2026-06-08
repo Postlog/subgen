@@ -1,0 +1,38 @@
+# POST /admin/api/config/mihomo/custom/delete — drop a user's custom config (revert to
+# base).
+post:
+  operationId: customDelete
+  summary: Delete a user's custom config
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [userId]
+          properties:
+            userId:
+              type: integer
+              format: int64
+              minimum: 1
+  responses:
+    '200':
+      description: deleted
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: bad request
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

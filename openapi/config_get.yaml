@@ -1,0 +1,33 @@
+# GET /admin/api/config/mihomo — the mihomo routing config. Without ?user it returns
+# the base config; with ?user=<id> that user's custom config (404 if none).
+get:
+  operationId: configGet
+  summary: Read the mihomo config (base or a user's custom)
+  security:
+    - adminSession: []
+  parameters:
+    - name: user
+      in: query
+      description: User id whose custom config to read; omit for the base config.
+      schema:
+        type: integer
+        format: int64
+  responses:
+    '200':
+      description: the config
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MihomoConfig'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '404':
+      description: the user has no custom config for this engine
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

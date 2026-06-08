@@ -1,0 +1,71 @@
+# POST /admin/api/nodes/save — create (id absent/0) or update a node and its inbounds.
+post:
+  operationId: nodeSave
+  summary: Create or update a node
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [name, vpnHost, panelBaseURL, panelBasePath, inbounds]
+          properties:
+            id:
+              type: integer
+              format: int64
+              description: 0/absent = create; >0 = update.
+            name:
+              type: string
+              minLength: 1
+            vpnHost:
+              type: string
+              minLength: 1
+            panelBaseURL:
+              type: string
+              minLength: 1
+            panelBasePath:
+              type: string
+            token:
+              type: string
+              description: API token; empty on update keeps the stored one.
+            inbounds:
+              type: array
+              items:
+                type: object
+                required: [name, port]
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+                    description: 0 = new inbound; >0 = existing node_inbounds.id.
+                  name:
+                    type: string
+                  port:
+                    type: integer
+  responses:
+    '200':
+      description: saved
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: invalid input
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '409':
+      description: node name / inbound conflict
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

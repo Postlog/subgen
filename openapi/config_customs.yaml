@@ -1,0 +1,44 @@
+# GET /admin/api/config/mihomo/customs — users that have a custom mihomo config, plus
+# the full id+name user list (the config tab's picker source).
+get:
+  operationId: configCustoms
+  summary: Custom-config owners + the full user list
+  security:
+    - adminSession: []
+  responses:
+    '200':
+      description: customs + users
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [customs, users]
+            properties:
+              customs:
+                type: array
+                items:
+                  type: object
+                  required: [userId, name]
+                  properties:
+                    userId:
+                      type: integer
+                      format: int64
+                    name:
+                      type: string
+              users:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+                    name:
+                      type: string
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

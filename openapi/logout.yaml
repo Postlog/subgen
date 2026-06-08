@@ -1,0 +1,13 @@
+# POST /admin/api/logout — clears the admin session cookie. No redirect (the SPA
+# navigates to the login page itself).
+post:
+  operationId: logout
+  summary: Admin sign-out
+  responses:
+    '204':
+      description: signed out; session cookie cleared
+      headers:
+        Set-Cookie:
+          description: Expires the admin session cookie (subgen_admin).
+          schema:
+            type: string

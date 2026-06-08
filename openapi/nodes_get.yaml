@@ -1,0 +1,51 @@
+# GET /admin/api/nodes — the fleet nodes with their inbounds.
+get:
+  operationId: nodesGet
+  summary: List nodes
+  security:
+    - adminSession: []
+  responses:
+    '200':
+      description: nodes
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [nodes]
+            properties:
+              nodes:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, vpnHost, panelBaseURL, panelBasePath, inbounds]
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+                    name:
+                      type: string
+                    vpnHost:
+                      type: string
+                    panelBaseURL:
+                      type: string
+                    panelBasePath:
+                      type: string
+                    inbounds:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, name, port]
+                        properties:
+                          id:
+                            type: integer
+                            format: int64
+                          name:
+                            type: string
+                          port:
+                            type: integer
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

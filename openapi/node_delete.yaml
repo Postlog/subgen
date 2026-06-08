@@ -1,0 +1,38 @@
+# POST /admin/api/nodes/delete — delete a node (refused if an inbound is still
+# referenced by a user connection or a mihomo rule / group member).
+post:
+  operationId: nodeDelete
+  summary: Delete a node
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              format: int64
+              minimum: 1
+  responses:
+    '200':
+      description: deleted
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: bad request / still referenced
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

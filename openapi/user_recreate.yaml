@@ -1,0 +1,37 @@
+# POST /admin/api/users/recreate — re-provision a user's panel clients from the store.
+post:
+  operationId: userRecreate
+  summary: Recreate a user's panel clients
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              format: int64
+              minimum: 1
+  responses:
+    '200':
+      description: recreated
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: bad request
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

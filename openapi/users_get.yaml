@@ -1,0 +1,94 @@
+# GET /admin/api/users — one filtered, paged slice of the users table.
+get:
+  operationId: usersGet
+  summary: List users (paged, searchable, filterable)
+  security:
+    - adminSession: []
+  parameters:
+    - name: q
+      in: query
+      description: Case-insensitive substring match on the nickname.
+      schema:
+        type: string
+    - name: inbound
+      in: query
+      description: Repeatable node_inbounds.id — OR-filter (user has at least one).
+      schema:
+        type: array
+        items:
+          type: integer
+          format: int64
+    - name: page
+      in: query
+      schema:
+        type: integer
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: one page of users
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [users, total, page, perPage]
+            properties:
+              users:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, sub, inbounds, stats]
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+                    name:
+                      type: string
+                    sub:
+                      type: object
+                      required: [id, url]
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                    inbounds:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, label, port, missing]
+                        properties:
+                          id:
+                            type: integer
+                            format: int64
+                          label:
+                            type: string
+                          port:
+                            type: integer
+                          missing:
+                            type: boolean
+                    stats:
+                      type: object
+                      required: [up, down]
+                      properties:
+                        up:
+                          type: integer
+                          format: int64
+                        down:
+                          type: integer
+                          format: int64
+              total:
+                type: integer
+                format: int64
+              page:
+                type: integer
+              perPage:
+                type: integer
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

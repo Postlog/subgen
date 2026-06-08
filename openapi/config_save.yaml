@@ -1,0 +1,38 @@
+# POST /admin/api/config/mihomo/save — replace the base (or a user's custom) mihomo
+# config. Body is a MihomoConfig plus an optional userId (0/absent = base).
+post:
+  operationId: configSave
+  summary: Save the mihomo config
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          allOf:
+            - $ref: './common.yaml#/components/schemas/MihomoConfig'
+            - type: object
+              properties:
+                userId:
+                  type: integer
+                  format: int64
+  responses:
+    '200':
+      description: saved
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: invalid config
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

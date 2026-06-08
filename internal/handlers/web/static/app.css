@@ -179,8 +179,9 @@ td.actions{width:1%;white-space:nowrap;}
 .conn-pop-row .cp-port{margin-left:auto;color:rgba(255,255,255,.45);font-family:var(--font-mono);}
 .conn-pop-row .cp-warn{color:#e58a8b;}
 
-/* full user name — plain weight, wraps only if it can't fit (names are <=32 chars) */
-.uname{color:#fff;font-weight:400;word-break:break-all;}
+/* full user name — plain weight, sized to harmonise with the compact row; wraps only
+   if it can't fit (names are <=32 chars) */
+.uname{color:#fff;font-weight:400;font-size:.9rem;word-break:break-all;}
 
 /* compact traffic: up/down on one line with arrows */
 .traffic{font-family:var(--font-mono);font-size:.74rem;white-space:nowrap;color:var(--bs-secondary-color);}

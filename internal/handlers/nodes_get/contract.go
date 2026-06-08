@@ -1,5 +1,5 @@
-//go:generate go tool mockgen -source=contract.go -destination contract_mocks.go -package nodes_api
-package nodes_api
+//go:generate go tool mockgen -source=contract.go -destination contract_mocks.go -package nodes_get
+package nodes_get
 
 import (
 	"context"

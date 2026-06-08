@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
@@ -9,21 +10,47 @@ import (
 
 // ListPage returns one page of users (with their connections), filtered by name
 // substring and/or inbound membership and ordered by name, plus the total count
-// matching the filter. Filtering/paging runs in SQL so the store never materialises
-// every user.
+// matching the filter. Each filter combination is its own complete, fixed query —
+// nothing is string-built: the name is a bound value wrapped DB-side ('%'||?||'%'),
+// and the inbound set is a JSON array expanded by json_each. So the only thing that
+// ever varies is which constant query (and which bound args) we pick.
 func (r *Repository) ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error) {
-	where, args := userFilter(p)
+	name := strings.TrimSpace(p.NameQuery)
+	hasName := name != ""
+	hasInbound := len(p.InboundIDs) > 0
+
+	var (
+		countQuery string
+		pageQuery  string
+		filterArgs []any
+	)
+
+	switch {
+	case hasName && hasInbound:
+		countQuery = `SELECT COUNT(*) FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' AND id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?)))`
+		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' AND id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
+		filterArgs = []any{escapeLike(name), idsJSON(p.InboundIDs)}
+	case hasName:
+		countQuery = `SELECT COUNT(*) FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\'`
+		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' ORDER BY name LIMIT ? OFFSET ?`
+		filterArgs = []any{escapeLike(name)}
+	case hasInbound:
+		countQuery = `SELECT COUNT(*) FROM users WHERE id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?)))`
+		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
+		filterArgs = []any{idsJSON(p.InboundIDs)}
+	default:
+		countQuery = `SELECT COUNT(*) FROM users`
+		pageQuery = `SELECT id,name,sub_id,created_at FROM users ORDER BY name LIMIT ? OFFSET ?`
+		filterArgs = nil
+	}
 
 	var page entity.UserPage
 
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`+where, args...).Scan(&page.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, filterArgs...).Scan(&page.Total); err != nil {
 		return entity.UserPage{}, err
 	}
 
-	//nolint:gosec // G202: only constant fragments and "?" placeholders are concatenated; values are bound via args.
-	q := `SELECT id,name,sub_id,created_at FROM users` + where + ` ORDER BY name LIMIT ? OFFSET ?`
-
-	rows, err := r.db.QueryContext(ctx, q, append(args, p.Limit, p.Offset)...)
+	rows, err := r.db.QueryContext(ctx, pageQuery, append(filterArgs, p.Limit, p.Offset)...)
 	if err != nil {
 		return entity.UserPage{}, err
 	}
@@ -63,39 +90,16 @@ func (r *Repository) ListPage(ctx context.Context, p entity.UserListParams) (ent
 	return page, nil
 }
 
-// userFilter builds the shared WHERE clause (and its args) for the count and page
-// queries from the list params. An empty filter yields an empty clause.
-func userFilter(p entity.UserListParams) (string, []any) {
-	var (
-		conds []string
-		args  []any
-	)
-
-	if q := strings.TrimSpace(p.NameQuery); q != "" {
-		// Names are stored lowercase; lower the query and escape LIKE metacharacters so a
-		// literal _ or % in the query isn't treated as a wildcard.
-		conds = append(conds, `name LIKE ? ESCAPE '\'`)
-		args = append(args, "%"+escapeLike(strings.ToLower(q))+"%")
-	}
-
-	if len(p.InboundIDs) > 0 {
-		ph := strings.TrimSuffix(strings.Repeat("?,", len(p.InboundIDs)), ",")
-		conds = append(conds, `id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (`+ph+`))`)
-
-		for _, id := range p.InboundIDs {
-			args = append(args, id)
-		}
-	}
-
-	if len(conds) == 0 {
-		return "", nil
-	}
-
-	return " WHERE " + strings.Join(conds, " AND "), args
+// escapeLike escapes the LIKE wildcards (and the escape char) in the search value so a
+// literal _ or % matches literally under ESCAPE '\'. It transforms the bound value
+// only — the query text stays fixed. Names are stored lowercase, so it lowercases too.
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(s))
 }
 
-// escapeLike escapes the LIKE wildcards (and the escape char) so the value matches
-// literally under ESCAPE '\'.
-func escapeLike(s string) string {
-	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+// idsJSON encodes an id set as a JSON array, bound as one placeholder and expanded
+// DB-side by json_each — so an IN list needs no string-built placeholders.
+func idsJSON(ids []int64) string {
+	b, _ := json.Marshal(ids)
+	return string(b)
 }

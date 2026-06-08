@@ -226,41 +226,26 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		return nil, fmt.Errorf("oas server: %w", err)
 	}
 
-	// Public operations.
-	r.Handle("/healthz", oasSrv).Methods(http.MethodGet)
-	r.Handle("/sub/{kind}/{token}", oasSrv).Methods(http.MethodGet)
-	r.Handle("/rules/{file}", oasSrv).Methods(http.MethodGet)
+	// Routing for every API operation lives in the ogen-generated server (its router maps
+	// each path+method to the right operation from the OpenAPI spec). We only delegate the
+	// coarse URL buckets it owns — never re-declaring per-operation routes here, so a
+	// handler can't be wired to the wrong contract. Auth is enforced inside the ogen
+	// server (its SecurityHandler returns 401 for every secured operation); login/logout
+	// are the only unauthenticated admin operations.
+	r.PathPrefix("/admin/api/").Handler(oasSrv)
+	r.PathPrefix("/sub/").Handler(oasSrv)
+	r.PathPrefix("/rules/").Handler(oasSrv)
+	r.Handle("/healthz", oasSrv)
 
-	if cfg.AdminEnabled() {
-		// Admin JSON API — all served by the ogen server (auth via its SecurityHandler;
-		// login/logout themselves are unauthenticated).
-		r.Handle("/admin/api/login", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/logout", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/users", oasSrv).Methods(http.MethodGet)
-		r.Handle("/admin/api/users/create", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/users/edit", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/users/delete", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/users/recreate", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/nodes", oasSrv).Methods(http.MethodGet)
-		r.Handle("/admin/api/nodes/save", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/nodes/delete", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/config/mihomo", oasSrv).Methods(http.MethodGet)
-		r.Handle("/admin/api/config/mihomo/schema", oasSrv).Methods(http.MethodGet)
-		r.Handle("/admin/api/config/mihomo/customs", oasSrv).Methods(http.MethodGet)
-		r.Handle("/admin/api/config/mihomo/save", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/config/mihomo/custom/create", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/config/mihomo/custom/delete", oasSrv).Methods(http.MethodPost)
-		r.Handle("/admin/api/config/mihomo/provider/check", oasSrv).Methods(http.MethodPost)
-
-		mountAdmin(r, cfg, sess, loginHandler)
-	}
+	mountAdmin(r, cfg, sess, loginHandler)
 
 	return r, nil
 }
 
 // mountAdmin mounts the non-API admin surface: static assets, the login page, and the
-// SPA shell. The JSON API itself (including login/logout actions) is served by the ogen
-// server (see buildRouter).
+// SPA shell — the routes the OpenAPI spec doesn't own. The JSON API itself (including
+// the login/logout actions) is routed by the ogen server (see buildRouter); these are
+// registered after it so /admin/api and /admin/login win over the /admin SPA catch-all.
 func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, loginHandler *login.Handler) {
 	ra := sess.RequireAdmin
 

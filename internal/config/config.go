@@ -24,6 +24,3 @@ type Config struct {
 
 // TLSEnabled reports whether HTTPS should be served (both cert and key set).
 func (c Config) TLSEnabled() bool { return c.TLSCert != "" && c.TLSKey != "" }
-
-// AdminEnabled reports whether the web admin panel should be mounted.
-func (c Config) AdminEnabled() bool { return c.AdminUser != "" && c.AdminPassword != "" }

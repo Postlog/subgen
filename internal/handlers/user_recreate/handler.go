@@ -4,8 +4,8 @@ package user_recreate
 
 import (
 	"context"
+	"log/slog"
 
-	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
 )
 
@@ -17,10 +17,13 @@ type Handler struct {
 // New builds the handler.
 func New(svc recreator) *Handler { return &Handler{svc: svc} }
 
-// UserRecreate implements oas.Handler.
+// UserRecreate implements oas.Handler. RecreateUser surfaces no domain (4xx) error — a
+// missing user or a panel/store failure is an internal condition — so any failure is a
+// logged 500.
 func (h *Handler) UserRecreate(ctx context.Context, req *oas.UserRecreateReq) (oas.UserRecreateRes, error) {
 	if err := h.svc.RecreateUser(ctx, req.ID); err != nil {
-		return &oas.UserRecreateBadRequest{ErrMessage: web.UserMessage(err)}, nil
+		slog.Error("handler user_recreate: recreate failed", "id", req.ID, "err", err)
+		return nil, err
 	}
 
 	return &oas.MessageResponse{Message: "Клиенты пересозданы"}, nil

@@ -5,11 +5,20 @@ package node_save
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
+)
+
+// User-facing messages for the domain conflicts the node repo can return. Field-level
+// validation messages are produced by web.ValidateNode (interpolating the offending
+// value), and the FK-block message by web.InboundsBlocking.
+const (
+	msgNodeNameTaken    = "Узел с таким именем уже существует"
+	msgInboundDuplicate = "Имя или порт инбаунда уже заняты на этом узле"
 )
 
 // Handler creates or updates a node from the node form.
@@ -42,7 +51,8 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 	}
 
 	if err := web.ValidateNode(&n); err != nil {
-		return &oas.NodeSaveBadRequest{ErrMessage: web.UserMessage(err)}, nil
+		slog.Warn("handler node_save: invalid node", "name", n.Name, "err", err)
+		return &oas.NodeSaveBadRequest{ErrMessage: err.Error()}, nil
 	}
 
 	id := req.ID.Or(0)
@@ -71,10 +81,12 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 		if len(removed) > 0 {
 			msg, err := web.InboundsBlocking(ctx, h.nodes, h.routing, id, removed)
 			if err != nil {
+				slog.Error("handler node_save: inbound-block check failed", "id", id, "err", err)
 				return nil, err
 			}
 
 			if msg != "" {
+				slog.Warn("handler node_save: inbound still referenced", "id", id)
 				return &oas.NodeSaveBadRequest{ErrMessage: msg}, nil
 			}
 		}
@@ -88,11 +100,17 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 	}
 
 	if err != nil {
-		if errors.Is(err, entity.ErrNodeNameTaken) || errors.Is(err, entity.ErrInboundDuplicate) {
-			return &oas.NodeSaveConflict{ErrMessage: web.UserMessage(err)}, nil
+		switch {
+		case errors.Is(err, entity.ErrNodeNameTaken):
+			slog.Warn("handler node_save: node name taken", "name", n.Name)
+			return &oas.NodeSaveConflict{ErrMessage: msgNodeNameTaken}, nil
+		case errors.Is(err, entity.ErrInboundDuplicate):
+			slog.Warn("handler node_save: inbound duplicate", "name", n.Name)
+			return &oas.NodeSaveConflict{ErrMessage: msgInboundDuplicate}, nil
+		default:
+			slog.Error("handler node_save: save failed", "name", n.Name, "id", id, "err", err)
+			return nil, err
 		}
-
-		return &oas.NodeSaveBadRequest{ErrMessage: web.UserMessage(err)}, nil
 	}
 
 	return &oas.MessageResponse{Message: "Узел сохранён: " + n.Name}, nil

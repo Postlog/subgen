@@ -1,10 +1,13 @@
 // Package api assembles the per-action handlers into the single oas.Handler ogen
 // needs: a thin composite that forwards each operation to its own handler (each keeps
 // its narrow deps), plus the shared oas.SecurityHandler (admin session cookie) and
-// ErrorHandler (security/decoding failures -> idiomatic 4xx/5xx + {errMessage}).
+// ErrorHandler.
 //
-// Operations not yet migrated fall back to oas.UnimplementedHandler (501); main does
-// not route those paths to this server, so they are never reached during the migration.
+// Each operation is explicitly forwarded (the composite does NOT embed
+// oas.UnimplementedHandler), so adding an operation to the spec fails to compile until
+// a handler is wired here. Per-operation business errors are returned as typed responses
+// by the handlers, which log their own failures with context; the central ErrorHandler
+// only handles what bypasses the handlers — security and request-decoding failures.
 package api
 
 import (
@@ -77,7 +80,6 @@ type Handlers struct {
 // Server implements oas.Handler (by forwarding to the per-action handlers) and
 // oas.SecurityHandler.
 type Server struct {
-	oas.UnimplementedHandler
 	h       Handlers
 	session *web.Session
 }
@@ -178,9 +180,11 @@ func (s *Server) HandleAdminSession(ctx context.Context, _ oas.OperationName, t 
 	return ctx, errUnauthorized
 }
 
-// ErrorHandler maps security/decoding/validation failures to idiomatic 4xx/5xx with a
-// generic {errMessage}. Per-operation business errors are returned as typed responses
-// by the handlers, not here. 5xx is logged (the only place these errors surface).
+// ErrorHandler maps the failures that bypass the operation handlers — an absent/invalid
+// session and a malformed request — to an idiomatic 4xx with a generic {errMessage},
+// logging each (there is no handler context to log them otherwise). A 500 here is a
+// plain error a handler returned; the handler already logged it with its own operation
+// context, so it is NOT re-logged generically.
 func (s *Server) ErrorHandler(_ context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	status, msg := http.StatusInternalServerError, "Внутренняя ошибка"
 
@@ -189,12 +193,12 @@ func (s *Server) ErrorHandler(_ context.Context, w http.ResponseWriter, r *http.
 	switch {
 	case errors.Is(err, errUnauthorized), errors.As(err, &secErr):
 		status, msg = http.StatusUnauthorized, "Требуется авторизация"
+
+		slog.Warn("api: unauthorized request", "path", r.URL.Path)
 	case isBadRequest(err):
 		status, msg = http.StatusBadRequest, "Некорректный запрос"
-	}
 
-	if status >= http.StatusInternalServerError {
-		slog.Error("api: request failed", "path", r.URL.Path, "err", err)
+		slog.Warn("api: malformed request", "path", r.URL.Path, "err", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

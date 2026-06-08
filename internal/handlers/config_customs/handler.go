@@ -6,6 +6,7 @@ package config_customs
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 
 	"github.com/postlog/subgen/internal/entity"
@@ -27,11 +28,13 @@ func New(configs configLister, users userLister) *Handler {
 func (h *Handler) ConfigCustoms(ctx context.Context) (oas.ConfigCustomsRes, error) {
 	ids, err := h.configs.UserConfigUserIDs(ctx, entity.ConfigKindMihomo)
 	if err != nil {
+		slog.Error("handler config_customs: list custom-config owners failed", "err", err)
 		return nil, err
 	}
 
 	users, err := h.users.ListNames(ctx)
 	if err != nil {
+		slog.Error("handler config_customs: list user names failed", "err", err)
 		return nil, err
 	}
 

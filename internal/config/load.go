@@ -25,7 +25,7 @@ import (
 //	SUBGEN_STATIC_DIR              serve admin assets from this on-disk dir (live,
 //	                               no rebuild); empty => embedded copy (default)
 //	SUBGEN_ADMIN_USER              admin login              (default admin)
-//	SUBGEN_ADMIN_PASSWORD          admin password; empty => admin panel disabled
+//	SUBGEN_ADMIN_PASSWORD          admin password (required; gates the admin API)
 //	SUBGEN_PROFILE_TITLE           subscription profile title (default Freedom)
 //	SUBGEN_FILENAME                subscription filename      (default freedom.yaml)
 //	SUBGEN_PROFILE_UPDATE_INTERVAL client refresh hint, hours (default 24)
@@ -55,6 +55,10 @@ func validate(c Config) error {
 
 	if c.Secret == "" {
 		return fmt.Errorf("SUBGEN_SECRET is required (openssl rand -hex 32)")
+	}
+
+	if c.AdminPassword == "" {
+		return fmt.Errorf("SUBGEN_ADMIN_PASSWORD is required (gates the admin API)")
 	}
 
 	if (c.TLSCert == "") != (c.TLSKey == "") {

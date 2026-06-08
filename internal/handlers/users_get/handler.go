@@ -4,6 +4,7 @@ package users_get
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
@@ -51,6 +52,7 @@ func (h *Handler) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.
 		Limit: perPage, Offset: (page - 1) * perPage,
 	})
 	if err != nil {
+		slog.Error("handler users_get: list page failed", "page", page, "perPage", perPage, "err", err)
 		return nil, err
 	}
 

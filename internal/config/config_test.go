@@ -44,18 +44,28 @@ func TestLoad(t *testing.T) {
 		{
 			name: "error.tls_key_without_cert",
 			env: map[string]string{
-				"SUBGEN_SECRET":   "s3cr3t",
-				"SUBGEN_TLS_CERT": "",
-				"SUBGEN_TLS_KEY":  "/etc/key.pem",
+				"SUBGEN_SECRET":         "s3cr3t",
+				"SUBGEN_ADMIN_PASSWORD": "pw",
+				"SUBGEN_TLS_CERT":       "",
+				"SUBGEN_TLS_KEY":        "/etc/key.pem",
+			},
+			wantErr: true,
+		},
+		{
+			name: "error.missing_admin_password",
+			env: map[string]string{
+				"SUBGEN_SECRET":         "s3cr3t",
+				"SUBGEN_ADMIN_PASSWORD": "",
 			},
 			wantErr: true,
 		},
 		{
 			name: "success.defaults",
 			env: map[string]string{
-				"SUBGEN_SECRET":   "s3cr3t",
-				"SUBGEN_TLS_CERT": "",
-				"SUBGEN_TLS_KEY":  "",
+				"SUBGEN_SECRET":         "s3cr3t",
+				"SUBGEN_ADMIN_PASSWORD": "pw",
+				"SUBGEN_TLS_CERT":       "",
+				"SUBGEN_TLS_KEY":        "",
 			},
 			want: Config{
 				DBPath:                "db/subgen.db",
@@ -66,16 +76,18 @@ func TestLoad(t *testing.T) {
 				Filename:              "freedom.yaml",
 				ProfileUpdateInterval: 24,
 				AdminUser:             "admin",
+				AdminPassword:         "pw",
 			},
 		},
 		{
 			name: "success.static_dir_and_overrides",
 			env: map[string]string{
-				"SUBGEN_SECRET":     "s3cr3t",
-				"SUBGEN_STATIC_DIR": "/srv/static",
-				"SUBGEN_TLS_CERT":   "/etc/cert.pem",
-				"SUBGEN_TLS_KEY":    "/etc/key.pem",
-				"SUBGEN_LISTEN":     "127.0.0.1:9999",
+				"SUBGEN_SECRET":         "s3cr3t",
+				"SUBGEN_ADMIN_PASSWORD": "pw",
+				"SUBGEN_STATIC_DIR":     "/srv/static",
+				"SUBGEN_TLS_CERT":       "/etc/cert.pem",
+				"SUBGEN_TLS_KEY":        "/etc/key.pem",
+				"SUBGEN_LISTEN":         "127.0.0.1:9999",
 			},
 			want: Config{
 				DBPath:                "db/subgen.db",
@@ -88,6 +100,7 @@ func TestLoad(t *testing.T) {
 				Filename:              "freedom.yaml",
 				ProfileUpdateInterval: 24,
 				AdminUser:             "admin",
+				AdminPassword:         "pw",
 			},
 		},
 	}

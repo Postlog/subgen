@@ -28,7 +28,6 @@ import (
 //	SUBGEN_ADMIN_PASSWORD          admin password; empty => admin panel disabled
 //	SUBGEN_PROFILE_TITLE           subscription profile title (default Freedom)
 //	SUBGEN_FILENAME                subscription filename      (default freedom.yaml)
-//	SUBGEN_CACHE_TTL               fleet cache TTL            (default 5m)
 //	SUBGEN_PROFILE_UPDATE_INTERVAL client refresh hint, hours (default 24)
 func Load(envFile string) (Config, error) {
 	if envFile != "" {

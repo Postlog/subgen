@@ -63,7 +63,7 @@ func run() error {
 	usersRepo := users.New(db)
 	configsRepo := configs.New(db, routingRepo)
 
-	fl, err := fleet.New(xui.New(), nodesRepo, cfg.CacheTTL).Fleet(ctx)
+	fl, err := fleet.New(xui.New(), nodesRepo).Fleet(ctx)
 	if err != nil {
 		return fmt.Errorf("fetch fleet: %w", err)
 	}

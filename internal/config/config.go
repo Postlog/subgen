@@ -6,23 +6,20 @@
 // concrete primitive fields each component needs.
 package config
 
-import "time"
-
 // Config is subgen's resolved bootstrap configuration.
 type Config struct {
-	DBPath                string        `env:"SUBGEN_DB_PATH" envDefault:"db/subgen.db"`
-	StaticDir             string        `env:"SUBGEN_STATIC_DIR"`
-	Listen                string        `env:"SUBGEN_LISTEN" envDefault:"0.0.0.0:2097"`
-	TLSCert               string        `env:"SUBGEN_TLS_CERT"`
-	TLSKey                string        `env:"SUBGEN_TLS_KEY"`
-	PublicBase            string        `env:"SUBGEN_PUBLIC_BASE"`
-	Secret                string        `env:"SUBGEN_SECRET"`
-	CacheTTL              time.Duration `env:"SUBGEN_CACHE_TTL" envDefault:"5m"`
-	ProfileTitle          string        `env:"SUBGEN_PROFILE_TITLE" envDefault:"Freedom"`
-	Filename              string        `env:"SUBGEN_FILENAME" envDefault:"freedom.yaml"`
-	ProfileUpdateInterval int           `env:"SUBGEN_PROFILE_UPDATE_INTERVAL" envDefault:"24"`
-	AdminUser             string        `env:"SUBGEN_ADMIN_USER" envDefault:"admin"`
-	AdminPassword         string        `env:"SUBGEN_ADMIN_PASSWORD"`
+	DBPath                string `env:"SUBGEN_DB_PATH" envDefault:"db/subgen.db"`
+	StaticDir             string `env:"SUBGEN_STATIC_DIR"`
+	Listen                string `env:"SUBGEN_LISTEN" envDefault:"0.0.0.0:2097"`
+	TLSCert               string `env:"SUBGEN_TLS_CERT"`
+	TLSKey                string `env:"SUBGEN_TLS_KEY"`
+	PublicBase            string `env:"SUBGEN_PUBLIC_BASE"`
+	Secret                string `env:"SUBGEN_SECRET"`
+	ProfileTitle          string `env:"SUBGEN_PROFILE_TITLE" envDefault:"Freedom"`
+	Filename              string `env:"SUBGEN_FILENAME" envDefault:"freedom.yaml"`
+	ProfileUpdateInterval int    `env:"SUBGEN_PROFILE_UPDATE_INTERVAL" envDefault:"24"`
+	AdminUser             string `env:"SUBGEN_ADMIN_USER" envDefault:"admin"`
+	AdminPassword         string `env:"SUBGEN_ADMIN_PASSWORD"`
 }
 
 // TLSEnabled reports whether HTTPS should be served (both cert and key set).

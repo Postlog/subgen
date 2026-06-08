@@ -123,39 +123,3 @@ func (mr *MockroutingRepoMockRecorder) InboundRefCounts(ctx, inboundIDs any) *go
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InboundRefCounts", reflect.TypeOf((*MockroutingRepo)(nil).InboundRefCounts), ctx, inboundIDs)
 }
-
-// MockcacheInvalidator is a mock of cacheInvalidator interface.
-type MockcacheInvalidator struct {
-	ctrl     *gomock.Controller
-	recorder *MockcacheInvalidatorMockRecorder
-	isgomock struct{}
-}
-
-// MockcacheInvalidatorMockRecorder is the mock recorder for MockcacheInvalidator.
-type MockcacheInvalidatorMockRecorder struct {
-	mock *MockcacheInvalidator
-}
-
-// NewMockcacheInvalidator creates a new mock instance.
-func NewMockcacheInvalidator(ctrl *gomock.Controller) *MockcacheInvalidator {
-	mock := &MockcacheInvalidator{ctrl: ctrl}
-	mock.recorder = &MockcacheInvalidatorMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockcacheInvalidator) EXPECT() *MockcacheInvalidatorMockRecorder {
-	return m.recorder
-}
-
-// Invalidate mocks base method.
-func (m *MockcacheInvalidator) Invalidate() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Invalidate")
-}
-
-// Invalidate indicates an expected call of Invalidate.
-func (mr *MockcacheInvalidatorMockRecorder) Invalidate() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invalidate", reflect.TypeOf((*MockcacheInvalidator)(nil).Invalidate))
-}

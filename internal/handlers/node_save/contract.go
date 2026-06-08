@@ -20,9 +20,3 @@ type nodeRepo interface {
 type routingRepo interface {
 	InboundRefCounts(ctx context.Context, inboundIDs []int64) (map[int64]int, error)
 }
-
-// cacheInvalidator drops the cached fleet after a node change (the fleet service
-// satisfies it).
-type cacheInvalidator interface {
-	Invalidate()
-}

@@ -2,7 +2,6 @@ package config
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +62,6 @@ func TestLoad(t *testing.T) {
 				StaticDir:             "",
 				Listen:                "0.0.0.0:2097",
 				Secret:                "s3cr3t",
-				CacheTTL:              5 * time.Minute,
 				ProfileTitle:          "Freedom",
 				Filename:              "freedom.yaml",
 				ProfileUpdateInterval: 24,
@@ -86,7 +84,6 @@ func TestLoad(t *testing.T) {
 				TLSCert:               "/etc/cert.pem",
 				TLSKey:                "/etc/key.pem",
 				Secret:                "s3cr3t",
-				CacheTTL:              5 * time.Minute,
 				ProfileTitle:          "Freedom",
 				Filename:              "freedom.yaml",
 				ProfileUpdateInterval: 24,
@@ -130,7 +127,6 @@ var allKeys = []string{
 	"SUBGEN_TLS_KEY",
 	"SUBGEN_PUBLIC_BASE",
 	"SUBGEN_SECRET",
-	"SUBGEN_CACHE_TTL",
 	"SUBGEN_PROFILE_TITLE",
 	"SUBGEN_FILENAME",
 	"SUBGEN_PROFILE_UPDATE_INTERVAL",

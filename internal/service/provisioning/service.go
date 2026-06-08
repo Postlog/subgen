@@ -29,12 +29,11 @@ type Service struct {
 	users  userRepo
 	nodes  nodeRepo
 	client panelClient
-	cache  fleetCache
 }
 
 // New builds the provisioning service from its dependencies.
-func New(users userRepo, nodes nodeRepo, client panelClient, cache fleetCache) *Service {
-	return &Service{users: users, nodes: nodes, client: client, cache: cache}
+func New(users userRepo, nodes nodeRepo, client panelClient) *Service {
+	return &Service{users: users, nodes: nodes, client: client}
 }
 
 // nameRe is the allowed nickname charset (also the prefix of every client email).
@@ -217,8 +216,6 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		}
 	}
 
-	s.cache.Invalidate()
-
 	if err := s.users.Delete(ctx, id); err != nil {
 		return fmt.Errorf("users.Delete: %w", err)
 	}
@@ -346,8 +343,6 @@ func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u 
 			failures = append(failures, fmt.Sprintf("%s: AddClient: %v", n.Name, err))
 		}
 	}
-
-	s.cache.Invalidate()
 
 	if len(failures) > 0 {
 		return fmt.Errorf("%s", strings.Join(failures, "; "))

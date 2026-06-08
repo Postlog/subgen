@@ -96,8 +96,9 @@ client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  res
   `migrations/per_user_configs.manual.sql` (adds `subscription_configs`, scopes the
   `mihomo_*` tables by `config_id`; run once on a pre-feature DB, back up first — it sets
   `legacy_alter_table=ON` so the table rebuilds don't repoint FKs).
-- **Resilience:** fleet data is cached (`SUBGEN_CACHE_TTL`, default 5m) with
-  stale-on-error; rule-provider files are mirrored from GitHub and served from
+- **Resilience:** the fleet is built fresh per request (no cache), tolerating a
+  partial panel outage — an unreachable node is skipped, only a total outage errors;
+  rule-provider files are mirrored from GitHub and served from
   `/rules/<name><ext>` (RU networks often can't reach GitHub). The xui client uses
   the default system resolver — RU1's flaky host DNS was fixed at the host level, so
   the old custom-resolver workaround is gone.

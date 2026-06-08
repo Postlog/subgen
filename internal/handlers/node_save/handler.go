@@ -34,12 +34,11 @@ type saveReq struct {
 type Handler struct {
 	nodes   nodeRepo
 	routing routingRepo
-	cache   cacheInvalidator
 }
 
 // New builds the handler.
-func New(nodes nodeRepo, routing routingRepo, cache cacheInvalidator) *Handler {
-	return &Handler{nodes: nodes, routing: routing, cache: cache}
+func New(nodes nodeRepo, routing routingRepo) *Handler {
+	return &Handler{nodes: nodes, routing: routing}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -110,10 +109,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			_, err = h.nodes.Create(r.Context(), n)
 		}
-	}
-
-	if err == nil {
-		h.cache.Invalidate()
 	}
 
 	if err != nil {

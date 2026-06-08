@@ -26,7 +26,6 @@ func node7() *entity.Node {
 type mocks struct {
 	nodes   *MocknodeRepo
 	routing *MockroutingRepo
-	cache   *MockcacheInvalidator
 }
 
 func TestHandler_ServeHTTP(t *testing.T) {
@@ -70,7 +69,6 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
 				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
 				m.nodes.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
-				m.cache.EXPECT().Invalidate()
 			},
 		},
 	}
@@ -82,12 +80,12 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := &mocks{nodes: NewMocknodeRepo(ctrl), routing: NewMockroutingRepo(ctrl), cache: NewMockcacheInvalidator(ctrl)}
+			m := &mocks{nodes: NewMocknodeRepo(ctrl), routing: NewMockroutingRepo(ctrl)}
 			if tc.buildMocks != nil {
 				tc.buildMocks(m)
 			}
 
-			h := New(m.nodes, m.routing, m.cache)
+			h := New(m.nodes, m.routing)
 			req := httptest.NewRequest(http.MethodPost, "/admin/api/nodes/delete",
 				strings.NewReader(`{"id":`+tc.id+`}`))
 

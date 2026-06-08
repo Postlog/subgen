@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   test:
-    name: gate (lint + unit + integration)
+    name: gate (lint + unit + integration + apitest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -47,6 +47,8 @@ jobs:
         run: make test
       - name: integration tests (real temp SQLite)
         run: make integration
+      - name: API tests (real 3x-ui panels in docker)
+        run: make apitest
 
   deploy:
     name: deploy

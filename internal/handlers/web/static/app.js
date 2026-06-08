@@ -12,6 +12,15 @@ const app = createApp({
       _tid: 0,
       _uidc: 0,         // client-side uid counter (stable keys for drag-n-drop)
       users: [],
+      // Users table is server-paged/filtered: the backend returns one page; these
+      // drive the query (q = name substring, userInboundFilter = OR over inbound ids).
+      userSearch: "",
+      userInboundFilter: [],
+      userPage: 1,
+      userPerPage: 50,
+      userTotal: 0,
+      inboundFilterOpen: false, // the inbound-filter popover
+      _userTimer: 0,            // debounce handle for the search box
       nodes: [],
       schema: null, // config UI schema (rule/group/policy/provider catalogs), from the backend
       uForm: { open: false, id: 0, name: "", inbounds: [] },
@@ -44,6 +53,18 @@ const app = createApp({
       return out;
     },
     providerNames() { return this.cfg.providers.map((p) => p.name).filter(Boolean); },
+    // Total pages for the users table (at least 1, so the pager always shows "1 из 1").
+    userPageCount() { return Math.max(1, Math.ceil(this.userTotal / this.userPerPage)); },
+    // Windowed page list for the pager. Always a CONSTANT 7 slots when there are >7
+    // pages (first, last, a 3-wide window, and "…" fillers), so the layout width — and
+    // thus the ← → arrows — never shifts as you page.
+    userPages() {
+      const last = this.userPageCount, cur = this.userPage;
+      if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1);
+      if (cur <= 4) return [1, 2, 3, 4, 5, "...", last];
+      if (cur >= last - 3) return [1, "...", last - 4, last - 3, last - 2, last - 1, last];
+      return [1, "...", cur - 1, cur, cur + 1, "...", last];
+    },
     // Users that don't yet have a custom config — the candidates for "+ custom config".
     usersWithoutCustom() {
       const taken = new Set(this.customs.map((c) => c.userId));
@@ -76,13 +97,12 @@ const app = createApp({
     async load(tab) {
       try {
         if (tab === "users") {
-          await this.loadNodes();
-          this.users = (await this.getJSON("/admin/api/users")).users || [];
+          await this.loadNodes(); // inbound options for the filter
+          await this.loadUsers();
         } else if (tab === "nodes") {
           await this.loadNodes();
         } else if (tab === "config") {
           await this.loadNodes(); // inbound options for the policy pickers
-          this.users = (await this.getJSON("/admin/api/users")).users || []; // for the custom-config picker
           if (!this.schema) this.schema = await this.getJSON("/admin/api/config/mihomo/schema");
           await this.loadCustoms();
           // Keep the active scope if its custom config still exists; else fall to base.
@@ -95,9 +115,56 @@ const app = createApp({
     },
     async loadNodes() { this.nodes = (await this.getJSON("/admin/api/nodes")).nodes || []; },
 
+    // ---- users: server-paged list ----------------------------------------------
+    // loadUsers fetches the current page with the active search/inbound filter. If a
+    // page ends up past the end (e.g. after deletes), it steps back and refetches.
+    async loadUsers() {
+      const p = new URLSearchParams();
+      const q = this.userSearch.trim();
+      if (q) p.set("q", q);
+      for (const id of this.userInboundFilter) p.append("inbound", id);
+      p.set("page", this.userPage);
+      p.set("perPage", this.userPerPage);
+      const d = await this.getJSON("/admin/api/users?" + p.toString());
+      this.users = d.users || [];
+      this.userTotal = d.total || 0;
+      if (!this.users.length && this.userTotal && this.userPage > 1) {
+        this.userPage = this.userPageCount;
+        await this.loadUsers();
+      }
+    },
+    // onUserSearch debounces the search box, then resets to page 1 and reloads.
+    onUserSearch() {
+      clearTimeout(this._userTimer);
+      this._userTimer = setTimeout(() => { this.userPage = 1; this.loadUsers(); }, 250);
+    },
+    // toggleInboundFilter flips one inbound in the OR-filter and reloads from page 1.
+    toggleInboundFilter(id) {
+      const i = this.userInboundFilter.indexOf(id);
+      if (i === -1) this.userInboundFilter.push(id); else this.userInboundFilter.splice(i, 1);
+      this.userPage = 1;
+      this.loadUsers();
+    },
+    clearInboundFilter() {
+      if (!this.userInboundFilter.length) return;
+      this.userInboundFilter = [];
+      this.userPage = 1;
+      this.loadUsers();
+    },
+    gotoUserPage(p) {
+      p = Math.min(Math.max(1, p), this.userPageCount);
+      if (p === this.userPage) return;
+      this.userPage = p;
+      this.loadUsers();
+    },
+
     // ---- config: scope (base vs per-user custom) -------------------------------
+    // loadCustoms pulls both the custom-config owners and the full id+name user list
+    // (the picker's source — kept off the paged /admin/api/users).
     async loadCustoms() {
-      this.customs = (await this.getJSON("/admin/api/config/mihomo/customs")).customs || [];
+      const d = await this.getJSON("/admin/api/config/mihomo/customs");
+      this.customs = d.customs || [];
+      this.users = d.users || [];
     },
     // loadScopeConfig fetches the config for the active scope into the editor.
     async loadScopeConfig() {
@@ -294,17 +361,17 @@ const app = createApp({
       const params = { inboundIDs: f.inbounds };
       if (f.id) params.id = f.id; else params.name = f.name;
       const d = await this.post(url, params);
-      if (d.ok) { this.uForm.open = false; this.load("users"); }
+      if (d.ok) { this.uForm.open = false; this.loadUsers(); }
     },
     async deleteUser(u) {
       if (!confirm("Удалить " + u.name + "?")) return;
       this.actingId = u.id;
-      try { const d = await this.post("/admin/api/users/delete", { id: u.id }); if (d.ok) await this.load("users"); }
+      try { const d = await this.post("/admin/api/users/delete", { id: u.id }); if (d.ok) await this.loadUsers(); }
       finally { this.actingId = 0; }
     },
     async recreateUser(u) {
       this.actingId = u.id;
-      try { const d = await this.post("/admin/api/users/recreate", { id: u.id }); if (d.ok) await this.load("users"); }
+      try { const d = await this.post("/admin/api/users/recreate", { id: u.id }); if (d.ok) await this.loadUsers(); }
       finally { this.actingId = 0; }
     },
 
@@ -335,7 +402,7 @@ const app = createApp({
       if (d.ok) this.load("nodes");
     },
 
-    closeModals() { this.uForm.open = false; this.nodeForm.open = false; },
+    closeModals() { this.uForm.open = false; this.nodeForm.open = false; this.inboundFilterOpen = false; },
   },
   mounted() {
     this.load("users");

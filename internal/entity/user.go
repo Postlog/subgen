@@ -10,6 +10,23 @@ type User struct {
 	Connections []Connection
 }
 
+// UserListParams selects and pages the users list at the repository level (so the
+// store never materialises every user). NameQuery is a case-insensitive substring
+// match on the nickname; InboundIDs is an OR-filter (the user has at least one of
+// these node_inbounds.id connections). A nil/empty filter field means "no filter".
+type UserListParams struct {
+	NameQuery  string
+	InboundIDs []int64
+	Limit      int
+	Offset     int
+}
+
+// UserPage is one page of users plus the total count matching the (unpaged) filter.
+type UserPage struct {
+	Users []User
+	Total int64
+}
+
 // Connection is one (user, inbound) binding. Node/Name/Port are resolved by join
 // from node_inbounds; the client email/subId are the user's, not per-connection.
 // The inbound label (for display / wire-naming) is Node + "-" + Name.

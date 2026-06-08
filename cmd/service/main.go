@@ -200,7 +200,7 @@ func mountAdmin(r *mux.Router, cfg config.Config, usersRepo *users.Repository, n
 	r.Handle("/admin/logout", logout.New(sess)).Methods(http.MethodGet)
 
 	// JSON read API (consumed by the Vue SPA).
-	r.HandleFunc("/admin/api/users", ra(users_api.New(usersRepo, fleetSvc, prov, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
+	r.HandleFunc("/admin/api/users", ra(users_api.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
 	r.HandleFunc("/admin/api/nodes", ra(nodes_api.New(nodesRepo).ServeHTTP)).Methods(http.MethodGet)
 
 	// mihomo config: read / schema / save / custom-config management, grouped under

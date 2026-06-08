@@ -1,29 +1,35 @@
-// Package users_api handles GET /admin/api/users — the users table as JSON for the
-// admin SPA.
+// Package users_api handles GET /admin/api/users — one filtered, paged slice of the
+// users table as JSON for the admin SPA. Query params: q (name substring), inbound
+// (repeatable node_inbounds.id, OR-filter), page (1-based), perPage.
 package users_api
 
 import (
 	"log/slog"
 	"net/http"
-	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/token"
 )
 
-// Handler serves the users list as JSON.
+const (
+	defaultPerPage = 50
+	maxPerPage     = 200
+)
+
+// Handler serves a page of the users list as JSON.
 type Handler struct {
 	users  userLister
 	fleet  fleetReader
-	health connHealth
 	secret string // HMAC secret for subscription tokens
 	base   string // public base URL
 }
 
 // New builds the handler.
-func New(users userLister, fleet fleetReader, health connHealth, secret, base string) *Handler {
-	return &Handler{users: users, fleet: fleet, health: health, secret: secret, base: base}
+func New(users userLister, fleet fleetReader, secret, base string) *Handler {
+	return &Handler{users: users, fleet: fleet, secret: secret, base: base}
 }
 
 type subInfo struct {
@@ -52,7 +58,15 @@ type row struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	users, err := h.users.List(r.Context())
+	page, perPage := paging(r)
+	params := entity.UserListParams{
+		NameQuery:  r.URL.Query().Get("q"),
+		InboundIDs: inboundIDs(r),
+		Limit:      perPage,
+		Offset:     (page - 1) * perPage,
+	}
+
+	res, err := h.users.ListPage(r.Context(), params)
 	if err != nil {
 		slog.Error("handler users_api: list failed", "err", err)
 		http.Error(w, "store unavailable", http.StatusInternalServerError)
@@ -60,23 +74,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Health and traffic both come from the cached fleet (one panel snapshot per node),
+	// so the page needs no per-user panel calls. A nil fleet (total outage, no prior
+	// good snapshot) yields no badges and zero stats — fleet's methods are nil-safe.
 	fleet, _ := h.fleet.Fleet(r.Context())
 	base := strings.TrimRight(h.base, "/")
 
-	rows := make([]row, 0, len(users))
+	rows := make([]row, 0, len(res.Users))
 
-	for i := range users {
-		u := &users[i]
-
-		missing := map[int64]bool{}
-		for _, c := range h.health.MissingConnections(r.Context(), u) {
-			missing[c.InboundID] = true
-		}
+	for i := range res.Users {
+		u := &res.Users[i]
 
 		inbounds := make([]inboundView, 0, len(u.Connections))
 		for _, c := range u.Connections {
 			inbounds = append(inbounds, inboundView{
-				ID: c.InboundID, Label: c.Node + "-" + c.Name, Port: c.Port, Missing: missing[c.InboundID],
+				ID: c.InboundID, Label: c.Node + "-" + c.Name, Port: c.Port,
+				Missing: fleet.ClientMissing(c.InboundID, u.Name),
 			})
 		}
 
@@ -87,16 +100,46 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Inbounds: inbounds,
 		}
 
-		if fleet != nil {
-			if sub := fleet.Sub(u.SubID); sub != nil {
-				vr.Stats = stats{Up: sub.Up, Down: sub.Down}
-			}
+		if sub := fleet.Sub(u.SubID); sub != nil {
+			vr.Stats = stats{Up: sub.Up, Down: sub.Down}
 		}
 
 		rows = append(rows, vr)
 	}
 
-	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	web.JSON(w, map[string]any{"users": rows, "total": res.Total, "page": page, "perPage": perPage})
+}
 
-	web.JSON(w, map[string]any{"users": rows})
+// paging reads the 1-based page and clamped perPage from the query (defaults 1 and
+// defaultPerPage; perPage clamped to [1, maxPerPage]).
+func paging(r *http.Request) (page, perPage int) {
+	page = 1
+	if v, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && v > 1 {
+		page = v
+	}
+
+	perPage = defaultPerPage
+	if v, err := strconv.Atoi(r.URL.Query().Get("perPage")); err == nil && v > 0 {
+		perPage = v
+	}
+
+	if perPage > maxPerPage {
+		perPage = maxPerPage
+	}
+
+	return page, perPage
+}
+
+// inboundIDs parses the repeatable ?inbound= filter into node_inbounds ids, dropping
+// anything non-numeric.
+func inboundIDs(r *http.Request) []int64 {
+	var out []int64
+
+	for _, s := range r.URL.Query()["inbound"] {
+		if id, err := strconv.ParseInt(s, 10, 64); err == nil {
+			out = append(out, id)
+		}
+	}
+
+	return out
 }

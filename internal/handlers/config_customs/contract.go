@@ -12,7 +12,8 @@ type configLister interface {
 	UserConfigUserIDs(ctx context.Context, kind entity.ConfigKind) ([]int64, error)
 }
 
-// userLister lists the users (for resolving ids to display names).
+// userLister lists every user as id + name (for resolving ids to display names and
+// for the config scope picker) — cheap, no connection hydration.
 type userLister interface {
-	List(ctx context.Context) ([]entity.User, error)
+	ListNames(ctx context.Context) ([]entity.User, error)
 }

@@ -1,6 +1,7 @@
 // Package config_customs handles GET /admin/api/config/mihomo/customs — the users
 // that have a custom mihomo config, as {userId,name} pairs for the admin scope
-// selector.
+// selector, alongside the full id+name user list that feeds the "+ custom config"
+// picker (so the config tab never loads the paged /admin/api/users).
 package config_customs
 
 import (
@@ -28,6 +29,11 @@ type customView struct {
 	Name   string `json:"name"`
 }
 
+type userView struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -39,7 +45,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := h.users.List(ctx)
+	users, err := h.users.ListNames(ctx)
 	if err != nil {
 		slog.Error("handler config_customs: list users failed", "err", err)
 		http.Error(w, "store unavailable", http.StatusInternalServerError)
@@ -48,8 +54,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := make(map[int64]string, len(users))
+	all := make([]userView, 0, len(users))
+
 	for i := range users {
 		name[users[i].ID] = users[i].Name
+		all = append(all, userView{ID: users[i].ID, Name: users[i].Name})
 	}
 
 	out := make([]customView, 0, len(ids))
@@ -59,5 +68,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 
-	web.JSON(w, map[string]any{"customs": out})
+	web.JSON(w, map[string]any{"customs": out, "users": all})
 }

@@ -61,6 +61,31 @@ func (s *Subscriber) AddEmail(email string) {
 // Fleet indexes subscribers by subId.
 type Fleet struct {
 	Subs map[string]*Subscriber
+
+	// ClientsByInbound maps a node_inbounds.id to the set of client emails present in
+	// that inbound's settings.clients on the panel. A key exists for every inbound of a
+	// reachable node (empty set if the inbound has no clients / isn't on the panel) and
+	// is absent for inbounds of an unreachable node — so a missing key means "panel not
+	// observed", distinct from "observed, client absent". Built once per fleet refresh
+	// from the same single panel snapshot, so health needs no per-user panel calls.
+	ClientsByInbound map[int64]map[string]bool
+}
+
+// ClientMissing reports whether the user's client (by email) is absent from the
+// given inbound — the health signal behind the "no panel client" badge, derived from
+// the cached fleet instead of live panel calls. A node whose panel wasn't observed
+// (no key) is never claimed missing, mirroring the prior live-check behaviour.
+func (f *Fleet) ClientMissing(inboundID int64, email string) bool {
+	if f == nil {
+		return false
+	}
+
+	set, ok := f.ClientsByInbound[inboundID]
+	if !ok {
+		return false
+	}
+
+	return !set[email]
 }
 
 // Sub returns the subscriber for a subId, or nil.

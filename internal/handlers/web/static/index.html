@@ -30,22 +30,53 @@
         <button class="btn btn-primary btn-add" @click="openCreateUser()"><span class="plus">+</span> Новый пользователь</button>
       </div>
 
+      <div class="users-toolbar">
+        <input class="form-control form-control-sm tb-search" v-model="userSearch" @input="onUserSearch" placeholder="Поиск по имени…">
+        <div class="tb-filter">
+          <button class="btn btn-sm btn-outline-secondary" @click="inboundFilterOpen=!inboundFilterOpen">
+            Подключения: <b v-if="userInboundFilter.length">{{ userInboundFilter.length }}</b><span v-else>все</span> <span class="caret">▾</span>
+          </button>
+          <div v-if="inboundFilterOpen" class="filter-backdrop" @click="inboundFilterOpen=false"></div>
+          <div v-if="inboundFilterOpen" class="filter-pop">
+            <div class="filter-pop-head">
+              <span class="text-dim small">Фильтр по подключениям</span>
+              <span v-if="userInboundFilter.length" class="reset" @click="clearInboundFilter()">сбросить</span>
+            </div>
+            <div class="pick-list">
+              <label v-for="o in inboundOptions" :key="o.id" class="pick" :class="{on: userInboundFilter.includes(o.id)}">
+                <input class="form-check-input" type="checkbox" :checked="userInboundFilter.includes(o.id)" @change="toggleInboundFilter(o.id)">
+                <span class="pname">{{ o.label }}</span><span class="pport">:{{ o.port }}</span>
+              </label>
+              <span v-if="!inboundOptions.length" class="inb-empty">нет инбаундов</span>
+            </div>
+          </div>
+        </div>
+        <span class="tb-count text-dim small">Всего: {{ userTotal }}</span>
+      </div>
+
       <div class="card">
         <table class="table table-hover">
-          <colgroup><col style="width:18%"><col style="width:34%"><col style="width:16%"><col style="width:14%"><col style="width:18%"></colgroup>
+          <colgroup><col style="width:30%"><col style="width:16%"><col style="width:13%"><col style="width:11%"><col style="width:30%"></colgroup>
           <thead><tr><th>Имя</th><th>Подключения</th><th>Трафик</th><th>Подписка</th><th></th></tr></thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" :class="{acting:actingId===u.id}">
-              <td class="fw-semibold cell-ellipsis">{{ u.name }}</td>
+              <td class="uname">{{ u.name }}</td>
               <td>
-                <div class="chips">
-                  <span v-for="i in u.inbounds" :key="i.id" class="badge tag" :class="i.missing ? 'miss' : 'inb'">
-                    <span v-if="i.missing" title="нет клиента на панели">⚠</span>{{ i.label }}<span class="port">:{{ i.port }}</span>
+                <div v-if="u.inbounds.length" class="conn">
+                  <span class="badge tag" :class="u.inbounds[0].missing ? 'miss' : 'inb'">
+                    <span v-if="u.inbounds[0].missing" title="нет клиента на панели">⚠</span>{{ u.inbounds[0].label }}<span class="port">:{{ u.inbounds[0].port }}</span>
                   </span>
-                  <span v-if="!u.inbounds.length" class="text-dim small">—</span>
+                  <span v-if="u.inbounds.length>1" class="badge tag more">+{{ u.inbounds.length-1 }}</span>
+                  <div v-if="u.inbounds.length>1" class="conn-pop">
+                    <div v-for="i in u.inbounds" :key="i.id" class="conn-pop-row">
+                      <span v-if="i.missing" class="cp-warn" title="нет клиента на панели">⚠</span>
+                      <span class="cp-label">{{ i.label }}</span><span class="cp-port">:{{ i.port }}</span>
+                    </div>
+                  </div>
                 </div>
+                <span v-else class="text-dim small">—</span>
               </td>
-              <td class="text-dim small text-nowrap mono">{{ hsize(u.stats.up) }} / {{ hsize(u.stats.down) }}</td>
+              <td class="traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
               <td><button class="btn btn-sm btn-outline-secondary act" @click="copy(u.sub.url)">Mihomo</button></td>
               <td class="actions">
                 <span v-if="actingId===u.id" class="spin me-2"></span>
@@ -56,9 +87,18 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!users.length"><td colspan="5" class="text-dim text-center py-4">Пользователей нет</td></tr>
+            <tr v-if="!users.length"><td colspan="5" class="text-dim text-center py-4">{{ (userSearch.trim() || userInboundFilter.length) ? 'Ничего не найдено' : 'Пользователей нет' }}</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="pager" v-if="userPageCount > 1">
+        <button class="btn btn-sm btn-outline-secondary" :disabled="userPage<=1" @click="gotoUserPage(userPage-1)">←</button>
+        <template v-for="(p,idx) in userPages" :key="idx">
+          <span v-if="p==='...'" class="pager-gap">…</span>
+          <button v-else class="btn btn-sm" :class="p===userPage ? 'btn-primary' : 'btn-outline-secondary'" @click="gotoUserPage(p)">{{ p }}</button>
+        </template>
+        <button class="btn btn-sm btn-outline-secondary" :disabled="userPage>=userPageCount" @click="gotoUserPage(userPage+1)">→</button>
       </div>
     </section>
 

@@ -15,11 +15,31 @@ type panelSnapshot struct {
 // enabled client, grouped under that client's subId. The proxy name is the inbound
 // label "<node name>-<inbound name>" (unique across the fleet).
 func buildFleet(snaps []panelSnapshot) *entity.Fleet {
-	fleet := &entity.Fleet{Subs: map[string]*entity.Subscriber{}}
+	fleet := &entity.Fleet{
+		Subs:             map[string]*entity.Subscriber{},
+		ClientsByInbound: map[int64]map[string]bool{},
+	}
 
 	for _, s := range snaps {
 		for _, cfg := range s.node.Inbounds {
 			pi := findByPort(s.inbounds, cfg.Port)
+
+			// Record raw settings.clients presence for every inbound of this (reachable)
+			// node — even disabled / not-on-panel ones — so health matches the prior
+			// live check (which ignored Enable and keyed on email). A present-but-empty
+			// set still marks the inbound as observed.
+			set := fleet.ClientsByInbound[cfg.ID]
+			if set == nil {
+				set = map[string]bool{}
+				fleet.ClientsByInbound[cfg.ID] = set
+			}
+
+			if pi != nil {
+				for _, c := range pi.Clients {
+					set[c.Email] = true
+				}
+			}
+
 			if pi == nil || !pi.Enable {
 				continue
 			}

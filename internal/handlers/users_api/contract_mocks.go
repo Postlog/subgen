@@ -41,19 +41,19 @@ func (m *MockuserLister) EXPECT() *MockuserListerMockRecorder {
 	return m.recorder
 }
 
-// List mocks base method.
-func (m *MockuserLister) List(ctx context.Context) ([]entity.User, error) {
+// ListPage mocks base method.
+func (m *MockuserLister) ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx)
-	ret0, _ := ret[0].([]entity.User)
+	ret := m.ctrl.Call(m, "ListPage", ctx, p)
+	ret0, _ := ret[0].(entity.UserPage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// List indicates an expected call of List.
-func (mr *MockuserListerMockRecorder) List(ctx any) *gomock.Call {
+// ListPage indicates an expected call of ListPage.
+func (mr *MockuserListerMockRecorder) ListPage(ctx, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockuserLister)(nil).List), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPage", reflect.TypeOf((*MockuserLister)(nil).ListPage), ctx, p)
 }
 
 // MockfleetReader is a mock of fleetReader interface.
@@ -93,42 +93,4 @@ func (m *MockfleetReader) Fleet(ctx context.Context) (*entity.Fleet, error) {
 func (mr *MockfleetReaderMockRecorder) Fleet(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fleet", reflect.TypeOf((*MockfleetReader)(nil).Fleet), ctx)
-}
-
-// MockconnHealth is a mock of connHealth interface.
-type MockconnHealth struct {
-	ctrl     *gomock.Controller
-	recorder *MockconnHealthMockRecorder
-	isgomock struct{}
-}
-
-// MockconnHealthMockRecorder is the mock recorder for MockconnHealth.
-type MockconnHealthMockRecorder struct {
-	mock *MockconnHealth
-}
-
-// NewMockconnHealth creates a new mock instance.
-func NewMockconnHealth(ctrl *gomock.Controller) *MockconnHealth {
-	mock := &MockconnHealth{ctrl: ctrl}
-	mock.recorder = &MockconnHealthMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconnHealth) EXPECT() *MockconnHealthMockRecorder {
-	return m.recorder
-}
-
-// MissingConnections mocks base method.
-func (m *MockconnHealth) MissingConnections(ctx context.Context, u *entity.User) []entity.Connection {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MissingConnections", ctx, u)
-	ret0, _ := ret[0].([]entity.Connection)
-	return ret0
-}
-
-// MissingConnections indicates an expected call of MissingConnections.
-func (mr *MockconnHealthMockRecorder) MissingConnections(ctx, u any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MissingConnections", reflect.TypeOf((*MockconnHealth)(nil).MissingConnections), ctx, u)
 }

@@ -80,17 +80,17 @@ func (m *MockuserLister) EXPECT() *MockuserListerMockRecorder {
 	return m.recorder
 }
 
-// List mocks base method.
-func (m *MockuserLister) List(ctx context.Context) ([]entity.User, error) {
+// ListNames mocks base method.
+func (m *MockuserLister) ListNames(ctx context.Context) ([]entity.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx)
+	ret := m.ctrl.Call(m, "ListNames", ctx)
 	ret0, _ := ret[0].([]entity.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// List indicates an expected call of List.
-func (mr *MockuserListerMockRecorder) List(ctx any) *gomock.Call {
+// ListNames indicates an expected call of ListNames.
+func (mr *MockuserListerMockRecorder) ListNames(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockuserLister)(nil).List), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListNames", reflect.TypeOf((*MockuserLister)(nil).ListNames), ctx)
 }

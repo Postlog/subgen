@@ -424,50 +424,6 @@ func (s *Service) emailExistsOnPanel(ctx context.Context, t entity.PanelTarget, 
 	return false, nil
 }
 
-// MissingConnections returns the user's connections whose client (email = name)
-// is absent from settings.clients on the panel right now (health display).
-func (s *Service) MissingConnections(ctx context.Context, u *entity.User) []entity.Connection {
-	byID, _, err := s.nodeIndex(ctx)
-	if err != nil {
-		return nil
-	}
-
-	var missing []entity.Connection
-
-	for _, conn := range u.Connections {
-		n, ok := byID[conn.NodeID]
-		if !ok {
-			missing = append(missing, conn)
-			continue
-		}
-
-		inbs, err := s.client.ListInbounds(ctx, target(n))
-		if err != nil {
-			continue // panel unreachable: don't claim missing
-		}
-
-		found := false
-
-		for _, in := range inbs {
-			if in.Port != conn.Port {
-				continue
-			}
-
-			for _, sc := range in.Clients { // settings.clients is authoritative
-				if sc.Email == u.Name {
-					found = true
-				}
-			}
-		}
-
-		if !found {
-			missing = append(missing, conn)
-		}
-	}
-
-	return missing
-}
-
 // target builds the per-call panel credentials from a node.
 func target(n entity.Node) entity.PanelTarget {
 	return entity.PanelTarget{BaseURL: n.PanelBaseURL, BasePath: n.PanelBasePath, Token: n.Token}

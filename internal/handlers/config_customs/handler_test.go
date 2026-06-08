@@ -18,24 +18,28 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		name       string
 		buildMocks func(c *MockconfigLister, u *MockuserLister)
 		want       []customView
+		wantUsers  []userView
 	}{
 		{
 			name: "empty",
 			buildMocks: func(c *MockconfigLister, u *MockuserLister) {
 				c.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return(nil, nil)
-				u.EXPECT().List(gomock.Any()).Return(nil, nil)
+				u.EXPECT().ListNames(gomock.Any()).Return(nil, nil)
 			},
-			want: []customView{},
+			want:      []customView{},
+			wantUsers: []userView{},
 		},
 		{
 			name: "success.sorted_by_name",
 			buildMocks: func(c *MockconfigLister, u *MockuserLister) {
 				c.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return([]int64{1, 2}, nil)
-				u.EXPECT().List(gomock.Any()).Return([]entity.User{
+				u.EXPECT().ListNames(gomock.Any()).Return([]entity.User{
 					{ID: 1, Name: "zoe"}, {ID: 2, Name: "amy"}, {ID: 3, Name: "ben"},
 				}, nil)
 			},
 			want: []customView{{UserID: 2, Name: "amy"}, {UserID: 1, Name: "zoe"}},
+			// users mirrors the (already name-ordered) ListNames result, all of them.
+			wantUsers: []userView{{ID: 1, Name: "zoe"}, {ID: 2, Name: "amy"}, {ID: 3, Name: "ben"}},
 		},
 	}
 
@@ -60,10 +64,12 @@ func TestHandler_ServeHTTP(t *testing.T) {
 
 			var body struct {
 				Customs []customView `json:"customs"`
+				Users   []userView   `json:"users"`
 			}
 
 			require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
 			assert.Equal(t, tc.want, body.Customs)
+			assert.Equal(t, tc.wantUsers, body.Users)
 		})
 	}
 }

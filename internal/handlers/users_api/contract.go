@@ -8,13 +8,9 @@ import (
 )
 
 type userLister interface {
-	List(ctx context.Context) ([]entity.User, error)
+	ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error)
 }
 
 type fleetReader interface {
 	Fleet(ctx context.Context) (*entity.Fleet, error)
-}
-
-type connHealth interface {
-	MissingConnections(ctx context.Context, u *entity.User) []entity.Connection
 }

@@ -2,7 +2,10 @@
 
 package api
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+)
 
 // UserInbound is one (user, inbound) binding as the users API reports it.
 type UserInbound struct {
@@ -56,31 +59,36 @@ func (c *Client) RecreateUser(id int64) (Result, error) {
 	return c.post("/admin/api/users/recreate", map[string]any{"id": id})
 }
 
-// ListUsers GETs /admin/api/users and returns the rows.
+// ListUsers GETs /admin/api/users and returns the rows. The list is server-paged; a
+// large perPage keeps the small test fleet on one page.
 func (c *Client) ListUsers() ([]User, error) {
 	var resp struct {
 		Users []User `json:"users"`
 	}
 
-	if err := c.getJSON("/admin/api/users", &resp); err != nil {
+	if err := c.getJSON("/admin/api/users?perPage=200", &resp); err != nil {
 		return nil, err
 	}
 
 	return resp.Users, nil
 }
 
-// FindUser GETs the users list and returns the row whose nickname matches, or nil.
-// user_create only returns {ok}, so this is how a scenario recovers the created
-// user's id/subId/sub-URL to drive the rest of its lifecycle.
+// FindUser GETs the users list filtered by the nickname (server-side ?q= search) and
+// returns the matching row, or nil. user_create only returns {ok}, so this is how a
+// scenario recovers the created user's id/subId/sub-URL to drive the rest of its
+// lifecycle — going through the filter so paging never hides a freshly-created user.
 func (c *Client) FindUser(name string) (*User, error) {
-	users, err := c.ListUsers()
-	if err != nil {
+	var resp struct {
+		Users []User `json:"users"`
+	}
+
+	if err := c.getJSON("/admin/api/users?perPage=200&q="+url.QueryEscape(name), &resp); err != nil {
 		return nil, err
 	}
 
-	for i := range users {
-		if users[i].Name == name {
-			return &users[i], nil
+	for i := range resp.Users {
+		if resp.Users[i].Name == name {
+			return &resp.Users[i], nil
 		}
 	}
 

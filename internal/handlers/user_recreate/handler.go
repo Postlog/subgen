@@ -1,16 +1,15 @@
-// Package user_recreate handles POST /admin/users/recreate.
+// Package user_recreate implements the userRecreate operation
+// (POST /admin/api/users/recreate).
 package user_recreate
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
 
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgRecreated = "Клиенты пересозданы"
-
-// Handler re-provisions a user's panel clients.
+// Handler re-provisions a user's panel clients from the store.
 type Handler struct {
 	svc recreator
 }
@@ -18,24 +17,11 @@ type Handler struct {
 // New builds the handler.
 func New(svc recreator) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int64 `json:"id"`
+// UserRecreate implements oas.Handler.
+func (h *Handler) UserRecreate(ctx context.Context, req *oas.UserRecreateReq) (oas.UserRecreateRes, error) {
+	if err := h.svc.RecreateUser(ctx, req.ID); err != nil {
+		return &oas.UserRecreateBadRequest{ErrMessage: web.UserMessage(err)}, nil
 	}
 
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler user_recreate: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	id := req.ID
-
-	err := h.svc.RecreateUser(r.Context(), id)
-	if err != nil {
-		slog.Warn("handler user_recreate: recreate failed", "id", id, "err", err)
-	}
-
-	web.JSONResult(w, msgRecreated, err)
+	return &oas.MessageResponse{Message: "Клиенты пересозданы"}, nil
 }

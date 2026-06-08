@@ -18,7 +18,13 @@ import (
 
 	"github.com/postlog/subgen/internal/handlers/healthz"
 	"github.com/postlog/subgen/internal/handlers/node_delete"
+	"github.com/postlog/subgen/internal/handlers/node_save"
 	"github.com/postlog/subgen/internal/handlers/nodes_get"
+	"github.com/postlog/subgen/internal/handlers/user_create"
+	"github.com/postlog/subgen/internal/handlers/user_delete"
+	"github.com/postlog/subgen/internal/handlers/user_edit"
+	"github.com/postlog/subgen/internal/handlers/user_recreate"
+	"github.com/postlog/subgen/internal/handlers/users_get"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
 )
@@ -30,8 +36,16 @@ var errUnauthorized = errors.New("unauthorized")
 // Handlers bundles every per-action handler the composite forwards to. main builds it
 // in the composition root; it grows as operations are migrated.
 type Handlers struct {
-	Healthz    *healthz.Handler
+	Healthz *healthz.Handler
+
+	UsersGet     *users_get.Handler
+	UserCreate   *user_create.Handler
+	UserEdit     *user_edit.Handler
+	UserDelete   *user_delete.Handler
+	UserRecreate *user_recreate.Handler
+
 	NodesGet   *nodes_get.Handler
+	NodeSave   *node_save.Handler
 	NodeDelete *node_delete.Handler
 }
 
@@ -52,8 +66,32 @@ func (s *Server) Healthz(ctx context.Context) (oas.HealthzOK, error) {
 	return s.h.Healthz.Healthz(ctx)
 }
 
+func (s *Server) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.UsersGetRes, error) {
+	return s.h.UsersGet.UsersGet(ctx, params)
+}
+
+func (s *Server) UserCreate(ctx context.Context, req *oas.UserCreateReq) (oas.UserCreateRes, error) {
+	return s.h.UserCreate.UserCreate(ctx, req)
+}
+
+func (s *Server) UserEdit(ctx context.Context, req *oas.UserEditReq) (oas.UserEditRes, error) {
+	return s.h.UserEdit.UserEdit(ctx, req)
+}
+
+func (s *Server) UserDelete(ctx context.Context, req *oas.UserDeleteReq) (oas.UserDeleteRes, error) {
+	return s.h.UserDelete.UserDelete(ctx, req)
+}
+
+func (s *Server) UserRecreate(ctx context.Context, req *oas.UserRecreateReq) (oas.UserRecreateRes, error) {
+	return s.h.UserRecreate.UserRecreate(ctx, req)
+}
+
 func (s *Server) NodesGet(ctx context.Context) (oas.NodesGetRes, error) {
 	return s.h.NodesGet.NodesGet(ctx)
+}
+
+func (s *Server) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeSaveRes, error) {
+	return s.h.NodeSave.NodeSave(ctx, req)
 }
 
 func (s *Server) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {

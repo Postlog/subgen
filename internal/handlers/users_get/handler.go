@@ -1,16 +1,13 @@
-// Package users_get handles GET /admin/api/users — one filtered, paged slice of the
-// users table as JSON for the admin SPA. Query params: q (name substring), inbound
-// (repeatable node_inbounds.id, OR-filter), page (1-based), perPage.
+// Package users_get implements the usersGet operation (GET /admin/api/users) — one
+// filtered, paged slice of the users table for the admin SPA.
 package users_get
 
 import (
-	"log/slog"
-	"net/http"
-	"strconv"
+	"context"
 	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 	"github.com/postlog/subgen/internal/token"
 )
 
@@ -19,7 +16,7 @@ const (
 	maxPerPage     = 200
 )
 
-// Handler serves a page of the users list as JSON.
+// Handler serves a page of the users list.
 type Handler struct {
 	users  userLister
 	fleet  fleetReader
@@ -32,114 +29,58 @@ func New(users userLister, fleet fleetReader, secret, base string) *Handler {
 	return &Handler{users: users, fleet: fleet, secret: secret, base: base}
 }
 
-type subInfo struct {
-	ID  string `json:"id"`  // subId
-	URL string `json:"url"` // <publicBase>/sub/<token>
-}
-
-type inboundView struct {
-	ID      int64  `json:"id"`    // node_inbounds.id
-	Label   string `json:"label"` // "<node name>-<inbound name>"
-	Port    int    `json:"port"`
-	Missing bool   `json:"missing"`
-}
-
-type stats struct {
-	Up   int64 `json:"up"`
-	Down int64 `json:"down"`
-}
-
-type row struct {
-	ID       int64         `json:"id"`
-	Name     string        `json:"name"`
-	Sub      subInfo       `json:"sub"`
-	Inbounds []inboundView `json:"inbounds"`
-	Stats    stats         `json:"stats"`
-}
-
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	page, perPage := paging(r)
-	params := entity.UserListParams{
-		NameQuery:  r.URL.Query().Get("q"),
-		InboundIDs: inboundIDs(r),
-		Limit:      perPage,
-		Offset:     (page - 1) * perPage,
+// UsersGet implements oas.Handler. Health badges and traffic come from the cached
+// fleet (one panel snapshot per node), so the page needs no per-user panel calls.
+func (h *Handler) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.UsersGetRes, error) {
+	page := params.Page.Or(1)
+	if page < 1 {
+		page = 1
 	}
 
-	res, err := h.users.ListPage(r.Context(), params)
-	if err != nil {
-		slog.Error("handler users_get: list failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
-	}
-
-	// Health and traffic both come from the cached fleet (one panel snapshot per node),
-	// so the page needs no per-user panel calls. A nil fleet (total outage, no prior
-	// good snapshot) yields no badges and zero stats — fleet's methods are nil-safe.
-	fleet, _ := h.fleet.Fleet(r.Context())
-	base := strings.TrimRight(h.base, "/")
-
-	rows := make([]row, 0, len(res.Users))
-
-	for i := range res.Users {
-		u := &res.Users[i]
-
-		inbounds := make([]inboundView, 0, len(u.Connections))
-		for _, c := range u.Connections {
-			inbounds = append(inbounds, inboundView{
-				ID: c.InboundID, Label: c.Node + "-" + c.Name, Port: c.Port,
-				Missing: fleet.ClientMissing(c.InboundID, u.Name),
-			})
-		}
-
-		vr := row{
-			ID:       u.ID,
-			Name:     u.Name,
-			Sub:      subInfo{ID: u.SubID, URL: base + "/sub/mihomo/" + token.Make(h.secret, u.SubID)},
-			Inbounds: inbounds,
-		}
-
-		if sub := fleet.Sub(u.SubID); sub != nil {
-			vr.Stats = stats{Up: sub.Up, Down: sub.Down}
-		}
-
-		rows = append(rows, vr)
-	}
-
-	web.JSON(w, map[string]any{"users": rows, "total": res.Total, "page": page, "perPage": perPage})
-}
-
-// paging reads the 1-based page and clamped perPage from the query (defaults 1 and
-// defaultPerPage; perPage clamped to [1, maxPerPage]).
-func paging(r *http.Request) (page, perPage int) {
-	page = 1
-	if v, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && v > 1 {
-		page = v
-	}
-
-	perPage = defaultPerPage
-	if v, err := strconv.Atoi(r.URL.Query().Get("perPage")); err == nil && v > 0 {
-		perPage = v
+	perPage := params.PerPage.Or(defaultPerPage)
+	if perPage < 1 {
+		perPage = defaultPerPage
 	}
 
 	if perPage > maxPerPage {
 		perPage = maxPerPage
 	}
 
-	return page, perPage
-}
-
-// inboundIDs parses the repeatable ?inbound= filter into node_inbounds ids, dropping
-// anything non-numeric.
-func inboundIDs(r *http.Request) []int64 {
-	var out []int64
-
-	for _, s := range r.URL.Query()["inbound"] {
-		if id, err := strconv.ParseInt(s, 10, 64); err == nil {
-			out = append(out, id)
-		}
+	res, err := h.users.ListPage(ctx, entity.UserListParams{
+		NameQuery: params.Q.Or(""), InboundIDs: params.Inbound,
+		Limit: perPage, Offset: (page - 1) * perPage,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return out
+	fl, _ := h.fleet.Fleet(ctx)
+	base := strings.TrimRight(h.base, "/")
+
+	rows := make([]oas.UsersGetOKUsersItem, 0, len(res.Users))
+
+	for i := range res.Users {
+		u := &res.Users[i]
+
+		inbounds := make([]oas.UsersGetOKUsersItemInboundsItem, 0, len(u.Connections))
+		for _, c := range u.Connections {
+			inbounds = append(inbounds, oas.UsersGetOKUsersItemInboundsItem{
+				ID: c.InboundID, Label: c.Node + "-" + c.Name, Port: c.Port,
+				Missing: fl.ClientMissing(c.InboundID, u.Name),
+			})
+		}
+
+		row := oas.UsersGetOKUsersItem{
+			ID: u.ID, Name: u.Name, Inbounds: inbounds,
+			Sub: oas.UsersGetOKUsersItemSub{ID: u.SubID, URL: base + "/sub/mihomo/" + token.Make(h.secret, u.SubID)},
+		}
+
+		if sub := fl.Sub(u.SubID); sub != nil {
+			row.Stats = oas.UsersGetOKUsersItemStats{Up: sub.Up, Down: sub.Down}
+		}
+
+		rows = append(rows, row)
+	}
+
+	return &oas.UsersGetOK{Users: rows, Total: res.Total, Page: page, PerPage: perPage}, nil
 }

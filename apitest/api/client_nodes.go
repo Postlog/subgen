@@ -2,17 +2,12 @@
 
 package api
 
-import (
-	"fmt"
+import "fmt"
 
-	"github.com/postlog/subgen/internal/oas"
-)
-
-// NodeSpec/InboundSpec mirror the generated oas.NodeSaveReq save payload (their json
-// tags produce the same wire body); they are restated as plain structs so the scenarios
-// can build node specs with bare values rather than the generated request's Opt-wrapped
-// id/token fields. Node mirrors the oas nodes-list row. DeleteNode below uses the
-// generated request type directly.
+// NodeSpec/InboundSpec/Node are hand-rolled to mirror the node save/list wire shapes,
+// independent of the server's generated types — their json tags ARE the request the test
+// sends, so the request mapping is exercised rather than assumed. DeleteNode (and the
+// other mutations) likewise post a plain map.
 
 // InboundSpec is one inbound row in a node save/list payload. ID==0 marks a new
 // inbound; existing inbounds round-trip their node_inbounds.id so edits keep it.
@@ -59,7 +54,7 @@ func (c *Client) SaveNode(n NodeSpec) (Result, error) {
 
 // DeleteNode POSTs /admin/api/nodes/delete.
 func (c *Client) DeleteNode(id int64) (Result, error) {
-	return c.post("/admin/api/nodes/delete", oas.NodeDeleteReq{ID: id})
+	return c.post("/admin/api/nodes/delete", map[string]any{"id": id})
 }
 
 // ListNodes GETs /admin/api/nodes and returns the registry rows.

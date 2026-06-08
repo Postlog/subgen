@@ -3,8 +3,8 @@ package nodes
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/repository/dberr"
@@ -91,7 +91,8 @@ func (r *Repository) Update(ctx context.Context, id int64, n entity.Node, setTok
 
 // deleteInboundsExcept removes the node's inbounds whose id is not in keep. The FK
 // from user_connections is RESTRICTed, so this fails if a removed inbound still has
-// connections. keep is small (a handful of inbounds), so the id list is inlined.
+// connections. The keep set is passed as a JSON array and expanded DB-side by
+// json_each — a single bound placeholder, no string-built SQL.
 func deleteInboundsExcept(ctx context.Context, tx *sql.Tx, nodeID int64, keep []int64) error {
 	if len(keep) == 0 {
 		_, err := tx.ExecContext(ctx, `DELETE FROM node_inbounds WHERE node_id=?`, nodeID)
@@ -99,19 +100,11 @@ func deleteInboundsExcept(ctx context.Context, tx *sql.Tx, nodeID int64, keep []
 		return err
 	}
 
-	args := make([]any, 0, len(keep)+1)
-	args = append(args, nodeID)
+	keepJSON, _ := json.Marshal(keep)
 
-	placeholders := make([]string, len(keep))
-
-	for i, id := range keep {
-		placeholders[i] = "?"
-
-		args = append(args, id)
-	}
-
-	//nolint:gosec // G202: only "?" placeholders are concatenated; the ids are bound via args.
-	_, err := tx.ExecContext(ctx, `DELETE FROM node_inbounds WHERE node_id=? AND id NOT IN (`+strings.Join(placeholders, ",")+`)`, args...)
+	_, err := tx.ExecContext(ctx,
+		`DELETE FROM node_inbounds WHERE node_id=? AND id NOT IN (SELECT value FROM json_each(?))`,
+		nodeID, string(keepJSON))
 
 	return err
 }

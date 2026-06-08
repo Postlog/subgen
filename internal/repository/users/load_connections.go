@@ -3,34 +3,37 @@ package users
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// connSelect is the shared join projecting a connection plus its inbound's node /
-// name / port (for display and wire-naming). Callers append their own WHERE/ORDER.
-const connSelect = `SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at,
-	             ni.node_id, n.name, ni.name, ni.inbound_port
-	      FROM user_connections uc
-	      JOIN node_inbounds ni ON ni.id = uc.inbound_id
-	      JOIN nodes n ON n.id = ni.node_id`
-
-// loadConnections fills each user's Connections via a single join query. If
-// userID > 0 it loads just that user's; otherwise all.
+// loadConnections fills each user's Connections via one join query. userID>0 loads
+// just that user's connections; otherwise all of them. Each variant is a complete,
+// fixed query (no string-built SQL).
 func (r *Repository) loadConnections(ctx context.Context, byID map[int64]*entity.User, userID int64) error {
-	q := connSelect
-	args := []any{}
-
 	if userID > 0 {
-		q += ` WHERE uc.user_id = ?`
+		rows, err := r.db.QueryContext(ctx,
+			`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+			 FROM user_connections uc
+			 JOIN node_inbounds ni ON ni.id = uc.inbound_id
+			 JOIN nodes n ON n.id = ni.node_id
+			 WHERE uc.user_id = ?
+			 ORDER BY n.name, ni.name`, userID)
+		if err != nil {
+			return err
+		}
 
-		args = append(args, userID)
+		defer rows.Close()
+
+		return scanConnections(rows, byID)
 	}
 
-	q += ` ORDER BY n.name, ni.name`
-
-	rows, err := r.db.QueryContext(ctx, q, args...)
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+		 FROM user_connections uc
+		 JOIN node_inbounds ni ON ni.id = uc.inbound_id
+		 JOIN nodes n ON n.id = ni.node_id
+		 ORDER BY n.name, ni.name`)
 	if err != nil {
 		return err
 	}
@@ -40,24 +43,22 @@ func (r *Repository) loadConnections(ctx context.Context, byID map[int64]*entity
 	return scanConnections(rows, byID)
 }
 
-// loadConnectionsForIDs fills Connections for just the given user ids via one join
-// (WHERE uc.user_id IN (...)) — so a page hydrates only its own users' connections.
-// byID must hold those ids; empty ids is a no-op.
+// loadConnectionsForIDs fills Connections for just the given user ids — the page set
+// is passed as a JSON array expanded DB-side by json_each (a single bound placeholder),
+// so a page hydrates only its own users' connections. byID must hold those ids; empty
+// ids is a no-op.
 func (r *Repository) loadConnectionsForIDs(ctx context.Context, byID map[int64]*entity.User, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
 
-	ph := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	//nolint:gosec // G202: only "?" placeholders are concatenated; the ids are bound via args.
-	q := connSelect + ` WHERE uc.user_id IN (` + ph + `) ORDER BY n.name, ni.name`
-
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-
-	rows, err := r.db.QueryContext(ctx, q, args...)
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+		 FROM user_connections uc
+		 JOIN node_inbounds ni ON ni.id = uc.inbound_id
+		 JOIN nodes n ON n.id = ni.node_id
+		 WHERE uc.user_id IN (SELECT value FROM json_each(?))
+		 ORDER BY n.name, ni.name`, idsJSON(ids))
 	if err != nil {
 		return err
 	}

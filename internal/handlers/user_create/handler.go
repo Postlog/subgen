@@ -1,17 +1,16 @@
-// Package user_create handles POST /admin/users/create.
+// Package user_create implements the userCreate operation (POST /admin/api/users/create).
 package user_create
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
+	"errors"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgCreated = "Создан пользователь"
-
-// Handler creates a user from the new-user form.
+// Handler provisions a new user.
 type Handler struct {
 	svc creator
 }
@@ -19,26 +18,18 @@ type Handler struct {
 // New builds the handler.
 func New(svc creator) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name       string  `json:"name"`
-		InboundIDs []int64 `json:"inboundIDs"`
+// UserCreate implements oas.Handler: a nickname clash (or a panel client clash) is a
+// 409; other invalid input is a 400.
+func (h *Handler) UserCreate(ctx context.Context, req *oas.UserCreateReq) (oas.UserCreateRes, error) {
+	_, err := h.svc.CreateUser(ctx, req.Name, entity.ConnectionSelection{InboundIDs: req.InboundIDs})
+	if err == nil {
+		return &oas.MessageResponse{Message: "Создан пользователь"}, nil
 	}
 
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler user_create: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
+	var pce entity.PanelClientExistsError
+	if errors.Is(err, entity.ErrNameTaken) || errors.As(err, &pce) {
+		return &oas.UserCreateConflict{ErrMessage: web.UserMessage(err)}, nil
 	}
 
-	name := req.Name
-	sel := entity.ConnectionSelection{InboundIDs: req.InboundIDs}
-
-	_, err := h.svc.CreateUser(r.Context(), name, sel)
-	if err != nil {
-		slog.Warn("handler user_create: create failed", "name", name, "err", err)
-	}
-
-	web.JSONResult(w, msgCreated, err)
+	return &oas.UserCreateBadRequest{ErrMessage: web.UserMessage(err)}, nil
 }

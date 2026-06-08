@@ -1,16 +1,14 @@
-// Package user_delete handles POST /admin/users/delete.
+// Package user_delete implements the userDelete operation (POST /admin/api/users/delete).
 package user_delete
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
 
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgDeleted = "Пользователь удалён"
-
-// Handler deletes a user.
+// Handler deletes a user and deprovisions its panel clients.
 type Handler struct {
 	svc deleter
 }
@@ -18,24 +16,11 @@ type Handler struct {
 // New builds the handler.
 func New(svc deleter) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int64 `json:"id"`
+// UserDelete implements oas.Handler.
+func (h *Handler) UserDelete(ctx context.Context, req *oas.UserDeleteReq) (oas.UserDeleteRes, error) {
+	if err := h.svc.DeleteUser(ctx, req.ID); err != nil {
+		return &oas.UserDeleteBadRequest{ErrMessage: web.UserMessage(err)}, nil
 	}
 
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler user_delete: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	id := req.ID
-
-	err := h.svc.DeleteUser(r.Context(), id)
-	if err != nil {
-		slog.Warn("handler user_delete: delete failed", "id", id, "err", err)
-	}
-
-	web.JSONResult(w, msgDeleted, err)
+	return &oas.MessageResponse{Message: "Пользователь удалён"}, nil
 }

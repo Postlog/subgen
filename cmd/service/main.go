@@ -196,9 +196,15 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 	// per-action handlers, with the admin session cookie + idiomatic errors handled
 	// inside. Mounted per-path, so it serves only the operations already migrated.
 	composite := api.New(sess, api.Handlers{
-		Healthz:    healthz.New(),
-		NodesGet:   nodes_get.New(nodesRepo),
-		NodeDelete: node_delete.New(nodesRepo, routingRepo),
+		Healthz:      healthz.New(),
+		UsersGet:     users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
+		UserCreate:   user_create.New(prov),
+		UserEdit:     user_edit.New(prov),
+		UserDelete:   user_delete.New(prov),
+		UserRecreate: user_recreate.New(prov),
+		NodesGet:     nodes_get.New(nodesRepo),
+		NodeSave:     node_save.New(nodesRepo, routingRepo),
+		NodeDelete:   node_delete.New(nodesRepo, routingRepo),
 	})
 
 	oasSrv, err := oas.NewServer(composite, composite, oas.WithErrorHandler(composite.ErrorHandler))
@@ -210,24 +216,27 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	if cfg.AdminEnabled() {
 		// Migrated admin operations go to the ogen server (auth via its SecurityHandler).
+		r.Handle("/admin/api/users", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/users/create", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/users/edit", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/users/delete", oasSrv).Methods(http.MethodPost)
+		r.Handle("/admin/api/users/recreate", oasSrv).Methods(http.MethodPost)
 		r.Handle("/admin/api/nodes", oasSrv).Methods(http.MethodGet)
+		r.Handle("/admin/api/nodes/save", oasSrv).Methods(http.MethodPost)
 		r.Handle("/admin/api/nodes/delete", oasSrv).Methods(http.MethodPost)
 
-		mountAdmin(r, cfg, sess, usersRepo, nodesRepo, routingRepo, configsRepo, fleetSvc, prov)
+		mountAdmin(r, cfg, sess, usersRepo, routingRepo, configsRepo)
 	}
 
 	return r, nil
 }
 
-func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service) {
+func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, usersRepo *users.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository) {
 	ra := sess.RequireAdmin
 
 	r.PathPrefix("/admin/static/").Handler(web.StaticHandler(cfg.StaticDir))
 	r.Handle("/admin/login", login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)).Methods(http.MethodGet, http.MethodPost)
 	r.Handle("/admin/logout", logout.New(sess)).Methods(http.MethodGet)
-
-	// JSON read API (consumed by the Vue SPA).
-	r.HandleFunc("/admin/api/users", ra(users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase).ServeHTTP)).Methods(http.MethodGet)
 
 	// mihomo config: read / schema / save / custom-config management, grouped under
 	// /admin/api/config/mihomo. Without ?user / userId the scope is the base config;
@@ -239,13 +248,6 @@ func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, usersRepo *
 	r.HandleFunc("/admin/api/config/mihomo/custom/create", ra(custom_create.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/config/mihomo/custom/delete", ra(custom_delete.New(configsRepo).ServeHTTP)).Methods(http.MethodPost)
 	r.HandleFunc("/admin/api/config/mihomo/provider/check", ra(provider_check.New(ruleset.NewChecker()).ServeHTTP)).Methods(http.MethodPost)
-
-	// JSON mutations.
-	r.HandleFunc("/admin/api/users/create", ra(user_create.New(prov).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/users/edit", ra(user_edit.New(prov).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/users/delete", ra(user_delete.New(prov).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/users/recreate", ra(user_recreate.New(prov).ServeHTTP)).Methods(http.MethodPost)
-	r.HandleFunc("/admin/api/nodes/save", ra(node_save.New(nodesRepo, routingRepo).ServeHTTP)).Methods(http.MethodPost)
 
 	// SPA shell: serve index.html for /admin and any other admin GET (client-side views).
 	shell := ra(func(w http.ResponseWriter, _ *http.Request) { web.ServePage(w, cfg.StaticDir, "index.html") })

@@ -1,17 +1,15 @@
-// Package user_edit handles POST /admin/users/edit.
+// Package user_edit implements the userEdit operation (POST /admin/api/users/edit).
 package user_edit
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgUpdated = "Подключения обновлены"
-
-// Handler updates a user's connections from the edit form.
+// Handler re-binds a user to a new inbound set.
 type Handler struct {
 	svc editor
 }
@@ -19,26 +17,11 @@ type Handler struct {
 // New builds the handler.
 func New(svc editor) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID         int64   `json:"id"`
-		InboundIDs []int64 `json:"inboundIDs"`
+// UserEdit implements oas.Handler.
+func (h *Handler) UserEdit(ctx context.Context, req *oas.UserEditReq) (oas.UserEditRes, error) {
+	if err := h.svc.EditUser(ctx, req.ID, entity.ConnectionSelection{InboundIDs: req.InboundIDs}); err != nil {
+		return &oas.UserEditBadRequest{ErrMessage: web.UserMessage(err)}, nil
 	}
 
-	if err := web.DecodeJSON(r, &req); err != nil {
-		slog.Warn("handler user_edit: decode failed", "err", err)
-		web.WriteJSON(w, false, web.MsgBadRequest)
-
-		return
-	}
-
-	id := req.ID
-	sel := entity.ConnectionSelection{InboundIDs: req.InboundIDs}
-
-	err := h.svc.EditUser(r.Context(), id, sel)
-	if err != nil {
-		slog.Warn("handler user_edit: edit failed", "id", id, "err", err)
-	}
-
-	web.JSONResult(w, msgUpdated, err)
+	return &oas.MessageResponse{Message: "Подключения обновлены"}, nil
 }

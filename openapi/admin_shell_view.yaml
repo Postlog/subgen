@@ -1,0 +1,34 @@
+# GET /admin/{view} — the SPA shell for a client-side route (e.g. /admin/users,
+# /admin/nodes, /admin/config), so a reload on a deep link still serves index.html. Same
+# auth/redirect behaviour as GET /admin (admin_shell.yaml). {view} is a single segment;
+# /admin/api/* and /admin/static/* are routed elsewhere (the API ops / the static mux).
+get:
+  operationId: adminShellView
+  summary: Admin SPA shell for a client-side view (HTML)
+  parameters:
+    - name: view
+      in: path
+      required: true
+      description: The client-side view segment (rendered entirely by the SPA).
+      schema:
+        type: string
+        minLength: 1
+    - name: subgen_admin
+      in: cookie
+      required: false
+      description: The admin session cookie.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: the SPA shell
+      content:
+        text/html:
+          schema:
+            type: string
+    '302':
+      description: not signed in — redirect to the login page
+      headers:
+        Location:
+          schema:
+            type: string

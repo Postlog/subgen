@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // staticModes covers both serving paths: the embedded copy (empty staticDir) and
@@ -42,8 +43,8 @@ func TestStaticHandler(t *testing.T) {
 	}
 }
 
-// TestServePage confirms the SPA shell + login page render in both modes.
-func TestServePage(t *testing.T) {
+// TestReadPage confirms the SPA shell + login page are readable in both modes.
+func TestReadPage(t *testing.T) {
 	pages := []string{"index.html", "login.html"}
 
 	t.Parallel()
@@ -53,11 +54,10 @@ func TestServePage(t *testing.T) {
 			t.Parallel()
 
 			for _, name := range pages {
-				rr := httptest.NewRecorder()
-				ServePage(rr, dir, name)
+				b, err := ReadPage(dir, name)
 
-				assert.Equalf(t, http.StatusOK, rr.Code, "%s: status", name)
-				assert.NotZerof(t, rr.Body.Len(), "%s: empty body", name)
+				require.NoErrorf(t, err, "%s", name)
+				assert.NotZerof(t, len(b), "%s: empty body", name)
 			}
 		})
 	}

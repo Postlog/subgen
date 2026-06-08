@@ -16,6 +16,140 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+func decodeAdminShellResponse(resp *http.Response) (res AdminShellRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/html":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := AdminShellOK{Data: bytes.NewReader(b)}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 302:
+		// Code 302.
+		var wrapper AdminShellFound
+		h := uri.NewHeaderDecoder(resp.Header)
+		// Parse "Location" header.
+		{
+			cfg := uri.HeaderParameterDecodingConfig{
+				Name:    "Location",
+				Explode: false,
+			}
+			if err := func() error {
+				if err := h.HasParam(cfg); err == nil {
+					if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+						var wrapperDotLocationVal string
+						if err := func() error {
+							val, err := d.DecodeValue()
+							if err != nil {
+								return err
+							}
+
+							c, err := conv.ToString(val)
+							if err != nil {
+								return err
+							}
+
+							wrapperDotLocationVal = c
+							return nil
+						}(); err != nil {
+							return err
+						}
+						wrapper.Location.SetTo(wrapperDotLocationVal)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "parse Location header")
+			}
+		}
+		return &wrapper, nil
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
+func decodeAdminShellViewResponse(resp *http.Response) (res AdminShellViewRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/html":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := AdminShellViewOK{Data: bytes.NewReader(b)}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 302:
+		// Code 302.
+		var wrapper AdminShellViewFound
+		h := uri.NewHeaderDecoder(resp.Header)
+		// Parse "Location" header.
+		{
+			cfg := uri.HeaderParameterDecodingConfig{
+				Name:    "Location",
+				Explode: false,
+			}
+			if err := func() error {
+				if err := h.HasParam(cfg); err == nil {
+					if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+						var wrapperDotLocationVal string
+						if err := func() error {
+							val, err := d.DecodeValue()
+							if err != nil {
+								return err
+							}
+
+							c, err := conv.ToString(val)
+							if err != nil {
+								return err
+							}
+
+							wrapperDotLocationVal = c
+							return nil
+						}(); err != nil {
+							return err
+						}
+						wrapper.Location.SetTo(wrapperDotLocationVal)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "parse Location header")
+			}
+		}
+		return &wrapper, nil
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
 func decodeConfigCustomsResponse(resp *http.Response) (res ConfigCustomsRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
@@ -776,6 +910,73 @@ func decodeLoginResponse(resp *http.Response) (res LoginRes, _ error) {
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
+func decodeLoginPageResponse(resp *http.Response) (res LoginPageRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/html":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := LoginPageOK{Data: bytes.NewReader(b)}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 302:
+		// Code 302.
+		var wrapper LoginPageFound
+		h := uri.NewHeaderDecoder(resp.Header)
+		// Parse "Location" header.
+		{
+			cfg := uri.HeaderParameterDecodingConfig{
+				Name:    "Location",
+				Explode: false,
+			}
+			if err := func() error {
+				if err := h.HasParam(cfg); err == nil {
+					if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+						var wrapperDotLocationVal string
+						if err := func() error {
+							val, err := d.DecodeValue()
+							if err != nil {
+								return err
+							}
+
+							c, err := conv.ToString(val)
+							if err != nil {
+								return err
+							}
+
+							wrapperDotLocationVal = c
+							return nil
+						}(); err != nil {
+							return err
+						}
+						wrapper.Location.SetTo(wrapperDotLocationVal)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "parse Location header")
+			}
+		}
+		return &wrapper, nil
 	}
 	return res, validate.UnexpectedStatusCodeWithResponse(resp)
 }

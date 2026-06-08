@@ -3,10 +3,12 @@ info:
   title: subgen admin & subscription API
   version: "1.0.0"
   description: >
-    Every subgen endpoint except the static assets (/admin/static/*) and the SPA
-    shell (/admin GET catch-all), which are a filesystem catch-all and not a typed
-    API. Admin JSON endpoints are gated by the adminSession cookie and signal errors
-    idiomatically (4xx + errMessage). One file per endpoint, shared bits in common.yaml.
+    Every subgen route except the static assets (/admin/static/*), which are a plain
+    filesystem handler mounted alongside the ogen server (per the ogen static-router
+    docs). The browser pages — the login page and the SPA shell — ARE described here so
+    the ogen server owns all routing. Admin JSON endpoints are gated by the adminSession
+    cookie and signal errors idiomatically (4xx + errMessage). One file per endpoint,
+    shared bits in common.yaml.
 paths:
   /healthz:
     $ref: './healthz.yaml'
@@ -14,6 +16,13 @@ paths:
     $ref: './sub.yaml'
   /rules/{file}:
     $ref: './rules.yaml'
+
+  /admin:
+    $ref: './admin_shell.yaml'
+  /admin/{view}:
+    $ref: './admin_shell_view.yaml'
+  /admin/login:
+    $ref: './admin_login_page.yaml'
 
   /admin/api/login:
     $ref: './login.yaml'

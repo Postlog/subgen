@@ -28,6 +28,178 @@ func (c *codeRecorder) Unwrap() http.ResponseWriter {
 
 func recordError(string, error) {}
 
+// handleAdminShellRequest handles adminShell operation.
+//
+// Admin SPA shell (HTML).
+//
+// GET /admin
+func (s *Server) handleAdminShellRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AdminShellOperation,
+			ID:   "adminShell",
+		}
+	)
+	params, err := decodeAdminShellParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response AdminShellRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AdminShellOperation,
+			OperationSummary: "Admin SPA shell (HTML)",
+			OperationID:      "adminShell",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "subgen_admin",
+					In:   "cookie",
+				}: params.SubgenAdmin,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = AdminShellParams
+			Response = AdminShellRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAdminShellParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AdminShell(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AdminShell(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAdminShellResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleAdminShellViewRequest handles adminShellView operation.
+//
+// Admin SPA shell for a client-side view (HTML).
+//
+// GET /admin/{view}
+func (s *Server) handleAdminShellViewRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AdminShellViewOperation,
+			ID:   "adminShellView",
+		}
+	)
+	params, err := decodeAdminShellViewParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response AdminShellViewRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AdminShellViewOperation,
+			OperationSummary: "Admin SPA shell for a client-side view (HTML)",
+			OperationID:      "adminShellView",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "view",
+					In:   "path",
+				}: params.View,
+				{
+					Name: "subgen_admin",
+					In:   "cookie",
+				}: params.SubgenAdmin,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = AdminShellViewParams
+			Response = AdminShellViewRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAdminShellViewParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AdminShellView(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AdminShellView(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAdminShellViewResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleConfigCustomsRequest handles configCustoms operation.
 //
 // Custom-config owners + the full user list.
@@ -907,6 +1079,90 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 	}
 
 	if err := encodeLoginResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleLoginPageRequest handles loginPage operation.
+//
+// Admin login page (HTML).
+//
+// GET /admin/login
+func (s *Server) handleLoginPageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: LoginPageOperation,
+			ID:   "loginPage",
+		}
+	)
+	params, err := decodeLoginPageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response LoginPageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    LoginPageOperation,
+			OperationSummary: "Admin login page (HTML)",
+			OperationID:      "loginPage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "subgen_admin",
+					In:   "cookie",
+				}: params.SubgenAdmin,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = LoginPageParams
+			Response = LoginPageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackLoginPageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.LoginPage(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.LoginPage(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeLoginPageResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

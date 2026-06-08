@@ -1,0 +1,29 @@
+# GET /admin — the SPA shell (index.html). A signed-in visitor gets the app; otherwise
+# they are redirected to the login page. NOTE (OpenAPI friction): the body is opaque HTML
+# and auth is decided by the handler from the session cookie (not the security scheme,
+# which would 401 instead of redirecting) — so the session cookie is a plain optional
+# parameter here. The per-view path /admin/{view} (admin_shell_view.yaml) serves the same
+# shell for client-side routes (e.g. /admin/users).
+get:
+  operationId: adminShell
+  summary: Admin SPA shell (HTML)
+  parameters:
+    - name: subgen_admin
+      in: cookie
+      required: false
+      description: The admin session cookie.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: the SPA shell
+      content:
+        text/html:
+          schema:
+            type: string
+    '302':
+      description: not signed in — redirect to the login page
+      headers:
+        Location:
+          schema:
+            type: string

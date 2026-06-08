@@ -2,6 +2,7 @@ package login
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,6 +47,51 @@ func TestHandler_Login(t *testing.T) {
 			sess := web.NewSession("hmac-secret")
 
 			res, err := New(sess, "admin", "secret", "").Login(context.Background(), tc.req)
+
+			require.NoError(t, err)
+			tc.assert(t, res)
+		})
+	}
+}
+
+func TestHandler_LoginPage(t *testing.T) {
+	sess := web.NewSession("hmac-secret")
+	validCookie := sess.IssueCookie().Value
+
+	tt := []struct {
+		name   string
+		cookie oas.OptString
+
+		assert func(t *testing.T, res oas.LoginPageRes)
+	}{
+		{
+			name:   "unauthed.serves_page",
+			cookie: oas.OptString{},
+			assert: func(t *testing.T, res oas.LoginPageRes) {
+				ok, isOK := res.(*oas.LoginPageOK)
+				require.True(t, isOK, "want *oas.LoginPageOK, got %T", res)
+
+				b, err := io.ReadAll(ok.Data)
+				require.NoError(t, err)
+				assert.NotEmpty(t, b, "the login page must have a body")
+			},
+		},
+		{
+			name:   "authed.redirects_to_app",
+			cookie: oas.NewOptString(validCookie),
+			assert: func(t *testing.T, res oas.LoginPageRes) {
+				assert.Equal(t, &oas.LoginPageFound{Location: oas.NewOptString("/admin/users")}, res)
+			},
+		},
+	}
+
+	t.Parallel()
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := New(sess, "admin", "secret", "").LoginPage(context.Background(), oas.LoginPageParams{SubgenAdmin: tc.cookie})
 
 			require.NoError(t, err)
 			tc.assert(t, res)

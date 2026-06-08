@@ -51,14 +51,9 @@ func (s *Session) valid(v string) bool {
 // CookieName is the admin session cookie name (the ogen security scheme reads it).
 const CookieName = adminCookie
 
-// IsAuthed reports whether the request carries a valid admin session cookie.
-func (s *Session) IsAuthed(r *http.Request) bool {
-	c, err := r.Cookie(adminCookie)
-	return err == nil && s.valid(c.Value)
-}
-
-// Valid reports whether a raw cookie value is a currently-valid admin session — used
-// by the ogen security handler, which extracts the cookie value itself.
+// Valid reports whether a raw cookie value is a currently-valid admin session — used by
+// the ogen security handler and the page handlers, which extract the cookie value
+// themselves (the session cookie is an ogen parameter, not a *http.Request concern).
 func (s *Session) Valid(value string) bool { return s.valid(value) }
 
 // IssueCookie builds (does not write) a fresh 12h admin session cookie.
@@ -78,18 +73,5 @@ func (s *Session) ClearCookie() *http.Cookie {
 		Name: adminCookie, Value: "", Path: "/admin",
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
-	}
-}
-
-// RequireAdmin gates a handler behind a valid admin session, redirecting to the
-// login page otherwise.
-func (s *Session) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.IsAuthed(r) {
-			http.Redirect(w, r, "/admin/login", http.StatusFound)
-			return
-		}
-
-		next(w, r)
 	}
 }

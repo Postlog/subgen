@@ -19,6 +19,7 @@ import (
 
 	"github.com/ogen-go/ogen/ogenerrors"
 
+	"github.com/postlog/subgen/internal/handlers/admin_shell"
 	"github.com/postlog/subgen/internal/handlers/config_customs"
 	"github.com/postlog/subgen/internal/handlers/config_get"
 	"github.com/postlog/subgen/internal/handlers/config_save"
@@ -55,8 +56,9 @@ type Handlers struct {
 	Sub   *sub.Handler
 	Rules *rules.Handler
 
-	Login  *login.Handler
-	Logout *logout.Handler
+	Login      *login.Handler // also serves the login PAGE (GET /admin/login)
+	Logout     *logout.Handler
+	AdminShell *admin_shell.Handler // GET /admin and /admin/{view}
 
 	UsersGet     *users_get.Handler
 	UserCreate   *user_create.Handler
@@ -105,8 +107,20 @@ func (s *Server) Login(ctx context.Context, req *oas.LoginReq) (oas.LoginRes, er
 	return s.h.Login.Login(ctx, req)
 }
 
+func (s *Server) LoginPage(ctx context.Context, params oas.LoginPageParams) (oas.LoginPageRes, error) {
+	return s.h.Login.LoginPage(ctx, params)
+}
+
 func (s *Server) Logout(ctx context.Context) (*oas.LogoutNoContent, error) {
 	return s.h.Logout.Logout(ctx)
+}
+
+func (s *Server) AdminShell(ctx context.Context, params oas.AdminShellParams) (oas.AdminShellRes, error) {
+	return s.h.AdminShell.AdminShell(ctx, params)
+}
+
+func (s *Server) AdminShellView(ctx context.Context, params oas.AdminShellViewParams) (oas.AdminShellViewRes, error) {
+	return s.h.AdminShell.AdminShellView(ctx, params)
 }
 
 func (s *Server) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.UsersGetRes, error) {

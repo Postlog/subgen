@@ -1,0 +1,38 @@
+# POST /admin/api/config/mihomo/custom/create — clone the base config into a new
+# per-user custom config.
+post:
+  operationId: customCreate
+  summary: Create a user's custom config (clone of base)
+  security:
+    - adminSession: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [userId]
+          properties:
+            userId:
+              type: integer
+              format: int64
+              minimum: 1
+  responses:
+    '200':
+      description: created
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '400':
+      description: bad request
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

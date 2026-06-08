@@ -1,0 +1,91 @@
+# GET /admin/api/config/mihomo/schema — the static catalog the admin SPA renders its
+# config UI from (built-in actions, rule-provider options, and per group-type/rule-type
+# its options + which reference categories its members/target may point at).
+get:
+  operationId: configSchema
+  summary: The mihomo config UI schema (catalogs)
+  security:
+    - adminSession: []
+  responses:
+    '200':
+      description: schema
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [actions, ruleProvider, proxyGroup, rules, generatedKeys]
+            properties:
+              actions:
+                type: array
+                items:
+                  type: object
+                  required: [kind, label]
+                  properties:
+                    kind:
+                      type: string
+                    label:
+                      type: string
+              ruleProvider:
+                type: object
+                required: [behaviors, formats]
+                properties:
+                  behaviors:
+                    type: array
+                    items:
+                      type: string
+                  formats:
+                    type: array
+                    items:
+                      type: string
+              proxyGroup:
+                type: object
+                required: [types]
+                properties:
+                  types:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, usesHealthCheck, usesTolerance, items]
+                      properties:
+                        type:
+                          type: string
+                        usesHealthCheck:
+                          type: boolean
+                        usesTolerance:
+                          type: boolean
+                        items:
+                          type: array
+                          items:
+                            type: string
+              rules:
+                type: object
+                required: [types]
+                properties:
+                  types:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, takesProvider, supportsNoResolve, isMatch, destinations]
+                      properties:
+                        type:
+                          type: string
+                        takesProvider:
+                          type: boolean
+                        supportsNoResolve:
+                          type: boolean
+                        isMatch:
+                          type: boolean
+                        destinations:
+                          type: array
+                          items:
+                            type: string
+              generatedKeys:
+                type: array
+                items:
+                  type: string
+    '401':
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

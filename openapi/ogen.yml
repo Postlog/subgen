@@ -1,0 +1,11 @@
+# ogen generator config.
+#  - allow_remote lets the spec be split across files (common.yaml + one file per
+#    endpoint) and resolved via $ref.
+#  - ogen/otel is disabled: subgen doesn't use OpenTelemetry, so this keeps the
+#    generated package (and the module's dependency tree) free of the otel stack.
+parser:
+  allow_remote: true
+generator:
+  features:
+    disable:
+      - "ogen/otel"

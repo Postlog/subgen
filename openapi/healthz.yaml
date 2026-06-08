@@ -1,0 +1,11 @@
+# GET /healthz — liveness probe. Returns text/plain "ok"; no auth.
+get:
+  operationId: healthz
+  summary: Liveness probe
+  responses:
+    '200':
+      description: alive
+      content:
+        text/plain:
+          schema:
+            type: string

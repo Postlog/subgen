@@ -1,0 +1,33 @@
+# GET /rules/{file} — a mirrored rule-provider file. Public. NOTE (OpenAPI friction):
+# the body is opaque file bytes (no JSON schema) served as application/octet-stream
+# with a per-file Content-Type and X-Content-Type-Options: nosniff — ogen serves this
+# as a raw stream with hand-set headers.
+get:
+  operationId: rules
+  summary: Fetch a mirrored rule-provider file
+  parameters:
+    - name: file
+      in: path
+      required: true
+      description: Mirror file name (<name><ext>).
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: the file bytes
+      headers:
+        X-Content-Type-Options:
+          schema:
+            type: string
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    '404':
+      description: unknown file
+      content:
+        text/plain:
+          schema:
+            type: string

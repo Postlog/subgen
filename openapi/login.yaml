@@ -1,0 +1,38 @@
+# POST /admin/api/login — admin sign-in. On success sets the httpOnly session cookie
+# (Set-Cookie) and returns a message; bad credentials return 401. No auth required.
+# (The login PAGE itself is static HTML served outside this API.)
+post:
+  operationId: login
+  summary: Admin sign-in
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [user, password]
+          properties:
+            user:
+              type: string
+              minLength: 1
+            password:
+              type: string
+              minLength: 1
+  responses:
+    '200':
+      description: signed in; session cookie set
+      headers:
+        Set-Cookie:
+          description: The signed httpOnly admin session cookie (subgen_admin).
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/MessageResponse'
+    '401':
+      description: wrong login or password
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ErrorResponse'

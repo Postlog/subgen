@@ -1,0 +1,50 @@
+# GET /sub/{kind}/{token} — the per-client subscription. Public (the token is the
+# credential). Returns the engine config as raw YAML text plus mihomo subscription
+# headers. NOTE (OpenAPI friction): the body is opaque engine-generated text (no JSON
+# schema), and the response carries non-standard headers (Profile-Update-Interval,
+# Profile-Title (base64), Content-Disposition, Subscription-Userinfo) — ogen serves
+# this as a raw stream with hand-set headers.
+get:
+  operationId: sub
+  summary: Fetch a client subscription (engine YAML)
+  parameters:
+    - name: kind
+      in: path
+      required: true
+      description: Engine/config kind (e.g. mihomo).
+      schema:
+        type: string
+        minLength: 1
+    - name: token
+      in: path
+      required: true
+      description: HMAC subscription token.
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: the subscription document
+      headers:
+        Profile-Update-Interval:
+          schema:
+            type: string
+        Profile-Title:
+          schema:
+            type: string
+        Content-Disposition:
+          schema:
+            type: string
+        Subscription-Userinfo:
+          schema:
+            type: string
+      content:
+        application/x-yaml:
+          schema:
+            type: string
+    '404':
+      description: unknown token or kind
+      content:
+        text/plain:
+          schema:
+            type: string

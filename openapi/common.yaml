@@ -1,0 +1,119 @@
+# Shared components for the subgen admin & subscription API:
+#   - the admin session cookie security scheme,
+#   - the two generic response bodies (idiomatic 4xx/5xx -> errMessage; plain
+#     success -> message),
+#   - the mihomo routing-config types, shared by config_get (response) and
+#     config_save (request).
+components:
+  securitySchemes:
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: subgen_admin
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [errMessage]
+      properties:
+        errMessage:
+          type: string
+          description: Human-readable (generic) error message for the SPA to toast.
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    # A typed routing target / proxy-group member. kind is a PolicyKind
+    # (direct|reject|...|inbound|group); inboundId is set when kind=inbound (the
+    # node_inbounds.id), groupIdx when kind=group (index into the groups array — real
+    # ids never cross the wire).
+    PolicyRef:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          minLength: 1
+        inboundId:
+          type: integer
+          format: int64
+        groupIdx:
+          type: integer
+
+    MihomoProvider:
+      type: object
+      required: [name, behavior, format, url, interval, mirror, mirrorInterval]
+      properties:
+        name:
+          type: string
+        behavior:
+          type: string
+        format:
+          type: string
+        url:
+          type: string
+        interval:
+          type: integer
+        mirror:
+          type: boolean
+        mirrorInterval:
+          type: integer
+
+    MihomoRule:
+      type: object
+      required: [type, value, noResolve, target]
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        noResolve:
+          type: boolean
+        target:
+          $ref: './common.yaml#/components/schemas/PolicyRef'
+
+    MihomoGroup:
+      type: object
+      required: [name, type, url, interval, tolerance, lazy, members]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+        interval:
+          type: integer
+        tolerance:
+          type: integer
+        lazy:
+          type: boolean
+        members:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/PolicyRef'
+
+    # The mihomo routing config: config_get returns it, config_save accepts it
+    # (plus a userId in the save body).
+    MihomoConfig:
+      type: object
+      required: [groups, rules, providers, baseYAML]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/MihomoGroup'
+        rules:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/MihomoRule'
+        providers:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/MihomoProvider'
+        baseYAML:
+          type: string

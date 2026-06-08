@@ -31,6 +31,72 @@ func (s *AdminSession) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// AdminShellFound is response for AdminShell operation.
+type AdminShellFound struct {
+	Location OptString
+}
+
+// GetLocation returns the value of Location.
+func (s *AdminShellFound) GetLocation() OptString {
+	return s.Location
+}
+
+// SetLocation sets the value of Location.
+func (s *AdminShellFound) SetLocation(val OptString) {
+	s.Location = val
+}
+
+func (*AdminShellFound) adminShellRes() {}
+
+type AdminShellOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s AdminShellOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*AdminShellOK) adminShellRes() {}
+
+// AdminShellViewFound is response for AdminShellView operation.
+type AdminShellViewFound struct {
+	Location OptString
+}
+
+// GetLocation returns the value of Location.
+func (s *AdminShellViewFound) GetLocation() OptString {
+	return s.Location
+}
+
+// SetLocation sets the value of Location.
+func (s *AdminShellViewFound) SetLocation(val OptString) {
+	s.Location = val
+}
+
+func (*AdminShellViewFound) adminShellViewRes() {}
+
+type AdminShellViewOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s AdminShellViewOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*AdminShellViewOK) adminShellViewRes() {}
+
 type ConfigCustomsOK struct {
 	Customs []ConfigCustomsOKCustomsItem `json:"customs"`
 	Users   []ConfigCustomsOKUsersItem   `json:"users"`
@@ -505,6 +571,39 @@ func (s HealthzOK) Read(p []byte) (n int, err error) {
 	}
 	return s.Data.Read(p)
 }
+
+// LoginPageFound is response for LoginPage operation.
+type LoginPageFound struct {
+	Location OptString
+}
+
+// GetLocation returns the value of Location.
+func (s *LoginPageFound) GetLocation() OptString {
+	return s.Location
+}
+
+// SetLocation sets the value of Location.
+func (s *LoginPageFound) SetLocation(val OptString) {
+	s.Location = val
+}
+
+func (*LoginPageFound) loginPageRes() {}
+
+type LoginPageOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s LoginPageOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*LoginPageOK) loginPageRes() {}
 
 type LoginReq struct {
 	User     string `json:"user"`

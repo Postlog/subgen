@@ -13,6 +13,24 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// AdminShell implements adminShell operation.
+//
+// Admin SPA shell (HTML).
+//
+// GET /admin
+func (UnimplementedHandler) AdminShell(ctx context.Context, params AdminShellParams) (r AdminShellRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AdminShellView implements adminShellView operation.
+//
+// Admin SPA shell for a client-side view (HTML).
+//
+// GET /admin/{view}
+func (UnimplementedHandler) AdminShellView(ctx context.Context, params AdminShellViewParams) (r AdminShellViewRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ConfigCustoms implements configCustoms operation.
 //
 // Custom-config owners + the full user list.
@@ -82,6 +100,15 @@ func (UnimplementedHandler) Healthz(ctx context.Context) (r HealthzOK, _ error) 
 //
 // POST /admin/api/login
 func (UnimplementedHandler) Login(ctx context.Context, req *LoginReq) (r LoginRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// LoginPage implements loginPage operation.
+//
+// Admin login page (HTML).
+//
+// GET /admin/login
+func (UnimplementedHandler) LoginPage(ctx context.Context, params LoginPageParams) (r LoginPageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

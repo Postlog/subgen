@@ -21,6 +21,18 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// AdminShell invokes adminShell operation.
+	//
+	// Admin SPA shell (HTML).
+	//
+	// GET /admin
+	AdminShell(ctx context.Context, params AdminShellParams) (AdminShellRes, error)
+	// AdminShellView invokes adminShellView operation.
+	//
+	// Admin SPA shell for a client-side view (HTML).
+	//
+	// GET /admin/{view}
+	AdminShellView(ctx context.Context, params AdminShellViewParams) (AdminShellViewRes, error)
 	// ConfigCustoms invokes configCustoms operation.
 	//
 	// Custom-config owners + the full user list.
@@ -69,6 +81,12 @@ type Invoker interface {
 	//
 	// POST /admin/api/login
 	Login(ctx context.Context, request *LoginReq) (LoginRes, error)
+	// LoginPage invokes loginPage operation.
+	//
+	// Admin login page (HTML).
+	//
+	// GET /admin/login
+	LoginPage(ctx context.Context, params LoginPageParams) (LoginPageRes, error)
 	// Logout invokes logout operation.
 	//
 	// Admin sign-out.
@@ -182,6 +200,134 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// AdminShell invokes adminShell operation.
+//
+// Admin SPA shell (HTML).
+//
+// GET /admin
+func (c *Client) AdminShell(ctx context.Context, params AdminShellParams) (AdminShellRes, error) {
+	res, err := c.sendAdminShell(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendAdminShell(ctx context.Context, params AdminShellParams) (res AdminShellRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	cookie := uri.NewCookieEncoder(r)
+	{
+		// Encode "subgen_admin" parameter.
+		cfg := uri.CookieParameterEncodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+
+		if err := cookie.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SubgenAdmin.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode cookie")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer body.Close()
+
+	result, err := decodeAdminShellResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// AdminShellView invokes adminShellView operation.
+//
+// Admin SPA shell for a client-side view (HTML).
+//
+// GET /admin/{view}
+func (c *Client) AdminShellView(ctx context.Context, params AdminShellViewParams) (AdminShellViewRes, error) {
+	res, err := c.sendAdminShellView(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendAdminShellView(ctx context.Context, params AdminShellViewParams) (res AdminShellViewRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/admin/"
+	{
+		// Encode "view" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "view",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.View))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	cookie := uri.NewCookieEncoder(r)
+	{
+		// Encode "subgen_admin" parameter.
+		cfg := uri.CookieParameterEncodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+
+		if err := cookie.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SubgenAdmin.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode cookie")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer body.Close()
+
+	result, err := decodeAdminShellViewResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // ConfigCustoms invokes configCustoms operation.
@@ -703,6 +849,61 @@ func (c *Client) sendLogin(ctx context.Context, request *LoginReq) (res LoginRes
 	defer body.Close()
 
 	result, err := decodeLoginResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// LoginPage invokes loginPage operation.
+//
+// Admin login page (HTML).
+//
+// GET /admin/login
+func (c *Client) LoginPage(ctx context.Context, params LoginPageParams) (LoginPageRes, error) {
+	res, err := c.sendLoginPage(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendLoginPage(ctx context.Context, params LoginPageParams) (res LoginPageRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/login"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	cookie := uri.NewCookieEncoder(r)
+	{
+		// Encode "subgen_admin" parameter.
+		cfg := uri.CookieParameterEncodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+
+		if err := cookie.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SubgenAdmin.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode cookie")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer body.Close()
+
+	result, err := decodeLoginPageResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

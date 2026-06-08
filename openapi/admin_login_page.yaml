@@ -1,0 +1,28 @@
+# GET /admin/login — the admin login PAGE (static HTML). Public. The sign-in ACTION is
+# POST /admin/api/login (login.yaml). An already-signed-in visitor is redirected to the
+# app. NOTE (OpenAPI friction): the body is opaque HTML and auth is decided by the
+# handler from the session cookie (not the security scheme, which would 401 instead of
+# redirecting) — so the session cookie is a plain optional parameter here.
+get:
+  operationId: loginPage
+  summary: Admin login page (HTML)
+  parameters:
+    - name: subgen_admin
+      in: cookie
+      required: false
+      description: The admin session cookie, if the visitor already has one.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: the login page
+      content:
+        text/html:
+          schema:
+            type: string
+    '302':
+      description: already signed in — redirect to the app
+      headers:
+        Location:
+          schema:
+            type: string

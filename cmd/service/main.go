@@ -5,7 +5,8 @@
 // SQLite and is edited via the admin panel.
 //
 // This file is the composition root: it loads config, opens the repositories,
-// constructs the clients/services/handlers and wires the gorilla/mux router.
+// constructs the clients/services/handlers and wires the HTTP router (the ogen server
+// + a static-asset handler alongside it).
 package main
 
 import (
@@ -22,12 +23,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/postlog/subgen/internal/cert"
 	"github.com/postlog/subgen/internal/clients/xui"
 	"github.com/postlog/subgen/internal/config"
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/handlers/admin_shell"
 	"github.com/postlog/subgen/internal/handlers/api"
 	"github.com/postlog/subgen/internal/handlers/config_customs"
 	"github.com/postlog/subgen/internal/handlers/config_get"
@@ -171,13 +171,13 @@ func serve(cfg config.Config, srv *http.Server) error {
 	return nil
 }
 
-// buildRouter constructs the gorilla/mux router, wiring each per-action handler
-// with the concrete dependencies it declares. Migrated operations are served by the
-// ogen server (the api composite); the rest stay on the legacy per-action handlers
-// until they migrate too.
+// buildRouter wires the HTTP handler. Every typed route — the API, the subscription /
+// rules endpoints, and the browser pages (login page + SPA shell) — is owned by the
+// ogen-generated server, whose router multiplexes them from the OpenAPI spec; it is the
+// root handler. The only thing mounted alongside it is the static-asset tree
+// (/admin/static/*), a plain filesystem handler — not a typed API — as ogen's
+// static-router guidance recommends. No third-party mux.
 func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *nodes.Repository, routingRepo *routing.Repository, configsRepo *configs.Repository, fleetSvc *fleet.Service, prov *provisioning.Service, mirror *ruleset.Mirror) (http.Handler, error) {
-	r := mux.NewRouter()
-
 	// Per-engine subscription renderers, keyed by config kind. Adding an engine = a
 	// new engineRenderer + one entry here; the route and handler don't change.
 	renderers := map[entity.ConfigKind]sub.EngineRenderer{
@@ -186,22 +186,22 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	sess := web.NewSession(cfg.Secret)
 
-	// The login handler is shared: the ogen Login operation (POST /admin/api/login) and
-	// the static login PAGE (GET /admin/login, served via its ServeHTTP in mountAdmin).
+	// The login handler serves both the sign-in action (POST /admin/api/login) and the
+	// login PAGE (GET /admin/login).
 	loginHandler := login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)
 
 	// The ogen server (api composite) — forwards every operation to its per-action
-	// handler, with the admin session cookie + idiomatic errors handled inside. Mounted
-	// per-path on the router below.
+	// handler, with the admin session cookie + idiomatic errors handled inside.
 	composite := api.New(sess, api.Handlers{
 		Healthz: healthz.New(),
 		Sub: sub.New(
 			usersRepo, fleetSvc, configsRepo, renderers,
 			cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
 		),
-		Rules:  rules.New(mirror),
-		Login:  loginHandler,
-		Logout: logout.New(sess),
+		Rules:      rules.New(mirror),
+		Login:      loginHandler,
+		Logout:     logout.New(sess),
+		AdminShell: admin_shell.New(sess, cfg.StaticDir),
 
 		UsersGet:     users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
 		UserCreate:   user_create.New(prov),
@@ -226,33 +226,12 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		return nil, fmt.Errorf("oas server: %w", err)
 	}
 
-	// Routing for every API operation lives in the ogen-generated server (its router maps
-	// each path+method to the right operation from the OpenAPI spec). We only delegate the
-	// coarse URL buckets it owns — never re-declaring per-operation routes here, so a
-	// handler can't be wired to the wrong contract. Auth is enforced inside the ogen
-	// server (its SecurityHandler returns 401 for every secured operation); login/logout
-	// are the only unauthenticated admin operations.
-	r.PathPrefix("/admin/api/").Handler(oasSrv)
-	r.PathPrefix("/sub/").Handler(oasSrv)
-	r.PathPrefix("/rules/").Handler(oasSrv)
-	r.Handle("/healthz", oasSrv)
+	// The ogen server is the root handler; the static assets are the one route served
+	// outside it (http.ServeMux picks the longest prefix, so /admin/static/* goes to the
+	// filesystem handler and everything else to ogen).
+	mux := http.NewServeMux()
+	mux.Handle("/admin/static/", web.StaticHandler(cfg.StaticDir))
+	mux.Handle("/", oasSrv)
 
-	mountAdmin(r, cfg, sess, loginHandler)
-
-	return r, nil
-}
-
-// mountAdmin mounts the non-API admin surface: static assets, the login page, and the
-// SPA shell — the routes the OpenAPI spec doesn't own. The JSON API itself (including
-// the login/logout actions) is routed by the ogen server (see buildRouter); these are
-// registered after it so /admin/api and /admin/login win over the /admin SPA catch-all.
-func mountAdmin(r *mux.Router, cfg config.Config, sess *web.Session, loginHandler *login.Handler) {
-	ra := sess.RequireAdmin
-
-	r.PathPrefix("/admin/static/").Handler(web.StaticHandler(cfg.StaticDir))
-	r.Handle("/admin/login", loginHandler).Methods(http.MethodGet)
-
-	// SPA shell: serve index.html for /admin and any other admin GET (client-side views).
-	shell := ra(func(w http.ResponseWriter, _ *http.Request) { web.ServePage(w, cfg.StaticDir, "index.html") })
-	r.PathPrefix("/admin").Methods(http.MethodGet).HandlerFunc(shell)
+	return mux, nil
 }

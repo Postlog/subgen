@@ -14,6 +14,206 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// AdminShellParams is parameters of adminShell operation.
+type AdminShellParams struct {
+	// The admin session cookie.
+	SubgenAdmin OptString `json:",omitempty,omitzero"`
+}
+
+func unpackAdminShellParams(packed middleware.Parameters) (params AdminShellParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "subgen_admin",
+			In:   "cookie",
+		}
+		if v, ok := packed[key]; ok {
+			params.SubgenAdmin = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeAdminShellParams(args [0]string, argsEscaped bool, r *http.Request) (params AdminShellParams, _ error) {
+	c := uri.NewCookieDecoder(r)
+	// Decode cookie: subgen_admin.
+	if err := func() error {
+		cfg := uri.CookieParameterDecodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+		if err := c.HasParam(cfg); err == nil {
+			if err := c.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSubgenAdminVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSubgenAdminVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SubgenAdmin.SetTo(paramsDotSubgenAdminVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "subgen_admin",
+			In:   "cookie",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// AdminShellViewParams is parameters of adminShellView operation.
+type AdminShellViewParams struct {
+	// The client-side view segment (rendered entirely by the SPA).
+	View string
+	// The admin session cookie.
+	SubgenAdmin OptString `json:",omitempty,omitzero"`
+}
+
+func unpackAdminShellViewParams(packed middleware.Parameters) (params AdminShellViewParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "view",
+			In:   "path",
+		}
+		params.View = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "subgen_admin",
+			In:   "cookie",
+		}
+		if v, ok := packed[key]; ok {
+			params.SubgenAdmin = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeAdminShellViewParams(args [1]string, argsEscaped bool, r *http.Request) (params AdminShellViewParams, _ error) {
+	c := uri.NewCookieDecoder(r)
+	// Decode path: view.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "view",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.View = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.View)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "view",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode cookie: subgen_admin.
+	if err := func() error {
+		cfg := uri.CookieParameterDecodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+		if err := c.HasParam(cfg); err == nil {
+			if err := c.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSubgenAdminVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSubgenAdminVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SubgenAdmin.SetTo(paramsDotSubgenAdminVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "subgen_admin",
+			In:   "cookie",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ConfigGetParams is parameters of configGet operation.
 type ConfigGetParams struct {
 	// User id whose custom config to read; omit for the base config.
@@ -73,6 +273,69 @@ func decodeConfigGetParams(args [0]string, argsEscaped bool, r *http.Request) (p
 		return params, &ogenerrors.DecodeParamError{
 			Name: "user",
 			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// LoginPageParams is parameters of loginPage operation.
+type LoginPageParams struct {
+	// The admin session cookie, if the visitor already has one.
+	SubgenAdmin OptString `json:",omitempty,omitzero"`
+}
+
+func unpackLoginPageParams(packed middleware.Parameters) (params LoginPageParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "subgen_admin",
+			In:   "cookie",
+		}
+		if v, ok := packed[key]; ok {
+			params.SubgenAdmin = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeLoginPageParams(args [0]string, argsEscaped bool, r *http.Request) (params LoginPageParams, _ error) {
+	c := uri.NewCookieDecoder(r)
+	// Decode cookie: subgen_admin.
+	if err := func() error {
+		cfg := uri.CookieParameterDecodingConfig{
+			Name:    "subgen_admin",
+			Explode: true,
+		}
+		if err := c.HasParam(cfg); err == nil {
+			if err := c.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSubgenAdminVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSubgenAdminVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SubgenAdmin.SetTo(paramsDotSubgenAdminVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "subgen_admin",
+			In:   "cookie",
 			Err:  err,
 		}
 	}

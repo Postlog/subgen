@@ -32,16 +32,9 @@ func StaticHandler(staticDir string) http.Handler {
 	return http.StripPrefix("/admin/static/", http.FileServer(http.FS(assetFS(staticDir))))
 }
 
-// ServePage writes a static HTML page (the SPA shell or the login page) from the
-// on-disk dir or the embedded copy. name is relative to the assets root, e.g.
-// "index.html".
-func ServePage(w http.ResponseWriter, staticDir, name string) {
-	b, err := fs.ReadFile(assetFS(staticDir), name)
-	if err != nil {
-		http.Error(w, "not found", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(b)
+// ReadPage reads a static HTML page (the SPA shell or the login page) from the on-disk
+// dir or the embedded copy. name is relative to the assets root, e.g. "index.html". The
+// page-serving handlers return these bytes as their ogen response body.
+func ReadPage(staticDir, name string) ([]byte, error) {
+	return fs.ReadFile(assetFS(staticDir), name)
 }

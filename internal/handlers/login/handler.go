@@ -1,13 +1,14 @@
 // Package login handles the admin sign-in. The login PAGE is static HTML served on
-// GET /admin/login (ServeHTTP); the sign-in ACTION is POST /admin/api/login (Login),
+// GET /admin/login (LoginPage); the sign-in ACTION is POST /admin/api/login (Login),
 // which validates the credentials and, on success, sets the httpOnly session cookie.
 // The SPA navigates itself — no server-side redirect on the JSON path.
 package login
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
-	"net/http"
+	"log/slog"
 
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
@@ -26,15 +27,21 @@ func New(sess *web.Session, user, pass, staticDir string) *Handler {
 	return &Handler{sess: sess, user: user, pass: pass, staticDir: staticDir}
 }
 
-// ServeHTTP serves the login page on GET /admin/login: an already-authed visitor is
-// bounced to the app, otherwise the static login form is served.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if h.sess.IsAuthed(r) {
-		http.Redirect(w, r, "/admin/users", http.StatusFound)
-		return
+// LoginPage implements oas.Handler for GET /admin/login: an already-signed-in visitor
+// (a valid session cookie) is redirected to the app, otherwise the static login form is
+// served.
+func (h *Handler) LoginPage(_ context.Context, params oas.LoginPageParams) (oas.LoginPageRes, error) {
+	if h.sess.Valid(params.SubgenAdmin.Or("")) {
+		return &oas.LoginPageFound{Location: oas.NewOptString("/admin/users")}, nil
 	}
 
-	web.ServePage(w, h.staticDir, "login.html")
+	page, err := web.ReadPage(h.staticDir, "login.html")
+	if err != nil {
+		slog.Error("handler login: read login page failed", "err", err)
+		return nil, err
+	}
+
+	return &oas.LoginPageOK{Data: bytes.NewReader(page)}, nil
 }
 
 // Login implements oas.Handler: valid credentials get a 200 with the session cookie;

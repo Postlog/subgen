@@ -8,6 +8,18 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// AdminShell implements adminShell operation.
+	//
+	// Admin SPA shell (HTML).
+	//
+	// GET /admin
+	AdminShell(ctx context.Context, params AdminShellParams) (AdminShellRes, error)
+	// AdminShellView implements adminShellView operation.
+	//
+	// Admin SPA shell for a client-side view (HTML).
+	//
+	// GET /admin/{view}
+	AdminShellView(ctx context.Context, params AdminShellViewParams) (AdminShellViewRes, error)
 	// ConfigCustoms implements configCustoms operation.
 	//
 	// Custom-config owners + the full user list.
@@ -56,6 +68,12 @@ type Handler interface {
 	//
 	// POST /admin/api/login
 	Login(ctx context.Context, req *LoginReq) (LoginRes, error)
+	// LoginPage implements loginPage operation.
+	//
+	// Admin login page (HTML).
+	//
+	// GET /admin/login
+	LoginPage(ctx context.Context, params LoginPageParams) (LoginPageRes, error)
 	// Logout implements logout operation.
 	//
 	// Admin sign-out.

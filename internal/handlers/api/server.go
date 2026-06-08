@@ -16,10 +16,21 @@ import (
 
 	"github.com/ogen-go/ogen/ogenerrors"
 
+	"github.com/postlog/subgen/internal/handlers/config_customs"
+	"github.com/postlog/subgen/internal/handlers/config_get"
+	"github.com/postlog/subgen/internal/handlers/config_save"
+	"github.com/postlog/subgen/internal/handlers/config_schema"
+	"github.com/postlog/subgen/internal/handlers/custom_create"
+	"github.com/postlog/subgen/internal/handlers/custom_delete"
 	"github.com/postlog/subgen/internal/handlers/healthz"
+	"github.com/postlog/subgen/internal/handlers/login"
+	"github.com/postlog/subgen/internal/handlers/logout"
 	"github.com/postlog/subgen/internal/handlers/node_delete"
 	"github.com/postlog/subgen/internal/handlers/node_save"
 	"github.com/postlog/subgen/internal/handlers/nodes_get"
+	"github.com/postlog/subgen/internal/handlers/provider_check"
+	"github.com/postlog/subgen/internal/handlers/rules"
+	"github.com/postlog/subgen/internal/handlers/sub"
 	"github.com/postlog/subgen/internal/handlers/user_create"
 	"github.com/postlog/subgen/internal/handlers/user_delete"
 	"github.com/postlog/subgen/internal/handlers/user_edit"
@@ -38,6 +49,12 @@ var errUnauthorized = errors.New("unauthorized")
 type Handlers struct {
 	Healthz *healthz.Handler
 
+	Sub   *sub.Handler
+	Rules *rules.Handler
+
+	Login  *login.Handler
+	Logout *logout.Handler
+
 	UsersGet     *users_get.Handler
 	UserCreate   *user_create.Handler
 	UserEdit     *user_edit.Handler
@@ -47,6 +64,14 @@ type Handlers struct {
 	NodesGet   *nodes_get.Handler
 	NodeSave   *node_save.Handler
 	NodeDelete *node_delete.Handler
+
+	ConfigGet     *config_get.Handler
+	ConfigSchema  *config_schema.Handler
+	ConfigCustoms *config_customs.Handler
+	ConfigSave    *config_save.Handler
+	CustomCreate  *custom_create.Handler
+	CustomDelete  *custom_delete.Handler
+	ProviderCheck *provider_check.Handler
 }
 
 // Server implements oas.Handler (by forwarding to the per-action handlers) and
@@ -64,6 +89,22 @@ func New(session *web.Session, h Handlers) *Server { return &Server{h: h, sessio
 
 func (s *Server) Healthz(ctx context.Context) (oas.HealthzOK, error) {
 	return s.h.Healthz.Healthz(ctx)
+}
+
+func (s *Server) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, error) {
+	return s.h.Sub.Sub(ctx, params)
+}
+
+func (s *Server) Rules(ctx context.Context, params oas.RulesParams) (oas.RulesRes, error) {
+	return s.h.Rules.Rules(ctx, params)
+}
+
+func (s *Server) Login(ctx context.Context, req *oas.LoginReq) (oas.LoginRes, error) {
+	return s.h.Login.Login(ctx, req)
+}
+
+func (s *Server) Logout(ctx context.Context) (*oas.LogoutNoContent, error) {
+	return s.h.Logout.Logout(ctx)
 }
 
 func (s *Server) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.UsersGetRes, error) {
@@ -96,6 +137,34 @@ func (s *Server) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeSa
 
 func (s *Server) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {
 	return s.h.NodeDelete.NodeDelete(ctx, req)
+}
+
+func (s *Server) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oas.ConfigGetRes, error) {
+	return s.h.ConfigGet.ConfigGet(ctx, params)
+}
+
+func (s *Server) ConfigSchema(ctx context.Context) (oas.ConfigSchemaRes, error) {
+	return s.h.ConfigSchema.ConfigSchema(ctx)
+}
+
+func (s *Server) ConfigCustoms(ctx context.Context) (oas.ConfigCustomsRes, error) {
+	return s.h.ConfigCustoms.ConfigCustoms(ctx)
+}
+
+func (s *Server) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.ConfigSaveRes, error) {
+	return s.h.ConfigSave.ConfigSave(ctx, req)
+}
+
+func (s *Server) CustomCreate(ctx context.Context, req *oas.CustomCreateReq) (oas.CustomCreateRes, error) {
+	return s.h.CustomCreate.CustomCreate(ctx, req)
+}
+
+func (s *Server) CustomDelete(ctx context.Context, req *oas.CustomDeleteReq) (oas.CustomDeleteRes, error) {
+	return s.h.CustomDelete.CustomDelete(ctx, req)
+}
+
+func (s *Server) ProviderCheck(ctx context.Context, req *oas.ProviderCheckReq) (oas.ProviderCheckRes, error) {
+	return s.h.ProviderCheck.ProviderCheck(ctx, req)
 }
 
 // ---- security + errors ----------------------------------------------------------

@@ -1,19 +1,18 @@
-// Package config_customs handles GET /admin/api/config/mihomo/customs — the users
-// that have a custom mihomo config, as {userId,name} pairs for the admin scope
-// selector, alongside the full id+name user list that feeds the "+ custom config"
+// Package config_customs implements the configCustoms operation
+// (GET /admin/api/config/mihomo/customs) — the users that have a custom mihomo config
+// as {userId,name} pairs, plus the full id+name user list for the "+ custom config"
 // picker (so the config tab never loads the paged /admin/api/users).
 package config_customs
 
 import (
-	"log/slog"
-	"net/http"
+	"context"
 	"sort"
 
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/web"
+	"github.com/postlog/subgen/internal/oas"
 )
 
-// Handler serves the list of users with a custom mihomo config.
+// Handler serves the custom-config owners + the full user list.
 type Handler struct {
 	configs configLister
 	users   userLister
@@ -24,49 +23,32 @@ func New(configs configLister, users userLister) *Handler {
 	return &Handler{configs: configs, users: users}
 }
 
-type customView struct {
-	UserID int64  `json:"userId"`
-	Name   string `json:"name"`
-}
-
-type userView struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
+// ConfigCustoms implements oas.Handler.
+func (h *Handler) ConfigCustoms(ctx context.Context) (oas.ConfigCustomsRes, error) {
 	ids, err := h.configs.UserConfigUserIDs(ctx, entity.ConfigKindMihomo)
 	if err != nil {
-		slog.Error("handler config_customs: list config owners failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, err
 	}
 
 	users, err := h.users.ListNames(ctx)
 	if err != nil {
-		slog.Error("handler config_customs: list users failed", "err", err)
-		http.Error(w, "store unavailable", http.StatusInternalServerError)
-
-		return
+		return nil, err
 	}
 
 	name := make(map[int64]string, len(users))
-	all := make([]userView, 0, len(users))
+	all := make([]oas.ConfigCustomsOKUsersItem, 0, len(users))
 
 	for i := range users {
 		name[users[i].ID] = users[i].Name
-		all = append(all, userView{ID: users[i].ID, Name: users[i].Name})
+		all = append(all, oas.ConfigCustomsOKUsersItem{ID: users[i].ID, Name: users[i].Name})
 	}
 
-	out := make([]customView, 0, len(ids))
+	customs := make([]oas.ConfigCustomsOKCustomsItem, 0, len(ids))
 	for _, id := range ids {
-		out = append(out, customView{UserID: id, Name: name[id]})
+		customs = append(customs, oas.ConfigCustomsOKCustomsItem{UserId: id, Name: name[id]})
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Slice(customs, func(i, j int) bool { return customs[i].Name < customs[j].Name })
 
-	web.JSON(w, map[string]any{"customs": out, "users": all})
+	return &oas.ConfigCustomsOK{Customs: customs, Users: all}, nil
 }

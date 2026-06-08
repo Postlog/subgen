@@ -25,14 +25,15 @@
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const body = JSON.stringify({ user: e.target.user.value, password: e.target.password.value });
-  let d = { ok: false };
+  let ok = false, errMsg = "";
   try {
-    const r = await fetch("/admin/login", { method: "POST", body, headers: { "Content-Type": "application/json", Accept: "application/json" } });
-    d = await r.json();
+    const r = await fetch("/admin/api/login", { method: "POST", body, headers: { "Content-Type": "application/json", Accept: "application/json" } });
+    ok = r.ok;
+    if (!ok) { const d = await r.json().catch(() => ({})); errMsg = d.errMessage || ""; }
   } catch (_) { /* show generic error below */ }
-  if (d.ok) { location.assign("/admin/users"); return; }
+  if (ok) { location.assign("/admin/users"); return; }
   const el = document.getElementById("loginErr");
-  el.textContent = d.err || "Неверный логин или пароль";
+  el.textContent = errMsg || "Неверный логин или пароль";
   el.hidden = false;
 });
 </script>

@@ -92,5 +92,7 @@ func (s *SubSuite) TestRulesMirroredPresent() {
 
 	s.Require().Equal(http.StatusOK, resp.Status, "the mirrored file must be served after boot")
 	s.Equal(body, resp.Body, "the served bytes must match the upstream file")
-	s.Contains(resp.Headers.Get("Content-Type"), "yaml")
+	// ogen pins the 200 media type from the spec (application/octet-stream) — the mirror's
+	// per-file Content-Type is no longer echoed — but the nosniff guard is still set.
+	s.Equal("nosniff", resp.Headers.Get("X-Content-Type-Options"))
 }

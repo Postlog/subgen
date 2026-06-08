@@ -3,6 +3,8 @@
 package users_test
 
 import (
+	"net/http"
+
 	"github.com/google/uuid"
 
 	"github.com/postlog/subgen/apitest/api"
@@ -15,16 +17,16 @@ import (
 //   - happy.smart_plus_force_same_node — smart+force on N1 → ONE client (one uuid) on
 //                                  both inbounds (the multi-inbound model / the old bug).
 //   - happy.cross_node           — inbounds on N1 and N2 → one client per panel, shared subId.
-//   - err.empty_name             — "" → friendly charset message, nothing provisioned.
-//   - err.name_bad_chars         — spaces / "!" → charset message.
-//   - err.name_too_long          — >32 chars → charset message.
-//   - err.no_connections         — empty inbound-id list → "выберите подключение".
+//   - err.empty_name             — "" → generic 400 (schema minLength:1), nothing provisioned.
+//   - err.name_bad_chars         — spaces / "!" → friendly charset message (reaches the handler).
+//   - err.name_too_long          — >32 chars → friendly charset message (no maxLength in schema).
+//   - err.no_connections         — empty inbound-id list → generic 400 (schema minItems:1).
 //   - err.unknown_inbound_id     — id with no node_inbounds row → "инбаунд не найден".
 //   - err.duplicate_name         — second create with same nickname → "имя занято" (store PK).
 //   - err.email_exists_on_panel  — a foreign client already owns the email on a target
 //                                  panel → PanelClientExistsError naming the node; the
 //                                  foreign client is left untouched.
-//   - err.malformed_json         — non-JSON body → MsgBadRequest, no provisioning.
+//   - err.malformed_json         — non-JSON body → generic 400, no provisioning.
 //
 // Validation/duplicate/collision cases also assert the panel was NOT mutated.
 
@@ -68,10 +70,12 @@ func (s *UserSuite) TestCreateValidation() {
 	smartN1 := s.InboundID("N1", "smart")
 
 	s.Run("empty_name", func() {
+		// An empty name trips the schema's minLength:1 before the handler runs → 400 generic.
 		res, err := s.API().CreateUser("", []int64{smartN1})
 		s.Require().NoError(err)
+		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(msgInvalidUserName, res.Err)
+		s.Equal(api.MsgBadRequest, res.Err)
 	})
 
 	s.Run("name_bad_chars", func() {
@@ -92,11 +96,14 @@ func (s *UserSuite) TestCreateValidation() {
 	})
 
 	s.Run("no_connections", func() {
+		// An empty inbound-id list trips the schema's minItems:1 → 400 generic, before
+		// the handler's own "выберите подключение" check.
 		name := s.userName()
 		res, err := s.API().CreateUser(name, nil)
 		s.Require().NoError(err)
+		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(msgNoConnection, res.Err)
+		s.Equal(api.MsgBadRequest, res.Err)
 
 		gone, err := s.API().FindUser(name)
 		s.Require().NoError(err)
@@ -127,7 +134,7 @@ func (s *UserSuite) TestCreateValidation() {
 	s.Run("malformed_json", func() {
 		res, err := s.API().PostRaw("/admin/api/users/create", "application/json", []byte("{not json"))
 		s.Require().NoError(err)
-		s.Equal(200, res.Status, "envelope errors are HTTP 200")
+		s.Equal(http.StatusBadRequest, res.Status, "a malformed body is a 400")
 		decoded, err := api.DecodeResult(res.Body)
 		s.Require().NoError(err)
 		s.False(decoded.OK)

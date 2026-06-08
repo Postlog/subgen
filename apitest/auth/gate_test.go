@@ -8,19 +8,20 @@ import (
 	"github.com/postlog/subgen/apitest/api"
 )
 
-// Corner cases considered for the admin session gate (web.Session.RequireAdmin) and the
-// shell/static GETs:
-//   - gate.read_api_redirects   — GET /admin/api/users without a session → 302 /admin/login.
-//   - gate.config_api_redirects — GET /admin/api/config/mihomo without a session → 302.
-//   - gate.mutation_redirects   — POST /admin/api/users/create without a session → 302
-//                                 (the gate runs before the handler; no body needed).
-//   - gate.authed_passes        — the same read API with a session → 200 JSON.
-//   - shell.authed_index        — GET /admin (and a client-side view path) → 200 index.html.
-//   - shell.unauthed_redirect   — GET /admin without a session → 302 /admin/login.
-//   - static.public             — GET /admin/static/app.js → 200 (assets are NOT gated).
+// Corner cases considered for the admin session gate (the ogen security handler on
+// /admin/api/*) and the shell/static GETs:
+//   - gate.read_api_401     — GET /admin/api/users without a session → 401 {errMessage}.
+//   - gate.config_api_401   — GET /admin/api/config/mihomo without a session → 401.
+//   - gate.mutation_401     — POST /admin/api/users/create without a session → 401 (the
+//                             security check runs before the handler; no body needed).
+//   - gate.authed_passes    — the same read API with a session → 200 JSON.
+//   - shell.authed_index    — GET /admin (and a client-side view path) → 200 index.html.
+//   - shell.unauthed_redirect — GET /admin without a session → 302 /admin/login (the SPA
+//                             shell is a browser page, so it still redirects, not 401).
+//   - static.public         — GET /admin/static/app.js → 200 (assets are NOT gated).
 
-// TestSessionGate covers that every /admin/api/* route redirects an unauthenticated
-// request to the login page, and lets an authenticated one through.
+// TestSessionGate covers that every /admin/api/* route rejects an unauthenticated
+// request with a 401, and lets an authenticated one through.
 func (s *AuthSuite) TestSessionGate() {
 	gated := []struct {
 		name, method, path string
@@ -49,8 +50,11 @@ func (s *AuthSuite) TestSessionGate() {
 			}
 
 			s.Require().NoError(err)
-			s.Equal(http.StatusFound, resp.Status, "%s %s must redirect when unauthenticated", g.method, g.path)
-			s.Equal("/admin/login", resp.Headers.Get("Location"))
+			s.Equal(http.StatusUnauthorized, resp.Status, "%s %s must 401 when unauthenticated", g.method, g.path)
+
+			decoded, derr := api.DecodeResult(resp.Body)
+			s.Require().NoError(derr)
+			s.Equal(api.MsgUnauthorized, decoded.Err)
 		})
 	}
 

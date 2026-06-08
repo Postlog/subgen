@@ -568,7 +568,7 @@ func encodeRulesResponse(response RulesRes, w http.ResponseWriter) error {
 func encodeSubResponse(response SubRes, w http.ResponseWriter) error {
 	switch response := response.(type) {
 	case *SubOKHeaders:
-		w.Header().Set("Content-Type", "application/x-yaml")
+		w.Header().Set("Content-Type", "text/yaml")
 		w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition,Profile-Title,Profile-Update-Interval,Subscription-Userinfo")
 		// Encoding response headers.
 		{

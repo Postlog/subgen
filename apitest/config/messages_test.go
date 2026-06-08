@@ -20,8 +20,5 @@ const (
 	msgGroupNoMembers  = "Пустая proxy-группа"
 
 	// Save success.
-	msgSaved = "Сохранено"
-
-	// provider-check messages (provider_check handler).
-	msgNoURL = "Укажите URL провайдера"
+	msgSaved = "Конфиг сохранён"
 )

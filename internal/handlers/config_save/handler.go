@@ -36,6 +36,11 @@ const (
 	msgProviderURLEmpty    = "Укажите URL у rule-provider"
 	msgRuleSetUnknownProv  = "RULE-SET ссылается на несуществующего rule-provider"
 
+	msgProfileTitleEmpty      = "Укажите название профиля (Profile title)"
+	msgProfileFilenameEmpty   = "Укажите имя файла подписки"
+	msgProfileFilenameInvalid = "Имя файла не должно содержать / \\ или управляющие символы"
+	msgProfileIntervalInvalid = "Интервал обновления — положительное число часов"
+
 	msgUserConfigMissing = "У пользователя нет кастомного конфига"
 	msgProviderNameTaken = "Rule-provider с таким именем уже существует"
 )
@@ -81,6 +86,10 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 
 	if err == nil {
 		err = mihomo.ValidateRuleProviderRefs(rules, provs)
+	}
+
+	if err == nil {
+		err = mihomo.ValidateProfile(profile)
 	}
 
 	if err != nil {
@@ -161,6 +170,14 @@ func validationMessage(err error) (string, bool) {
 		return msgProviderURLEmpty, true
 	case errors.Is(err, mihomo.ErrRuleSetUnknownProvider):
 		return msgRuleSetUnknownProv, true
+	case errors.Is(err, mihomo.ErrProfileTitleEmpty):
+		return msgProfileTitleEmpty, true
+	case errors.Is(err, mihomo.ErrProfileFilenameEmpty):
+		return msgProfileFilenameEmpty, true
+	case errors.Is(err, mihomo.ErrProfileFilenameInvalid):
+		return msgProfileFilenameInvalid, true
+	case errors.Is(err, mihomo.ErrProfileUpdateIntervalInvalid):
+		return msgProfileIntervalInvalid, true
 	default:
 		return "", false
 	}

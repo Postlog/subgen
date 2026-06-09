@@ -33,35 +33,45 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 	}
 
 	if !found {
-		// A user scope with no custom config 404s; a base never saved serves empty.
+		// A user scope with no custom config 404s; a base never saved serves empty —
+		// empty config means empty (no default substitution).
 		if params.User.IsSet() {
 			return &oas.ConfigGetNotFound{}, nil
 		}
 
-		return &oas.MihomoConfig{
-			Groups: []oas.MihomoGroup{}, Rules: []oas.MihomoRule{}, Providers: []oas.MihomoProvider{},
-			ProfileTitle: mihomo.DefaultProfileTitle, Filename: mihomo.DefaultFilename, ProfileUpdateInterval: mihomo.DefaultUpdateInterval,
-		}, nil
+		return &oas.MihomoConfig{Groups: []oas.MihomoGroup{}, Rules: []oas.MihomoRule{}, Providers: []oas.MihomoProvider{}}, nil
 	}
 
-	rules, _ := h.routing.Rules(ctx, configID)
-	groups, _ := h.routing.ProxyGroups(ctx, configID)
-	rps, _ := h.routing.RuleProviders(ctx, configID)
-	baseYAML, _ := h.routing.Setting(ctx, configID, "base_yaml")
-
-	// Profile knobs, with the code defaults substituted explicitly so the UI always
-	// shows the effective value (in particular for a config with no profile row yet).
-	profile, _ := h.routing.Profile(ctx, configID)
-	if profile.Title == "" {
-		profile.Title = mihomo.DefaultProfileTitle
+	rules, err := h.routing.Rules(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read rules failed", "configID", configID, "err", err)
+		return nil, err
 	}
 
-	if profile.Filename == "" {
-		profile.Filename = mihomo.DefaultFilename
+	groups, err := h.routing.ProxyGroups(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read proxy-groups failed", "configID", configID, "err", err)
+		return nil, err
 	}
 
-	if profile.UpdateInterval <= 0 {
-		profile.UpdateInterval = mihomo.DefaultUpdateInterval
+	rps, err := h.routing.RuleProviders(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read rule-providers failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	baseYAML, err := h.routing.Setting(ctx, configID, "base_yaml")
+	if err != nil {
+		slog.Error("handler config_get: read base yaml failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	// Profile knobs are returned as stored — no default substitution (an unset config
+	// reads back unset). Defaults are applied only when actually serving a subscription.
+	profile, err := h.routing.Profile(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read profile failed", "configID", configID, "err", err)
+		return nil, err
 	}
 
 	idx := map[int64]int{} // group id -> array index

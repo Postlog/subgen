@@ -79,6 +79,27 @@ func TestHandler_ConfigSave(t *testing.T) {
 			result: &oas.ConfigSaveBadRequest{ErrMessage: msgMatchNotLast},
 		},
 		{
+			// Profile is validated last: a valid config with an empty title is rejected.
+			name:   "error.profile_title_empty",
+			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.ProfileTitle = ""; return r }(),
+			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileTitleEmpty},
+		},
+		{
+			name:   "error.profile_filename_empty",
+			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.Filename = ""; return r }(),
+			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileFilenameEmpty},
+		},
+		{
+			name:   "error.profile_filename_invalid",
+			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.Filename = "sub/dir.yaml"; return r }(),
+			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileFilenameInvalid},
+		},
+		{
+			name:   "error.profile_interval_invalid",
+			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.ProfileUpdateInterval = 0; return r }(),
+			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileIntervalInvalid},
+		},
+		{
 			name: "error.user_config_not_found",
 			req:  validReq(5),
 			buildConfigsMock: func(m *MockconfigResolver) {

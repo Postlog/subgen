@@ -73,7 +73,9 @@ func (c *Client) ReadConfig() (Config, error) {
 // maps the response into a Result. The schema marks groups/rules/providers (and each
 // group's members) as required arrays, and the server's decoder rejects a JSON `null`
 // for them — which is what a nil Go slice encodes to — so a partially-built config is
-// normalised to send empty arrays instead.
+// normalised to send empty arrays instead. The profile knobs are likewise defaulted to
+// valid values (the server now validates them), so a case not exercising profile
+// validation still passes through to the behaviour under test.
 func (c *Client) SaveConfig(cfg Config) (Result, error) {
 	if cfg.Rules == nil {
 		cfg.Rules = []ConfigRule{}
@@ -93,6 +95,18 @@ func (c *Client) SaveConfig(cfg Config) (Result, error) {
 	}
 
 	cfg.Groups = groups
+
+	if cfg.ProfileTitle == "" {
+		cfg.ProfileTitle = "Freedom"
+	}
+
+	if cfg.Filename == "" {
+		cfg.Filename = "freedom.yaml"
+	}
+
+	if cfg.ProfileUpdateInterval <= 0 {
+		cfg.ProfileUpdateInterval = 1
+	}
 
 	return c.post("/admin/api/config/mihomo/save", cfg)
 }

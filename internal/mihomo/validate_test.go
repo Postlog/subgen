@@ -214,3 +214,55 @@ func TestValidateRuleProviderRefs(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateProfile(t *testing.T) {
+	tt := []struct {
+		name    string
+		profile Profile
+		err     error
+	}{
+		{
+			name:    "success.valid",
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 1},
+		},
+		{
+			name:    "error.title_empty",
+			profile: Profile{Title: "", Filename: "freedom.yaml", UpdateInterval: 1},
+			err:     ErrProfileTitleEmpty,
+		},
+		{
+			name:    "error.filename_empty",
+			profile: Profile{Title: "Freedom", Filename: "", UpdateInterval: 1},
+			err:     ErrProfileFilenameEmpty,
+		},
+		{
+			name:    "error.filename_path_separator",
+			profile: Profile{Title: "Freedom", Filename: "sub/dir.yaml", UpdateInterval: 1},
+			err:     ErrProfileFilenameInvalid,
+		},
+		{
+			name:    "error.filename_control_char",
+			profile: Profile{Title: "Freedom", Filename: "a\nb.yaml", UpdateInterval: 1},
+			err:     ErrProfileFilenameInvalid,
+		},
+		{
+			name:    "error.interval_zero",
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 0},
+			err:     ErrProfileUpdateIntervalInvalid,
+		},
+		{
+			name:    "error.interval_negative",
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: -3},
+			err:     ErrProfileUpdateIntervalInvalid,
+		},
+	}
+
+	t.Parallel()
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, ValidateProfile(tc.profile), tc.err)
+		})
+	}
+}

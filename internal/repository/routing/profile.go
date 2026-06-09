@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/postlog/subgen/internal/mihomo"
 )
@@ -16,7 +17,7 @@ func (r *Repository) Profile(ctx context.Context, configID int64) (mihomo.Profil
 	err := r.db.QueryRowContext(ctx,
 		`SELECT title,filename,update_interval FROM mihomo_profile WHERE config_id=?`, configID).
 		Scan(&p.Title, &p.Filename, &p.UpdateInterval)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return mihomo.Profile{}, nil
 	}
 

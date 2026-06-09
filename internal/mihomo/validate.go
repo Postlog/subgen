@@ -2,6 +2,7 @@ package mihomo
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -108,6 +109,35 @@ func ValidateRuleProviders(provs []RuleProvider) error {
 
 	return nil
 }
+
+// ValidateProfile checks the subscription-profile knobs: a non-empty title, a non-empty
+// filename that is safe to place in a Content-Disposition header (no path separators or
+// control characters), and a positive update interval. The interval is the Clash
+// Profile-Update-Interval hint, which clients read as a whole number of HOURS — so any
+// value below 1 is meaningless. Fields arrive trimmed from DecodeConfig.
+func ValidateProfile(p Profile) error {
+	if p.Title == "" {
+		return ErrProfileTitleEmpty
+	}
+
+	if p.Filename == "" {
+		return ErrProfileFilenameEmpty
+	}
+
+	if strings.ContainsAny(p.Filename, `/\`) || strings.IndexFunc(p.Filename, isControl) >= 0 {
+		return ErrProfileFilenameInvalid
+	}
+
+	if p.UpdateInterval < 1 {
+		return ErrProfileUpdateIntervalInvalid
+	}
+
+	return nil
+}
+
+// isControl reports whether r is an ASCII control character (covers CR/LF/TAB and the
+// rest), which must not appear in a Content-Disposition filename.
+func isControl(r rune) bool { return r < 0x20 || r == 0x7f }
 
 // ValidateRuleProviderRefs checks every RULE-SET rule points at a defined provider.
 func ValidateRuleProviderRefs(rules []RoutingRule, provs []RuleProvider) error {

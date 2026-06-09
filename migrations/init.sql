@@ -147,3 +147,14 @@ CREATE TABLE IF NOT EXISTS mihomo_settings (
   value     TEXT NOT NULL,
   PRIMARY KEY(config_id, key)
 );
+
+-- Subscription-profile knobs for one config: how the rendered subscription is
+-- presented to the client — Profile-Title, Content-Disposition filename and
+-- Profile-Update-Interval (hours). One row per config, written by SaveMihomoConfig
+-- (which always supplies every column) and validated before the write.
+CREATE TABLE IF NOT EXISTS mihomo_profile (
+  config_id       INTEGER PRIMARY KEY REFERENCES subscription_configs(id) ON DELETE CASCADE,
+  title           TEXT    NOT NULL,
+  filename        TEXT    NOT NULL,
+  update_interval INTEGER NOT NULL
+);

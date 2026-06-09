@@ -33,7 +33,8 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 	}
 
 	if !found {
-		// A user scope with no custom config 404s; a base never saved serves empty.
+		// A user scope with no custom config 404s; a base never saved serves empty —
+		// empty config means empty (no default substitution).
 		if params.User.IsSet() {
 			return &oas.ConfigGetNotFound{}, nil
 		}
@@ -41,17 +42,49 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 		return &oas.MihomoConfig{Groups: []oas.MihomoGroup{}, Rules: []oas.MihomoRule{}, Providers: []oas.MihomoProvider{}}, nil
 	}
 
-	rules, _ := h.routing.Rules(ctx, configID)
-	groups, _ := h.routing.ProxyGroups(ctx, configID)
-	rps, _ := h.routing.RuleProviders(ctx, configID)
-	baseYAML, _ := h.routing.Setting(ctx, configID, "base_yaml")
+	rules, err := h.routing.Rules(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read rules failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	groups, err := h.routing.ProxyGroups(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read proxy-groups failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	rps, err := h.routing.RuleProviders(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read rule-providers failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	baseYAML, err := h.routing.Setting(ctx, configID, "base_yaml")
+	if err != nil {
+		slog.Error("handler config_get: read base yaml failed", "configID", configID, "err", err)
+		return nil, err
+	}
+
+	// Profile knobs are returned as stored — no default substitution (an unset config
+	// reads back unset). Defaults are applied only when actually serving a subscription.
+	profile, err := h.routing.Profile(ctx, configID)
+	if err != nil {
+		slog.Error("handler config_get: read profile failed", "configID", configID, "err", err)
+		return nil, err
+	}
 
 	idx := map[int64]int{} // group id -> array index
 	for i, g := range groups {
 		idx[g.ID] = i
 	}
 
-	out := &oas.MihomoConfig{BaseYAML: baseYAML}
+	out := &oas.MihomoConfig{
+		BaseYAML:              baseYAML,
+		ProfileTitle:          profile.Title,
+		Filename:              profile.Filename,
+		ProfileUpdateInterval: profile.UpdateInterval,
+	}
 
 	out.Groups = make([]oas.MihomoGroup, 0, len(groups))
 	for _, g := range groups {

@@ -6,8 +6,8 @@ import (
 )
 
 // CloneConfig copies all mihomo content (proxy-groups + members, routing rules,
-// rule-providers, settings) from srcConfigID into dstConfigID, within the caller's
-// transaction. It is the engine-specific half of configs.CreateUserConfig (the
+// rule-providers, settings, profile) from srcConfigID into dstConfigID, within the
+// caller's transaction. It is the engine-specific half of configs.CreateUserConfig (the
 // generic anchor repo owns the tx and calls this through a narrow cloner contract),
 // so a custom config starts as a full snapshot of the base.
 //
@@ -32,7 +32,11 @@ func (r *Repository) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, d
 		return err
 	}
 
-	return cloneSettings(ctx, tx, srcConfigID, dstConfigID)
+	if err := cloneSettings(ctx, tx, srcConfigID, dstConfigID); err != nil {
+		return err
+	}
+
+	return cloneProfile(ctx, tx, srcConfigID, dstConfigID)
 }
 
 // cloneGroups copies the groups and returns the old→new group id remap.
@@ -241,6 +245,19 @@ func cloneSettings(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO mihomo_settings(config_id,key,value)
 		 SELECT ?,key,value FROM mihomo_settings WHERE config_id=?`, dst, src); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// cloneProfile copies the subscription-profile row (title, filename, update interval)
+// under the new config_id. A missing source row copies nothing — the clone then falls
+// back to defaults like any config without a profile row.
+func cloneProfile(ctx context.Context, tx *sql.Tx, src, dst int64) error {
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval)
+		 SELECT ?,title,filename,update_interval FROM mihomo_profile WHERE config_id=?`, dst, src); err != nil {
 		return err
 	}
 

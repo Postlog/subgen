@@ -49,7 +49,8 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 				Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(1))}}, // index of "top"
 		}
 
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, "mixed-port: 7890"))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, "mixed-port: 7890",
+			mihomo.Profile{Title: "My VPN", Filename: "vpn.yaml", UpdateInterval: 3}))
 
 		// Read groups back: ids are now real; the group member's GroupID was rewritten
 		// from index 0 to the persisted id of "exit".
@@ -93,6 +94,11 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		base, err := repo.Setting(t.Context(), cfg, "base_yaml")
 		require.NoError(t, err)
 		assert.Equal(t, "mixed-port: 7890", base)
+
+		// the profile row round-trips.
+		prof, err := repo.Profile(t.Context(), cfg)
+		require.NoError(t, err)
+		assert.Equal(t, mihomo.Profile{Title: "My VPN", Filename: "vpn.yaml", UpdateInterval: 3}, prof)
 	})
 
 	t.Run("success.replaces_previous", func(t *testing.T) {
@@ -102,19 +108,19 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		repo := routing.New(db)
 		cfg := dbtest.SeedConfig(t, db)
 
-		// First save: one group, one rule, one provider, a base.
+		// First save: one group, one rule, one provider, a base, a profile.
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
 			[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Smart.ID)},
 			[]mihomo.ProxyGroup{dbtest.GroupWithInbound("old", seed.Smart.ID)},
 			[]mihomo.RuleProvider{{Name: "old-rp", Behavior: "domain", Format: "yaml", URL: "http://x"}},
-			"base-old"))
+			"base-old", mihomo.Profile{Title: "Old", Filename: "old.yaml", UpdateInterval: 2}))
 
 		// Second save: a different, smaller config — must fully replace the first.
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
 			nil,
 			[]mihomo.ProxyGroup{{Name: "new", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyDirect}}}},
 			nil,
-			"base-new"))
+			"base-new", mihomo.Profile{Title: "New", Filename: "new.yaml", UpdateInterval: 9}))
 
 		gotRules, err := repo.Rules(t.Context(), cfg)
 		require.NoError(t, err)
@@ -132,6 +138,10 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		base, err := repo.Setting(t.Context(), cfg, "base_yaml")
 		require.NoError(t, err)
 		assert.Equal(t, "base-new", base) // base upserted
+
+		prof, err := repo.Profile(t.Context(), cfg)
+		require.NoError(t, err)
+		assert.Equal(t, mihomo.Profile{Title: "New", Filename: "new.yaml", UpdateInterval: 9}, prof) // profile upserted
 	})
 
 	t.Run("error.duplicate_rule_provider_rolls_back", func(t *testing.T) {
@@ -146,7 +156,7 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 			[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Smart.ID)},
 			[]mihomo.ProxyGroup{dbtest.GroupWithInbound("keep", seed.Smart.ID)},
 			[]mihomo.RuleProvider{{Name: "rp-keep", Behavior: "domain", Format: "yaml", URL: "http://keep"}},
-			"base-keep"))
+			"base-keep", mihomo.Profile{}))
 
 		// Now attempt a save with two providers sharing the PRIMARY KEY name.
 		err := repo.SaveMihomoConfig(t.Context(), cfg,
@@ -156,7 +166,7 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 				{Name: "dup", Behavior: "domain", Format: "yaml", URL: "http://a"},
 				{Name: "dup", Behavior: "ipcidr", Format: "yaml", URL: "http://b"},
 			},
-			"base-wont-stick")
+			"base-wont-stick", mihomo.Profile{})
 		require.ErrorIs(t, err, entity.ErrRuleProviderNameTaken)
 
 		// The transaction rolled back: the original config is intact, none of the
@@ -191,7 +201,7 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		err := repo.SaveMihomoConfig(t.Context(), cfg,
 			[]mihomo.RoutingRule{{Type: mihomo.RuleMatch,
 				Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(5))}}},
-			nil, nil, "")
+			nil, nil, "", mihomo.Profile{})
 		require.ErrorContains(t, err, "group ref index out of range")
 
 		gotRules, err := repo.Rules(t.Context(), cfg)

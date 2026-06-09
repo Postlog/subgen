@@ -50,7 +50,7 @@ func TestRepository_ProxyGroups(t *testing.T) {
 				Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}},
 			},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, groups, nil, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, groups, nil, "", mihomo.Profile{}))
 
 		got, err := repo.ProxyGroups(t.Context(), cfg)
 		require.NoError(t, err)

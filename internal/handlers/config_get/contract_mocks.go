@@ -98,6 +98,21 @@ func (m *MockmihomoReader) EXPECT() *MockmihomoReaderMockRecorder {
 	return m.recorder
 }
 
+// Profile mocks base method.
+func (m *MockmihomoReader) Profile(ctx context.Context, configID int64) (mihomo.Profile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Profile", ctx, configID)
+	ret0, _ := ret[0].(mihomo.Profile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Profile indicates an expected call of Profile.
+func (mr *MockmihomoReaderMockRecorder) Profile(ctx, configID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Profile", reflect.TypeOf((*MockmihomoReader)(nil).Profile), ctx, configID)
+}
+
 // ProxyGroups mocks base method.
 func (m *MockmihomoReader) ProxyGroups(ctx context.Context, configID int64) ([]mihomo.ProxyGroup, error) {
 	m.ctrl.T.Helper()

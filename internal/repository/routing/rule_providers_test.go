@@ -37,7 +37,7 @@ func TestRepository_RuleProviders(t *testing.T) {
 			{Name: "zeta", Behavior: "ipcidr", Format: "mrs", Mirror: false, URL: "http://z", Interval: 86400},
 			{Name: "alpha", Behavior: "domain", Format: "yaml", Mirror: true, URL: "http://a", Interval: 3600, MirrorInterval: 600},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, want, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, want, "", mihomo.Profile{}))
 
 		got, err := repo.RuleProviders(t.Context(), cfg)
 		require.NoError(t, err)

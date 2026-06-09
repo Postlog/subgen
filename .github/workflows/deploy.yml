@@ -93,7 +93,6 @@ jobs:
           SUBGEN_PUBLIC_BASE: ${{ vars.SUBGEN_PUBLIC_BASE }}
           SUBGEN_TLS_CERT: ${{ vars.SUBGEN_TLS_CERT }}
           SUBGEN_TLS_KEY: ${{ vars.SUBGEN_TLS_KEY }}
-          SUBGEN_PROFILE_UPDATE_INTERVAL: ${{ vars.SUBGEN_PROFILE_UPDATE_INTERVAL }}
           CERT_HOST_DIR: ${{ vars.CERT_HOST_DIR }}
         run: |
           umask 077
@@ -106,7 +105,6 @@ jobs:
           SUBGEN_SECRET=${SUBGEN_SECRET}
           SUBGEN_ADMIN_USER=${SUBGEN_ADMIN_USER}
           SUBGEN_ADMIN_PASSWORD=${SUBGEN_ADMIN_PASSWORD}
-          SUBGEN_PROFILE_UPDATE_INTERVAL=${SUBGEN_PROFILE_UPDATE_INTERVAL}
           # consumed by docker-compose.yml for the cert bind-mount (not by subgen):
           CERT_HOST_DIR=${CERT_HOST_DIR}
           EOF

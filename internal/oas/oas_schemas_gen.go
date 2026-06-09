@@ -188,11 +188,14 @@ func (*ConfigSaveBadRequest) configSaveRes() {}
 
 // Merged schema.
 type ConfigSaveReq struct {
-	Groups    []MihomoGroup    `json:"groups"`
-	Rules     []MihomoRule     `json:"rules"`
-	Providers []MihomoProvider `json:"providers"`
-	BaseYAML  string           `json:"baseYAML"`
-	UserId    OptInt64         `json:"userId"`
+	Groups                []MihomoGroup    `json:"groups"`
+	Rules                 []MihomoRule     `json:"rules"`
+	Providers             []MihomoProvider `json:"providers"`
+	BaseYAML              string           `json:"baseYAML"`
+	ProfileTitle          string           `json:"profileTitle"`
+	Filename              string           `json:"filename"`
+	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
+	UserId                OptInt64         `json:"userId"`
 }
 
 // GetGroups returns the value of Groups.
@@ -213,6 +216,21 @@ func (s *ConfigSaveReq) GetProviders() []MihomoProvider {
 // GetBaseYAML returns the value of BaseYAML.
 func (s *ConfigSaveReq) GetBaseYAML() string {
 	return s.BaseYAML
+}
+
+// GetProfileTitle returns the value of ProfileTitle.
+func (s *ConfigSaveReq) GetProfileTitle() string {
+	return s.ProfileTitle
+}
+
+// GetFilename returns the value of Filename.
+func (s *ConfigSaveReq) GetFilename() string {
+	return s.Filename
+}
+
+// GetProfileUpdateInterval returns the value of ProfileUpdateInterval.
+func (s *ConfigSaveReq) GetProfileUpdateInterval() int {
+	return s.ProfileUpdateInterval
 }
 
 // GetUserId returns the value of UserId.
@@ -238,6 +256,21 @@ func (s *ConfigSaveReq) SetProviders(val []MihomoProvider) {
 // SetBaseYAML sets the value of BaseYAML.
 func (s *ConfigSaveReq) SetBaseYAML(val string) {
 	s.BaseYAML = val
+}
+
+// SetProfileTitle sets the value of ProfileTitle.
+func (s *ConfigSaveReq) SetProfileTitle(val string) {
+	s.ProfileTitle = val
+}
+
+// SetFilename sets the value of Filename.
+func (s *ConfigSaveReq) SetFilename(val string) {
+	s.Filename = val
+}
+
+// SetProfileUpdateInterval sets the value of ProfileUpdateInterval.
+func (s *ConfigSaveReq) SetProfileUpdateInterval(val int) {
+	s.ProfileUpdateInterval = val
 }
 
 // SetUserId sets the value of UserId.
@@ -701,10 +734,13 @@ func (*MessageResponseHeaders) loginRes() {}
 
 // Ref: #/components/schemas/MihomoConfig
 type MihomoConfig struct {
-	Groups    []MihomoGroup    `json:"groups"`
-	Rules     []MihomoRule     `json:"rules"`
-	Providers []MihomoProvider `json:"providers"`
-	BaseYAML  string           `json:"baseYAML"`
+	Groups                []MihomoGroup    `json:"groups"`
+	Rules                 []MihomoRule     `json:"rules"`
+	Providers             []MihomoProvider `json:"providers"`
+	BaseYAML              string           `json:"baseYAML"`
+	ProfileTitle          string           `json:"profileTitle"`
+	Filename              string           `json:"filename"`
+	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
 }
 
 // GetGroups returns the value of Groups.
@@ -727,6 +763,21 @@ func (s *MihomoConfig) GetBaseYAML() string {
 	return s.BaseYAML
 }
 
+// GetProfileTitle returns the value of ProfileTitle.
+func (s *MihomoConfig) GetProfileTitle() string {
+	return s.ProfileTitle
+}
+
+// GetFilename returns the value of Filename.
+func (s *MihomoConfig) GetFilename() string {
+	return s.Filename
+}
+
+// GetProfileUpdateInterval returns the value of ProfileUpdateInterval.
+func (s *MihomoConfig) GetProfileUpdateInterval() int {
+	return s.ProfileUpdateInterval
+}
+
 // SetGroups sets the value of Groups.
 func (s *MihomoConfig) SetGroups(val []MihomoGroup) {
 	s.Groups = val
@@ -745,6 +796,21 @@ func (s *MihomoConfig) SetProviders(val []MihomoProvider) {
 // SetBaseYAML sets the value of BaseYAML.
 func (s *MihomoConfig) SetBaseYAML(val string) {
 	s.BaseYAML = val
+}
+
+// SetProfileTitle sets the value of ProfileTitle.
+func (s *MihomoConfig) SetProfileTitle(val string) {
+	s.ProfileTitle = val
+}
+
+// SetFilename sets the value of Filename.
+func (s *MihomoConfig) SetFilename(val string) {
+	s.Filename = val
+}
+
+// SetProfileUpdateInterval sets the value of ProfileUpdateInterval.
+func (s *MihomoConfig) SetProfileUpdateInterval(val int) {
+	s.ProfileUpdateInterval = val
 }
 
 func (*MihomoConfig) configGetRes() {}

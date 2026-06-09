@@ -34,4 +34,10 @@ var (
 	// Base YAML.
 	ErrBaseYAMLInvalid     = errors.New("base YAML is invalid")
 	ErrGeneratedKeyPresent = errors.New("base YAML carries a generated section")
+
+	// Subscription profile.
+	ErrProfileTitleEmpty            = errors.New("profile title is empty")
+	ErrProfileFilenameEmpty         = errors.New("profile filename is empty")
+	ErrProfileFilenameInvalid       = errors.New("profile filename has path separators or control characters")
+	ErrProfileUpdateIntervalInvalid = errors.New("profile update interval must be a positive number of hours")
 )

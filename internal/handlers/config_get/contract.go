@@ -20,4 +20,5 @@ type mihomoReader interface {
 	ProxyGroups(ctx context.Context, configID int64) ([]mihomo.ProxyGroup, error)
 	RuleProviders(ctx context.Context, configID int64) ([]mihomo.RuleProvider, error)
 	Setting(ctx context.Context, configID int64, key string) (string, error)
+	Profile(ctx context.Context, configID int64) (mihomo.Profile, error)
 }

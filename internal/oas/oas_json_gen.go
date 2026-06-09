@@ -522,6 +522,18 @@ func (s *ConfigSaveReq) encodeFields(e *jx.Encoder) {
 		e.Str(s.BaseYAML)
 	}
 	{
+		e.FieldStart("profileTitle")
+		e.Str(s.ProfileTitle)
+	}
+	{
+		e.FieldStart("filename")
+		e.Str(s.Filename)
+	}
+	{
+		e.FieldStart("profileUpdateInterval")
+		e.Int(s.ProfileUpdateInterval)
+	}
+	{
 		if s.UserId.Set {
 			e.FieldStart("userId")
 			s.UserId.Encode(e)
@@ -529,12 +541,15 @@ func (s *ConfigSaveReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfConfigSaveReq = [5]string{
+var jsonFieldsNameOfConfigSaveReq = [8]string{
 	0: "groups",
 	1: "rules",
 	2: "providers",
 	3: "baseYAML",
-	4: "userId",
+	4: "profileTitle",
+	5: "filename",
+	6: "profileUpdateInterval",
+	7: "userId",
 }
 
 // Decode decodes ConfigSaveReq from json.
@@ -612,6 +627,42 @@ func (s *ConfigSaveReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"baseYAML\"")
 			}
+		case "profileTitle":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.ProfileTitle = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"profileTitle\"")
+			}
+		case "filename":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Filename = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"filename\"")
+			}
+		case "profileUpdateInterval":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.ProfileUpdateInterval = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"profileUpdateInterval\"")
+			}
 		case "userId":
 			if err := func() error {
 				s.UserId.Reset()
@@ -632,7 +683,7 @@ func (s *ConfigSaveReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2379,13 +2430,28 @@ func (s *MihomoConfig) encodeFields(e *jx.Encoder) {
 		e.FieldStart("baseYAML")
 		e.Str(s.BaseYAML)
 	}
+	{
+		e.FieldStart("profileTitle")
+		e.Str(s.ProfileTitle)
+	}
+	{
+		e.FieldStart("filename")
+		e.Str(s.Filename)
+	}
+	{
+		e.FieldStart("profileUpdateInterval")
+		e.Int(s.ProfileUpdateInterval)
+	}
 }
 
-var jsonFieldsNameOfMihomoConfig = [4]string{
+var jsonFieldsNameOfMihomoConfig = [7]string{
 	0: "groups",
 	1: "rules",
 	2: "providers",
 	3: "baseYAML",
+	4: "profileTitle",
+	5: "filename",
+	6: "profileUpdateInterval",
 }
 
 // Decode decodes MihomoConfig from json.
@@ -2463,6 +2529,42 @@ func (s *MihomoConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"baseYAML\"")
 			}
+		case "profileTitle":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.ProfileTitle = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"profileTitle\"")
+			}
+		case "filename":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Filename = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"filename\"")
+			}
+		case "profileUpdateInterval":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.ProfileUpdateInterval = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"profileUpdateInterval\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -2473,7 +2575,7 @@ func (s *MihomoConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

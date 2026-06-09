@@ -12,18 +12,23 @@ func TestDecodeConfig(t *testing.T) {
 		name string
 		body string
 
-		wantRules  []RoutingRule
-		wantGroups []ProxyGroup
-		wantProvs  []RuleProvider
-		wantBase   string
+		wantRules   []RoutingRule
+		wantGroups  []ProxyGroup
+		wantProvs   []RuleProvider
+		wantBase    string
+		wantProfile Profile
 	}{
 		{
 			// two groups: "smart" (→direct) and "Conn" (member group→idx 0, inbound 5);
 			// rules: DOMAIN-SUFFIX→inbound 5, MATCH→group idx 1. Group refs decode to the
-			// array INDEX (the SaveMihomoConfig convention), not a persisted id.
+			// array INDEX (the SaveMihomoConfig convention), not a persisted id. The profile
+			// title is whitespace-padded to exercise trimming.
 			name: "success.full",
 			body: `{
 				"baseYAML": "mode: rule",
+				"profileTitle": "  My VPN  ",
+				"filename": "my.yaml",
+				"profileUpdateInterval": 6,
 				"groups": [
 					{"name":"smart","type":"select","members":[{"kind":"direct"}]},
 					{"name":"Conn","type":"select","members":[{"kind":"group","groupIdx":0},{"kind":"inbound","inboundId":5}]}
@@ -44,8 +49,9 @@ func TestDecodeConfig(t *testing.T) {
 				{Type: RuleDomainSuffix, Value: "example.com", Target: PolicyRef{Kind: PolicyInbound, InboundID: i64(5)}},
 				{Type: RuleMatch, Target: PolicyRef{Kind: PolicyGroup, GroupID: i64(1)}},
 			},
-			wantProvs: nil,
-			wantBase:  "mode: rule",
+			wantProvs:   nil,
+			wantBase:    "mode: rule",
+			wantProfile: Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
 		},
 		{
 			// Regression: a provider with an all-whitespace name was once silently dropped
@@ -67,13 +73,14 @@ func TestDecodeConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			rules, groups, provs, base, err := DecodeConfig([]byte(tc.body))
+			rules, groups, provs, base, profile, err := DecodeConfig([]byte(tc.body))
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantRules, rules)
 			assert.Equal(t, tc.wantGroups, groups)
 			assert.Equal(t, tc.wantProvs, provs)
 			assert.Equal(t, tc.wantBase, base)
+			assert.Equal(t, tc.wantProfile, profile)
 		})
 	}
 }

@@ -33,6 +33,8 @@ func TestHandler_ConfigGet(t *testing.T) {
 			buildConfigsMock: func(m *MockconfigResolver) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
+			// No config row yet → empty config means empty: profile knobs come back
+			// zero-valued, no default substitution here.
 			result: &oas.MihomoConfig{
 				Groups:    []oas.MihomoGroup{},
 				Rules:     []oas.MihomoRule{},
@@ -52,13 +54,29 @@ func TestHandler_ConfigGet(t *testing.T) {
 				m.EXPECT().ProxyGroups(gomock.Any(), int64(7)).Return(nil, nil)
 				m.EXPECT().RuleProviders(gomock.Any(), int64(7)).Return(nil, nil)
 				m.EXPECT().Setting(gomock.Any(), int64(7), "base_yaml").Return("mode: rule\n", nil)
+				m.EXPECT().Profile(gomock.Any(), int64(7)).Return(mihomo.Profile{Title: "X", Filename: "x.yaml", UpdateInterval: 12}, nil)
 			},
 			result: &oas.MihomoConfig{
-				BaseYAML:  "mode: rule\n",
-				Groups:    []oas.MihomoGroup{},
-				Rules:     []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
-				Providers: []oas.MihomoProvider{},
+				BaseYAML:              "mode: rule\n",
+				Groups:                []oas.MihomoGroup{},
+				Rules:                 []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
+				Providers:             []oas.MihomoProvider{},
+				ProfileTitle:          "X",
+				Filename:              "x.yaml",
+				ProfileUpdateInterval: 12,
 			},
+		},
+		{
+			// A content read that errors must surface (logged) as a 5xx, not be swallowed.
+			name:   "error.read_failed",
+			params: oas.ConfigGetParams{},
+			buildConfigsMock: func(m *MockconfigResolver) {
+				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), true, nil)
+			},
+			buildRoutingMock: func(m *MockmihomoReader) {
+				m.EXPECT().Rules(gomock.Any(), int64(7)).Return(nil, internalErr)
+			},
+			err: internalErr,
 		},
 		{
 			name:   "notfound.user_scope",

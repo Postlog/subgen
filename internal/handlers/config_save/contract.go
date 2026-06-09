@@ -16,7 +16,7 @@ type configResolver interface {
 }
 
 // mihomoSaver persists one config's mihomo content (rules + proxy-groups + providers
-// + base YAML) atomically, scoped by config id.
+// + base YAML + profile knobs) atomically, scoped by config id.
 type mihomoSaver interface {
-	SaveMihomoConfig(ctx context.Context, configID int64, rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []mihomo.RuleProvider, baseYAML string) error
+	SaveMihomoConfig(ctx context.Context, configID int64, rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []mihomo.RuleProvider, baseYAML string, profile mihomo.Profile) error
 }

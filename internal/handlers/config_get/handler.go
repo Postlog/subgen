@@ -38,7 +38,10 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 			return &oas.ConfigGetNotFound{}, nil
 		}
 
-		return &oas.MihomoConfig{Groups: []oas.MihomoGroup{}, Rules: []oas.MihomoRule{}, Providers: []oas.MihomoProvider{}}, nil
+		return &oas.MihomoConfig{
+			Groups: []oas.MihomoGroup{}, Rules: []oas.MihomoRule{}, Providers: []oas.MihomoProvider{},
+			ProfileTitle: mihomo.DefaultProfileTitle, Filename: mihomo.DefaultFilename, ProfileUpdateInterval: mihomo.DefaultUpdateInterval,
+		}, nil
 	}
 
 	rules, _ := h.routing.Rules(ctx, configID)
@@ -46,12 +49,32 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 	rps, _ := h.routing.RuleProviders(ctx, configID)
 	baseYAML, _ := h.routing.Setting(ctx, configID, "base_yaml")
 
+	// Profile knobs, with the code defaults substituted explicitly so the UI always
+	// shows the effective value (in particular for a config with no profile row yet).
+	profile, _ := h.routing.Profile(ctx, configID)
+	if profile.Title == "" {
+		profile.Title = mihomo.DefaultProfileTitle
+	}
+
+	if profile.Filename == "" {
+		profile.Filename = mihomo.DefaultFilename
+	}
+
+	if profile.UpdateInterval <= 0 {
+		profile.UpdateInterval = mihomo.DefaultUpdateInterval
+	}
+
 	idx := map[int64]int{} // group id -> array index
 	for i, g := range groups {
 		idx[g.ID] = i
 	}
 
-	out := &oas.MihomoConfig{BaseYAML: baseYAML}
+	out := &oas.MihomoConfig{
+		BaseYAML:              baseYAML,
+		ProfileTitle:          profile.Title,
+		Filename:              profile.Filename,
+		ProfileUpdateInterval: profile.UpdateInterval,
+	}
 
 	out.Groups = make([]oas.MihomoGroup, 0, len(groups))
 	for _, g := range groups {

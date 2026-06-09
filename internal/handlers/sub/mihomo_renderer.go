@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/mihomo/render"
 )
 
@@ -12,19 +13,21 @@ import (
 type MihomoRenderer struct {
 	routing    mihomoReader
 	publicBase string
-	filename   string
 }
 
-// NewMihomoRenderer builds the mihomo renderer. filename is the Content-Disposition
-// name (falls back to freedom.yaml); publicBase rewrites mirrored rule-provider URLs.
-func NewMihomoRenderer(routing mihomoReader, publicBase, filename string) *MihomoRenderer {
-	return &MihomoRenderer{routing: routing, publicBase: publicBase, filename: filename}
+// NewMihomoRenderer builds the mihomo renderer. publicBase rewrites mirrored
+// rule-provider URLs; the response metadata (filename, title, update interval) is read
+// per-config from the store at render time.
+func NewMihomoRenderer(routing mihomoReader, publicBase string) *MihomoRenderer {
+	return &MihomoRenderer{routing: routing, publicBase: publicBase}
 }
 
 // Kind reports the engine this renderer serves.
 func (m *MihomoRenderer) Kind() entity.ConfigKind { return entity.ConfigKindMihomo }
 
-// Render builds the mihomo YAML for one subscriber against the given config.
+// Render builds the mihomo YAML for one subscriber against the given config and reads
+// the config's profile knobs (filename, title, update interval) for the response meta,
+// substituting the code defaults for any unset field.
 func (m *MihomoRenderer) Render(ctx context.Context, sub *entity.Subscriber, configID int64) ([]byte, RenderMeta, error) {
 	opts, err := m.options(ctx, configID)
 	if err != nil {
@@ -36,12 +39,31 @@ func (m *MihomoRenderer) Render(ctx context.Context, sub *entity.Subscriber, con
 		return nil, RenderMeta{}, err
 	}
 
-	filename := m.filename
-	if filename == "" {
-		filename = "freedom.yaml"
+	profile, err := m.routing.Profile(ctx, configID)
+	if err != nil {
+		return nil, RenderMeta{}, err
 	}
 
-	return body, RenderMeta{ContentType: "text/yaml; charset=utf-8", Filename: filename}, nil
+	if profile.Title == "" {
+		profile.Title = mihomo.DefaultProfileTitle
+	}
+
+	if profile.Filename == "" {
+		profile.Filename = mihomo.DefaultFilename
+	}
+
+	if profile.UpdateInterval <= 0 {
+		profile.UpdateInterval = mihomo.DefaultUpdateInterval
+	}
+
+	meta := RenderMeta{
+		ContentType:    "text/yaml; charset=utf-8",
+		Filename:       profile.Filename,
+		ProfileTitle:   profile.Title,
+		UpdateInterval: profile.UpdateInterval,
+	}
+
+	return body, meta, nil
 }
 
 // options assembles the config's mihomo content render needs from the store.

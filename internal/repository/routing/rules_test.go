@@ -49,7 +49,7 @@ func TestRepository_Rules(t *testing.T) {
 			{Type: mihomo.RuleMatch,
 				Target: mihomo.PolicyRef{Kind: mihomo.PolicyReject}},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, ""))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, "", mihomo.Profile{}))
 
 		got, err := repo.Rules(t.Context(), cfg)
 		require.NoError(t, err)

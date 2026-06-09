@@ -50,7 +50,8 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(1))}},
 		}
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, rules, groups, provs, "dns: {}"))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, rules, groups, provs, "dns: {}",
+			mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4}))
 
 		// Create the custom config.
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
@@ -86,6 +87,11 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		base, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)
 		assert.Equal(t, "dns: {}", base)
+
+		// the profile row is cloned too.
+		prof, err := rt.Profile(t.Context(), newID)
+		require.NoError(t, err)
+		assert.Equal(t, mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4}, prof)
 	})
 
 	t.Run("success.independent_snapshot", func(t *testing.T) {
@@ -97,17 +103,24 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 
 		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
 		require.NoError(t, err)
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v1"))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v1",
+			mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1}))
 
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
 		require.NoError(t, err)
 
 		// Edit the base after cloning — the custom config must not change.
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v2"))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v2",
+			mihomo.Profile{Title: "v2", Filename: "v2.yaml", UpdateInterval: 2}))
 
 		got, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)
 		assert.Equal(t, "base: v1", got)
+
+		// the cloned profile is likewise an independent snapshot.
+		prof, err := rt.Profile(t.Context(), newID)
+		require.NoError(t, err)
+		assert.Equal(t, mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1}, prof)
 	})
 
 	t.Run("success.empty_base", func(t *testing.T) {

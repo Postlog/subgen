@@ -26,9 +26,9 @@ import (
 //	                               no rebuild); empty => embedded copy (default)
 //	SUBGEN_ADMIN_USER              admin login              (default admin)
 //	SUBGEN_ADMIN_PASSWORD          admin password (required; gates the admin API)
-//	SUBGEN_PROFILE_TITLE           subscription profile title (default Freedom)
-//	SUBGEN_FILENAME                subscription filename      (default freedom.yaml)
-//	SUBGEN_PROFILE_UPDATE_INTERVAL client refresh hint, hours (default 24)
+//
+// Subscription-profile knobs (title, filename, update interval) are NOT here — they are
+// per-config operational data, edited in the admin "Config" tab and stored in mihomo_profile.
 func Load(envFile string) (Config, error) {
 	if envFile != "" {
 		if err := loadDotenv(envFile); err != nil {

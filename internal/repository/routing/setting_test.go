@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/repository/dbtest"
 	"github.com/postlog/subgen/internal/repository/routing"
 )
@@ -46,7 +47,7 @@ func TestRepository_Setting(t *testing.T) {
 			cfg := dbtest.SeedConfig(t, db)
 
 			if tc.set {
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, nil, tc.want))
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, nil, tc.want, mihomo.Profile{}))
 			}
 
 			got, err := repo.Setting(t.Context(), cfg, tc.key)

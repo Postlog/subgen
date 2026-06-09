@@ -30,7 +30,7 @@ const app = createApp({
       // cfg: structured mihomo config. groups/rules carry a client-side _uid; a
       // policy ref is encoded as a string `pref` (direct|reject|…|smart|force:<id>|
       // group:<groupUid>) so it binds straight to a <select>.
-      cfg: { groups: [], rules: [], providers: [], baseYAML: "" },
+      cfg: { groups: [], rules: [], providers: [], baseYAML: "", profileTitle: "", filename: "", profileUpdateInterval: 1 },
 
       // Config scope: which config the editor is bound to. 'base' = the shared base
       // config; 'user' = a per-user custom config (userId/name set). customs lists the
@@ -223,6 +223,9 @@ const app = createApp({
       }));
       this.cfg.providers = c.providers || [];
       this.cfg.baseYAML = c.baseYAML || "";
+      this.cfg.profileTitle = c.profileTitle || "";
+      this.cfg.filename = c.filename || "";
+      this.cfg.profileUpdateInterval = c.profileUpdateInterval ?? 1;
     },
     // refToPref encodes an API PolicyRef ({kind,inboundId,groupIdx}) into the select
     // string; a group ref is stored by the referenced group's stable uid.
@@ -304,7 +307,12 @@ const app = createApp({
         mirror: !!p.mirror, mirrorInterval: p.mirror ? (p.mirrorInterval || 0) : 0,
       }));
 
-      const payload = { baseYAML: this.cfg.baseYAML, groups, rules, providers };
+      const payload = {
+        baseYAML: this.cfg.baseYAML, groups, rules, providers,
+        profileTitle: this.cfg.profileTitle || "",
+        filename: this.cfg.filename || "",
+        profileUpdateInterval: Number(this.cfg.profileUpdateInterval) || 0,
+      };
       if (this.cfgScope.kind === "user") payload.userId = this.cfgScope.userId;
       await this.post("/admin/api/config/mihomo/save", payload);
     },

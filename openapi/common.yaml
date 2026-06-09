@@ -98,10 +98,12 @@ components:
             $ref: './common.yaml#/components/schemas/PolicyRef'
 
     # The mihomo routing config: config_get returns it, config_save accepts it
-    # (plus a userId in the save body).
+    # (plus a userId in the save body). The profile* fields are the per-config
+    # subscription knobs (Profile-Title, Content-Disposition filename,
+    # Profile-Update-Interval in hours).
     MihomoConfig:
       type: object
-      required: [groups, rules, providers, baseYAML]
+      required: [groups, rules, providers, baseYAML, profileTitle, filename, profileUpdateInterval]
       properties:
         groups:
           type: array
@@ -117,3 +119,9 @@ components:
             $ref: './common.yaml#/components/schemas/MihomoProvider'
         baseYAML:
           type: string
+        profileTitle:
+          type: string
+        filename:
+          type: string
+        profileUpdateInterval:
+          type: integer

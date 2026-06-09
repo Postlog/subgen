@@ -10,14 +10,15 @@ import (
 )
 
 // SaveMihomoConfig atomically replaces one config's proxy-groups, routing rules,
-// rule-providers and base_yaml setting in a single transaction (all-or-nothing).
-// Only rows scoped to configID are touched — other configs are untouched.
+// rule-providers, base_yaml setting and profile row in a single transaction
+// (all-or-nothing). Only rows scoped to configID are touched — other configs are
+// untouched.
 //
 // Group references are resolved by INDEX: in a group member or a rule target whose
 // kind is "group", PolicyRef.GroupID holds the 0-based index into the groups slice
 // (the persisted ids are assigned here, so the caller can't know them yet). Force
 // references use the real node_inbounds.id in PolicyRef.InboundID.
-func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []mihomo.RuleProvider, baseYAML string) error {
+func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []mihomo.RuleProvider, baseYAML string, profile mihomo.Profile) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -101,6 +102,14 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, rules
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO mihomo_settings(config_id,key,value) VALUES(?,'base_yaml',?)
 		 ON CONFLICT(config_id,key) DO UPDATE SET value=excluded.value`, configID, baseYAML); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval) VALUES(?,?,?,?)
+		 ON CONFLICT(config_id) DO UPDATE SET
+		   title=excluded.title, filename=excluded.filename, update_interval=excluded.update_interval`,
+		configID, profile.Title, profile.Filename, profile.UpdateInterval); err != nil {
 		return err
 	}
 

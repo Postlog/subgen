@@ -42,19 +42,24 @@ type providerDTO struct {
 }
 
 type configDTO struct {
-	BaseYAML  string        `json:"baseYAML"`
-	Groups    []groupDTO    `json:"groups"`
-	Rules     []ruleDTO     `json:"rules"`
-	Providers []providerDTO `json:"providers"`
+	BaseYAML              string        `json:"baseYAML"`
+	Groups                []groupDTO    `json:"groups"`
+	Rules                 []ruleDTO     `json:"rules"`
+	Providers             []providerDTO `json:"providers"`
+	ProfileTitle          string        `json:"profileTitle"`
+	Filename              string        `json:"filename"`
+	ProfileUpdateInterval int           `json:"profileUpdateInterval"`
 }
 
 // DecodeConfig unmarshals the raw mihomo-config JSON (the admin form payload) into the
-// structured routing rules, proxy-groups, rule-providers and base YAML. It only
-// decodes/maps — the handler reads the request body and reports errors.
-func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup, provs []RuleProvider, base string, err error) {
+// structured routing rules, proxy-groups, rule-providers, base YAML and profile knobs.
+// It only decodes/maps — the handler reads the request body and reports errors. The
+// profile fields are returned verbatim (trimmed); defaults are substituted by the
+// consumer, not here.
+func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup, provs []RuleProvider, base string, profile Profile, err error) {
 	var dto configDTO
 	if err := json.Unmarshal(raw, &dto); err != nil {
-		return nil, nil, nil, "", err
+		return nil, nil, nil, "", Profile{}, err
 	}
 
 	groups = make([]ProxyGroup, 0, len(dto.Groups))
@@ -95,7 +100,13 @@ func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup
 		})
 	}
 
-	return rules, groups, provs, dto.BaseYAML, nil
+	profile = Profile{
+		Title:          strings.TrimSpace(dto.ProfileTitle),
+		Filename:       strings.TrimSpace(dto.Filename),
+		UpdateInterval: dto.ProfileUpdateInterval,
+	}
+
+	return rules, groups, provs, dto.BaseYAML, profile, nil
 }
 
 // refFromDTO maps a JSON policy ref to a PolicyRef. A group ref carries the array

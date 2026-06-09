@@ -16,9 +16,13 @@ import (
 )
 
 // RenderMeta is the engine-specific response metadata for a rendered subscription.
+// The profile fields are per-config (read from the store by the engine renderer, with
+// defaults already applied), not service-wide config.
 type RenderMeta struct {
-	ContentType string // e.g. "text/yaml; charset=utf-8"
-	Filename    string // Content-Disposition filename
+	ContentType    string // e.g. "text/yaml; charset=utf-8"
+	Filename       string // Content-Disposition filename
+	ProfileTitle   string // Profile-Title header (plain text; base64-wrapped here)
+	UpdateInterval int    // Profile-Update-Interval, hours
 }
 
 // Handler resolves a subscription token to a user, picks their config (custom or
@@ -29,16 +33,14 @@ type Handler struct {
 	configs   configResolver
 	renderers map[entity.ConfigKind]EngineRenderer
 
-	secret         string
-	profileTitle   string
-	updateInterval int
+	secret string
 }
 
 // New builds the handler. renderers maps each supported engine kind to its renderer.
-func New(users userResolver, fleet fleetReader, configs configResolver, renderers map[entity.ConfigKind]EngineRenderer, secret, profileTitle string, updateInterval int) *Handler {
+func New(users userResolver, fleet fleetReader, configs configResolver, renderers map[entity.ConfigKind]EngineRenderer, secret string) *Handler {
 	return &Handler{
 		users: users, fleet: fleet, configs: configs, renderers: renderers,
-		secret: secret, profileTitle: profileTitle, updateInterval: updateInterval,
+		secret: secret,
 	}
 }
 
@@ -101,14 +103,9 @@ func (h *Handler) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, er
 		return nil, fmt.Errorf("renderer.Render: %w", err)
 	}
 
-	title := h.profileTitle
-	if title == "" {
-		title = "Freedom"
-	}
-
 	return &oas.SubOKHeaders{
-		ProfileUpdateInterval: oas.NewOptString(fmt.Sprintf("%d", h.updateInterval)),
-		ProfileTitle:          oas.NewOptString("base64:" + base64.StdEncoding.EncodeToString([]byte(title))),
+		ProfileUpdateInterval: oas.NewOptString(fmt.Sprintf("%d", meta.UpdateInterval)),
+		ProfileTitle:          oas.NewOptString("base64:" + base64.StdEncoding.EncodeToString([]byte(meta.ProfileTitle))),
 		ContentDisposition:    oas.NewOptString(fmt.Sprintf("attachment; filename=%q", meta.Filename)),
 		SubscriptionUserinfo:  oas.NewOptString(userinfo(sub.Up, sub.Down, sub.Total, sub.Expiry)),
 		Response:              oas.SubOK{Data: bytes.NewReader(body)},

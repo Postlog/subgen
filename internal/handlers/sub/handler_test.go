@@ -74,7 +74,7 @@ func TestHandler_Sub(t *testing.T) {
 				}, nil)
 				m.renderer.EXPECT().
 					Render(gomock.Any(), &entity.Subscriber{SubID: "sub1", Up: 10, Down: 20, Total: 100, Expiry: 5000}, int64(3)).
-					Return([]byte("yaml"), RenderMeta{Filename: "f.yaml"}, nil)
+					Return([]byte("yaml"), RenderMeta{Filename: "f.yaml", ProfileTitle: "Profile", UpdateInterval: 300}, nil)
 			},
 			assertRes: func(t *testing.T, res oas.SubRes) {
 				ok, isOK := res.(*oas.SubOKHeaders)
@@ -119,7 +119,7 @@ func TestHandler_Sub(t *testing.T) {
 
 			renderers := map[entity.ConfigKind]EngineRenderer{entity.ConfigKindMihomo: m.renderer}
 
-			res, err := New(m.users, m.fleet, m.configs, renderers, testSecret, "Profile", 300).
+			res, err := New(m.users, m.fleet, m.configs, renderers, testSecret).
 				Sub(context.Background(), tc.params)
 
 			require.ErrorIs(t, err, tc.err)

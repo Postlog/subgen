@@ -181,7 +181,7 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 	// Per-engine subscription renderers, keyed by config kind. Adding an engine = a
 	// new engineRenderer + one entry here; the route and handler don't change.
 	renderers := map[entity.ConfigKind]sub.EngineRenderer{
-		entity.ConfigKindMihomo: sub.NewMihomoRenderer(routingRepo, cfg.PublicBase, cfg.Filename),
+		entity.ConfigKindMihomo: sub.NewMihomoRenderer(routingRepo, cfg.PublicBase),
 	}
 
 	sess := web.NewSession(cfg.Secret)
@@ -195,8 +195,7 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 	composite := api.New(sess, api.Handlers{
 		Healthz: healthz.New(),
 		Sub: sub.New(
-			usersRepo, fleetSvc, configsRepo, renderers,
-			cfg.Secret, cfg.ProfileTitle, cfg.ProfileUpdateInterval,
+			usersRepo, fleetSvc, configsRepo, renderers, cfg.Secret,
 		),
 		Rules:      rules.New(mirror),
 		Login:      loginHandler,

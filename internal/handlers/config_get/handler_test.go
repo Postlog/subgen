@@ -33,10 +33,15 @@ func TestHandler_ConfigGet(t *testing.T) {
 			buildConfigsMock: func(m *MockconfigResolver) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
+			// No config row yet → the handler substitutes the code defaults for the
+			// profile knobs so the UI shows the effective values.
 			result: &oas.MihomoConfig{
-				Groups:    []oas.MihomoGroup{},
-				Rules:     []oas.MihomoRule{},
-				Providers: []oas.MihomoProvider{},
+				Groups:                []oas.MihomoGroup{},
+				Rules:                 []oas.MihomoRule{},
+				Providers:             []oas.MihomoProvider{},
+				ProfileTitle:          mihomo.DefaultProfileTitle,
+				Filename:              mihomo.DefaultFilename,
+				ProfileUpdateInterval: mihomo.DefaultUpdateInterval,
 			},
 		},
 		{
@@ -52,12 +57,16 @@ func TestHandler_ConfigGet(t *testing.T) {
 				m.EXPECT().ProxyGroups(gomock.Any(), int64(7)).Return(nil, nil)
 				m.EXPECT().RuleProviders(gomock.Any(), int64(7)).Return(nil, nil)
 				m.EXPECT().Setting(gomock.Any(), int64(7), "base_yaml").Return("mode: rule\n", nil)
+				m.EXPECT().Profile(gomock.Any(), int64(7)).Return(mihomo.Profile{Title: "X", Filename: "x.yaml", UpdateInterval: 12}, nil)
 			},
 			result: &oas.MihomoConfig{
-				BaseYAML:  "mode: rule\n",
-				Groups:    []oas.MihomoGroup{},
-				Rules:     []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
-				Providers: []oas.MihomoProvider{},
+				BaseYAML:              "mode: rule\n",
+				Groups:                []oas.MihomoGroup{},
+				Rules:                 []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
+				Providers:             []oas.MihomoProvider{},
+				ProfileTitle:          "X",
+				Filename:              "x.yaml",
+				ProfileUpdateInterval: 12,
 			},
 		},
 		{

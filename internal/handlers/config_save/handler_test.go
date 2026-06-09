@@ -22,9 +22,12 @@ func TestHandler_ConfigSave(t *testing.T) {
 	// leaves the save scope as the base; >0 sets the per-user scope.
 	validReq := func(userID int64) *oas.ConfigSaveReq {
 		req := &oas.ConfigSaveReq{
-			Rules:     []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
-			Groups:    []oas.MihomoGroup{},
-			Providers: []oas.MihomoProvider{},
+			Rules:                 []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
+			Groups:                []oas.MihomoGroup{},
+			Providers:             []oas.MihomoProvider{},
+			ProfileTitle:          "My VPN",
+			Filename:              "my.yaml",
+			ProfileUpdateInterval: 6,
 		}
 		if userID != 0 {
 			req.UserId = oas.NewOptInt64(userID)
@@ -37,6 +40,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 	wantRules := []mihomo.RoutingRule{{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}}}
 	wantGroups := []mihomo.ProxyGroup{}
 	wantProvs := []mihomo.RuleProvider(nil)
+	wantProfile := mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6}
 
 	tt := []struct {
 		name string
@@ -56,7 +60,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			},
 			buildRoutingMock: func(m *MockmihomoSaver) {
 				m.EXPECT().
-					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "").
+					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "", wantProfile).
 					Return(nil)
 			},
 			result: &oas.MessageResponse{Message: "Конфиг сохранён"},
@@ -90,7 +94,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			},
 			buildRoutingMock: func(m *MockmihomoSaver) {
 				m.EXPECT().
-					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "").
+					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "", wantProfile).
 					Return(entity.ErrRuleProviderNameTaken)
 			},
 			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProviderNameTaken},

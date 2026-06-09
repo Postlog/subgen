@@ -46,12 +46,16 @@ type ConfigProvider struct {
 }
 
 // Config is the whole mihomo routing config (read via ReadConfig, posted via
-// SaveConfig).
+// SaveConfig). The profile* fields are required by the save schema, so they are sent
+// unconditionally (no omitempty) — a zero value reads back as the server default.
 type Config struct {
-	Rules     []ConfigRule     `json:"rules"`
-	Groups    []ConfigGroup    `json:"groups"`
-	Providers []ConfigProvider `json:"providers"`
-	BaseYAML  string           `json:"baseYAML"`
+	Rules                 []ConfigRule     `json:"rules"`
+	Groups                []ConfigGroup    `json:"groups"`
+	Providers             []ConfigProvider `json:"providers"`
+	BaseYAML              string           `json:"baseYAML"`
+	ProfileTitle          string           `json:"profileTitle"`
+	Filename              string           `json:"filename"`
+	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
 }
 
 // ReadConfig GETs /admin/api/config/mihomo.

@@ -16,8 +16,9 @@ import (
 //   - headers     — Content-Type text/yaml; a base64 Profile-Title; a Content-Disposition
 //                   filename; a Profile-Update-Interval; and a Subscription-Userinfo line.
 //
-// The server boots with the defaults (profile title "Freedom", filename "freedom.yaml",
-// update interval 24), so the header values are asserted against those.
+// With no config saved, the profile knobs fall back to the code defaults (profile
+// title "Freedom", filename "freedom.yaml", update interval 1 hour), so the header
+// values are asserted against those.
 
 // TestSubValid covers the happy subscription fetch for a provisioned user.
 func (s *SubPanelSuite) TestSubValid() {
@@ -49,7 +50,7 @@ func (s *SubPanelSuite) TestSubValid() {
 		s.Contains(resp.Headers.Get("Content-Disposition"), `filename="freedom.yaml"`)
 
 		// The refresh hint and the traffic line are present.
-		s.Equal("24", resp.Headers.Get("Profile-Update-Interval"))
+		s.Equal("1", resp.Headers.Get("Profile-Update-Interval"))
 		s.Contains(resp.Headers.Get("Subscription-Userinfo"), "upload=")
 		s.Contains(resp.Headers.Get("Subscription-Userinfo"), "download=")
 	})

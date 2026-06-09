@@ -62,7 +62,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	rules, groups, provs, base, err := mihomo.DecodeConfig(raw)
+	rules, groups, provs, base, profile, err := mihomo.DecodeConfig(raw)
 	if err == nil {
 		err = mihomo.ValidateBaseYAML(base)
 	}
@@ -108,7 +108,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base); err != nil {
+	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base, profile); err != nil {
 		if errors.Is(err, entity.ErrRuleProviderNameTaken) {
 			slog.Warn("handler config_save: rule-provider name taken", "configID", configID)
 			return &oas.ConfigSaveBadRequest{ErrMessage: msgProviderNameTaken}, nil

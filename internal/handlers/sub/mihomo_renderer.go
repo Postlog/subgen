@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/mihomo/render"
 )
 
@@ -26,8 +25,9 @@ func NewMihomoRenderer(routing mihomoReader, publicBase string) *MihomoRenderer 
 func (m *MihomoRenderer) Kind() entity.ConfigKind { return entity.ConfigKindMihomo }
 
 // Render builds the mihomo YAML for one subscriber against the given config and reads
-// the config's profile knobs (filename, title, update interval) for the response meta,
-// substituting the code defaults for any unset field.
+// the config's profile knobs (filename, title, update interval) for the response meta.
+// The knobs are served as stored — there are no code defaults; an unconfigured config
+// yields empty header values.
 func (m *MihomoRenderer) Render(ctx context.Context, sub *entity.Subscriber, configID int64) ([]byte, RenderMeta, error) {
 	opts, err := m.options(ctx, configID)
 	if err != nil {
@@ -42,18 +42,6 @@ func (m *MihomoRenderer) Render(ctx context.Context, sub *entity.Subscriber, con
 	profile, err := m.routing.Profile(ctx, configID)
 	if err != nil {
 		return nil, RenderMeta{}, err
-	}
-
-	if profile.Title == "" {
-		profile.Title = mihomo.DefaultProfileTitle
-	}
-
-	if profile.Filename == "" {
-		profile.Filename = mihomo.DefaultFilename
-	}
-
-	if profile.UpdateInterval <= 0 {
-		profile.UpdateInterval = mihomo.DefaultUpdateInterval
 	}
 
 	meta := RenderMeta{

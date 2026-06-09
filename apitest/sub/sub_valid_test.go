@@ -16,12 +16,26 @@ import (
 //   - headers     — Content-Type text/yaml; a base64 Profile-Title; a Content-Disposition
 //                   filename; a Profile-Update-Interval; and a Subscription-Userinfo line.
 //
-// With no config saved, the profile knobs fall back to the code defaults (profile
-// title "Freedom", filename "freedom.yaml", update interval 1 hour), so the header
-// values are asserted against those.
+// The profile knobs are operator-set (no code defaults), so the test first saves a base
+// config with an explicit profile and asserts the response headers echo exactly that.
+
+// Profile knobs saved on the base config and expected back in the subscription headers.
+const (
+	subProfileTitle    = "Fleet"
+	subProfileFilename = "fleet.yaml"
+	subProfileInterval = "4"
+)
 
 // TestSubValid covers the happy subscription fetch for a provisioned user.
 func (s *SubPanelSuite) TestSubValid() {
+	// The profile is operator-set: configure the base config so the subscription has
+	// concrete header values (there are no server-side defaults).
+	cfgRes, err := s.API().SaveConfig(api.Config{
+		ProfileTitle: subProfileTitle, Filename: subProfileFilename, ProfileUpdateInterval: 4,
+	})
+	s.Require().NoError(err)
+	s.Require().True(cfgRes.OK, "save base config: %s", cfgRes.Message())
+
 	name := s.UniqueName("su")
 	res, err := s.API().CreateUser(name, []int64{s.InboundID("N1", "smart")})
 	s.Require().NoError(err)
@@ -44,13 +58,13 @@ func (s *SubPanelSuite) TestSubValid() {
 		s.True(strings.HasPrefix(pt, "base64:"), "Profile-Title must be base64-prefixed: %q", pt)
 		dec, derr := base64.StdEncoding.DecodeString(strings.TrimPrefix(pt, "base64:"))
 		s.Require().NoError(derr)
-		s.Equal("Freedom", string(dec))
+		s.Equal(subProfileTitle, string(dec))
 
 		// Content-Disposition carries the configured filename.
-		s.Contains(resp.Headers.Get("Content-Disposition"), `filename="freedom.yaml"`)
+		s.Contains(resp.Headers.Get("Content-Disposition"), `filename="`+subProfileFilename+`"`)
 
 		// The refresh hint and the traffic line are present.
-		s.Equal("1", resp.Headers.Get("Profile-Update-Interval"))
+		s.Equal(subProfileInterval, resp.Headers.Get("Profile-Update-Interval"))
 		s.Contains(resp.Headers.Get("Subscription-Userinfo"), "upload=")
 		s.Contains(resp.Headers.Get("Subscription-Userinfo"), "download=")
 	})

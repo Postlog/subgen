@@ -5,13 +5,13 @@
 # inbounds it needs. Bound to localhost only.
 services:
   panel1:
-    image: ghcr.io/mhsanaei/3x-ui:latest
+    image: ghcr.io/mhsanaei/3x-ui:v3.2.6
     container_name: subgen-apitest-panel1
     ports:
       - "127.0.0.1:13053:2053"
     restart: "no"
   panel2:
-    image: ghcr.io/mhsanaei/3x-ui:latest
+    image: ghcr.io/mhsanaei/3x-ui:v3.2.6
     container_name: subgen-apitest-panel2
     ports:
       - "127.0.0.1:13054:2053"

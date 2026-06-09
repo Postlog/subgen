@@ -13,6 +13,7 @@ var (
 	ErrInboundDuplicate      = errors.New("inbound name or port already used on node")
 	ErrRuleProviderNameTaken = errors.New("rule-provider name already taken")
 	ErrNoConnectionSelected  = errors.New("no connection selected")
+	ErrDescriptionTooLong    = errors.New("description too long")
 	ErrNodeNotFound          = errors.New("node not found")
 	ErrInboundNotFound       = errors.New("inbound not found")
 	ErrInboundReferenced     = errors.New("inbound still referenced")

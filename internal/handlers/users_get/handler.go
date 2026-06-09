@@ -77,6 +77,10 @@ func (h *Handler) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.
 			Sub: oas.UsersGetOKUsersItemSub{ID: u.SubID, URL: base + "/sub/mihomo/" + token.Make(h.secret, u.SubID)},
 		}
 
+		if u.Description != nil {
+			row.Description = oas.NewOptString(*u.Description)
+		}
+
 		if sub := fl.Sub(u.SubID); sub != nil {
 			row.Stats = oas.UsersGetOKUsersItemStats{Up: sub.Up, Down: sub.Down}
 		}

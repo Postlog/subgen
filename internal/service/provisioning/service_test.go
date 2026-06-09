@@ -3,6 +3,7 @@ package provisioning
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/postlog/subgen/internal/entity"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 var ctx = context.Background()
@@ -81,23 +83,28 @@ func TestService_CreateUser(t *testing.T) {
 
 	tt := []struct {
 		name       string
-		inName     string
-		sel        entity.ConnectionSelection
+		in         entity.UserCreateParams
 		buildMocks func(m *mocks)
 		wantConns  int
 		err        error // sentinel/target to ErrorIs; nil => success
 	}{
 		{
-			name: "error.no_connection", inName: "postlog", err: entity.ErrNoConnectionSelected,
+			name: "error.no_connection", in: entity.UserCreateParams{Name: "postlog"}, err: entity.ErrNoConnectionSelected,
 		},
 		{
-			name: "error.invalid_name", inName: "Bad Name",
-			sel: entity.ConnectionSelection{InboundIDs: []int64{10}}, err: entity.ErrInvalidUserName,
+			name: "error.invalid_name",
+			in:   entity.UserCreateParams{Name: "Bad Name", InboundIDs: []int64{10}}, err: entity.ErrInvalidUserName,
+		},
+		{
+			// Description is validated (length) before the registry is touched → no mocks.
+			name: "error.description_too_long",
+			in:   entity.UserCreateParams{Name: "postlog", Description: utils.Ptr(strings.Repeat("я", maxDescriptionLen+1)), InboundIDs: []int64{10}},
+			err:  entity.ErrDescriptionTooLong,
 		},
 		{
 			// Name uniqueness now comes from the users.name constraint: Create returns
 			// entity.ErrNameTaken (no pre-check). The service propagates it.
-			name: "error.name_taken", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{10}},
+			name: "error.name_taken", in: entity.UserCreateParams{Name: "postlog", InboundIDs: []int64{10}},
 			err: entity.ErrNameTaken,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
@@ -106,7 +113,7 @@ func TestService_CreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "error.unknown_inbound", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{999}},
+			name: "error.unknown_inbound", in: entity.UserCreateParams{Name: "postlog", InboundIDs: []int64{999}},
 			err: entity.ErrInboundNotFound,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
@@ -115,14 +122,14 @@ func TestService_CreateUser(t *testing.T) {
 		{
 			// A non-positive inbound id (the moved-from-schema minimum:1 guard) has no
 			// match — same as any unknown id → ErrInboundNotFound (no longer silently skipped).
-			name: "error.zero_inbound", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{0}},
+			name: "error.zero_inbound", in: entity.UserCreateParams{Name: "postlog", InboundIDs: []int64{0}},
 			err: entity.ErrInboundNotFound,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 			},
 		},
 		{
-			name: "error.create_repo", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{10}},
+			name: "error.create_repo", in: entity.UserCreateParams{Name: "postlog", InboundIDs: []int64{10}},
 			err: targetErr,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
@@ -135,9 +142,9 @@ func TestService_CreateUser(t *testing.T) {
 			// A client with our email (nickname) already exists on a target panel —
 			// orphan, manual, or half-finished delete. Create must ABORT, touching
 			// nothing: no store row, no DelClient, no AddClient.
-			name: "error.email_exists_on_panel", inName: "postlog",
-			sel: entity.ConnectionSelection{InboundIDs: []int64{10}},
-			err: entity.PanelClientExistsError{Node: "N1"},
+			name: "error.email_exists_on_panel",
+			in:   entity.UserCreateParams{Name: "postlog", InboundIDs: []int64{10}},
+			err:  entity.PanelClientExistsError{Node: "N1"},
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return([]entity.PanelInbound{
@@ -147,12 +154,14 @@ func TestService_CreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "success.two_inbounds_same_node", inName: "postlog",
-			sel:       entity.ConnectionSelection{InboundIDs: []int64{10, 11}},
+			// Description is trimmed before storage: the leading/trailing spaces are dropped,
+			// so Create receives the normalised value.
+			name:      "success.two_inbounds_same_node",
+			in:        entity.UserCreateParams{Name: "postlog", Description: utils.Ptr("  рабочий ноутбук  "), InboundIDs: []int64{10, 11}},
 			wantConns: 2,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Connections: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
+				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Description: utils.Ptr("рабочий ноутбук"), Connections: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
 				// ListInbounds twice: pre-flight email check + syncPanels lookup; the
 				// panel has no "postlog" client → free.
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil).Times(2)
@@ -173,7 +182,7 @@ func TestService_CreateUser(t *testing.T) {
 			}
 
 			svc := newService(m)
-			u, err := svc.CreateUser(ctx, tc.inName, tc.sel)
+			u, err := svc.CreateUser(ctx, tc.in)
 
 			if tc.err != nil {
 				require.ErrorIs(t, err, tc.err)
@@ -183,6 +192,9 @@ func TestService_CreateUser(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, u.Connections, tc.wantConns)
 			assert.Equal(t, fixedSubID, u.SubID)
+
+			wantDesc, _ := validateDescription(tc.in.Description)
+			assert.Equal(t, wantDesc, u.Description)
 		})
 	}
 }

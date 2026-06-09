@@ -10,8 +10,10 @@ import (
 func (r *Repository) Get(ctx context.Context, id int64) (*entity.User, error) {
 	var u entity.User
 
-	err := r.db.QueryRowContext(ctx, `SELECT id,name,sub_id,created_at FROM users WHERE id=?`, id).
-		Scan(&u.ID, &u.Name, &u.SubID, &u.CreatedAt)
+	// description is nullable; database/sql scans a NULL column straight into the
+	// *string (nil) and a value into a fresh string — no sql.Null* proxy needed.
+	err := r.db.QueryRowContext(ctx, `SELECT id,name,sub_id,description,created_at FROM users WHERE id=?`, id).
+		Scan(&u.ID, &u.Name, &u.SubID, &u.Description, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

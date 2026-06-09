@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -56,6 +57,30 @@ func validateName(name string) (string, error) {
 	}
 
 	return name, nil
+}
+
+// maxDescriptionLen bounds the optional free-text description (in runes — it is UTF-8
+// admin text). Over-length input is rejected with entity.ErrDescriptionTooLong.
+const maxDescriptionLen = 500
+
+// validateDescription trims the optional description, collapses a nil-or-blank value to
+// nil (so "no description" has a single representation, NULL, end to end), and enforces
+// the length bound. Returns the normalised value or entity.ErrDescriptionTooLong.
+func validateDescription(d *string) (*string, error) {
+	if d == nil {
+		return nil, nil
+	}
+
+	t := strings.TrimSpace(*d)
+	if t == "" {
+		return nil, nil
+	}
+
+	if utf8.RuneCountInString(t) > maxDescriptionLen {
+		return nil, entity.ErrDescriptionTooLong
+	}
+
+	return &t, nil
 }
 
 // connTarget is one inbound a user should be bound to.
@@ -97,12 +122,12 @@ func (s *Service) nodeIndex(ctx context.Context) (byID map[int64]entity.Node, in
 // must be a real (positive, existing) inbound; any number may be selected. Duplicate ids
 // are ignored. A non-positive id (the moved-from-schema minimum:1 guard) has no match and
 // so yields ErrInboundNotFound, same as any unknown id.
-func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, sel entity.ConnectionSelection) ([]connTarget, error) {
+func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, inboundIDs []int64) ([]connTarget, error) {
 	var ts []connTarget
 
 	seen := map[int64]bool{}
 
-	for _, id := range sel.InboundIDs {
+	for _, id := range inboundIDs {
 		if seen[id] {
 			continue
 		}
@@ -122,16 +147,22 @@ func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, sel entity.Co
 	return ts, nil
 }
 
-// CreateUser validates the name, mints a sub_id, stores the user with its
-// connections, and provisions one 3x-ui client per panel (email = name).
-func (s *Service) CreateUser(ctx context.Context, name string, sel entity.ConnectionSelection) (*entity.User, error) {
-	name, err := validateName(name)
+// CreateUser validates the name, mints a sub_id, stores the user with its connections
+// (and the optional free-text description), and provisions one 3x-ui client per panel
+// (email = name).
+func (s *Service) CreateUser(ctx context.Context, p entity.UserCreateParams) (*entity.User, error) {
+	name, err := validateName(p.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	if sel.Empty() {
+	if len(p.InboundIDs) == 0 {
 		return nil, entity.ErrNoConnectionSelected
+	}
+
+	desc, err := validateDescription(p.Description)
+	if err != nil {
+		return nil, err
 	}
 	// Name uniqueness is enforced by the users.name constraint: users.Create returns
 	// entity.ErrNameTaken on a duplicate (no pre-check SELECT).
@@ -140,7 +171,7 @@ func (s *Service) CreateUser(ctx context.Context, name string, sel entity.Connec
 		return nil, err
 	}
 
-	targets, err := s.desiredTargets(inboundByID, sel)
+	targets, err := s.desiredTargets(inboundByID, p.InboundIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +181,7 @@ func (s *Service) CreateUser(ctx context.Context, name string, sel entity.Connec
 		return nil, err
 	}
 
-	u := &entity.User{Name: name, SubID: s.genID(16)}
+	u := &entity.User{Name: name, SubID: s.genID(16), Description: desc}
 	for _, t := range targets {
 		u.Connections = append(u.Connections, entity.Connection{InboundID: t.InboundID})
 	}
@@ -166,15 +197,20 @@ func (s *Service) CreateUser(ctx context.Context, name string, sel entity.Connec
 	return u, nil
 }
 
-// EditUser reconciles a user's inbound set to the new selection, then re-binds the
-// affected panels' client to match. Identity (name/sub_id, and per-panel uuid
-// where possible) is preserved.
-func (s *Service) EditUser(ctx context.Context, id int64, sel entity.ConnectionSelection) error {
-	if sel.Empty() {
+// EditUser reconciles a user's inbound set to the new selection and updates the optional
+// free-text description, then re-binds the affected panels' client to match. Identity
+// (name/sub_id, and per-panel uuid where possible) is preserved.
+func (s *Service) EditUser(ctx context.Context, p entity.UserEditParams) error {
+	if len(p.InboundIDs) == 0 {
 		return entity.ErrNoConnectionSelected
 	}
 
-	u, err := s.users.Get(ctx, id)
+	desc, err := validateDescription(p.Description)
+	if err != nil {
+		return err
+	}
+
+	u, err := s.users.Get(ctx, p.ID)
 	if err != nil {
 		return fmt.Errorf("users.Get: %w", err)
 	}
@@ -184,7 +220,7 @@ func (s *Service) EditUser(ctx context.Context, id int64, sel entity.ConnectionS
 		return err
 	}
 
-	desired, err := s.desiredTargets(inboundByID, sel)
+	desired, err := s.desiredTargets(inboundByID, p.InboundIDs)
 	if err != nil {
 		return err
 	}
@@ -203,6 +239,10 @@ func (s *Service) EditUser(ctx context.Context, id int64, sel entity.ConnectionS
 
 	if err := s.users.ReplaceConnections(ctx, u.ID, inbIDs); err != nil {
 		return fmt.Errorf("users.ReplaceConnections: %w", err)
+	}
+
+	if err := s.users.SetDescription(ctx, u.ID, desc); err != nil {
+		return fmt.Errorf("users.SetDescription: %w", err)
 	}
 
 	return s.syncPanels(ctx, byID, u, old, desired, false)

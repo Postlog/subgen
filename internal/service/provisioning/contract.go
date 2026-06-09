@@ -12,6 +12,7 @@ type userRepo interface {
 	Get(ctx context.Context, id int64) (*entity.User, error)
 	Create(ctx context.Context, u *entity.User) error
 	ReplaceConnections(ctx context.Context, userID int64, inboundIDs []int64) error
+	SetDescription(ctx context.Context, userID int64, description *string) error
 	Delete(ctx context.Context, id int64) error
 }
 

@@ -46,6 +46,9 @@ get:
                       format: int64
                     name:
                       type: string
+                    description:
+                      type: string
+                      description: Optional free-text note, shown only in the admin UI; omitted when unset.
                     sub:
                       type: object
                       required: [id, url]

@@ -39,7 +39,7 @@ func TestRepository_Get(t *testing.T) {
 			var smartID int64
 			if tc.seed {
 				smartID = seed.Smart.ID
-				u := &entity.User{Name: "alice", SubID: "sub-alice",
+				u := &entity.User{Name: "alice", SubID: "sub-alice", Description: dbtest.Ptr("work laptop"),
 					Connections: []entity.Connection{{InboundID: smartID}}}
 				require.NoError(t, repo.Create(t.Context(), u))
 				id = u.ID
@@ -56,6 +56,8 @@ func TestRepository_Get(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "alice", got.Name)
 			assert.Equal(t, "sub-alice", got.SubID)
+			require.NotNil(t, got.Description)
+			assert.Equal(t, "work laptop", *got.Description)
 			assert.NotZero(t, got.CreatedAt)
 
 			// The connection is hydrated with the joined node/inbound fields.

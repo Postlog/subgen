@@ -15,6 +15,9 @@ post:
             id:
               type: integer
               format: int64
+            description:
+              type: string
+              description: Optional free-text note, shown only in the admin UI (length validated server-side).
             inboundIDs:
               type: array
               items:

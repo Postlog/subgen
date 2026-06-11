@@ -5,6 +5,15 @@
 в [`AGENTS.md`](AGENTS.md) (раздел «Документирование изменений»). Версий/тегов нет:
 сервис не релизится, деплой непрерывный.
 
+## 2026-06-11 — Пользователь: опциональное описание для админки (#15)
+
+У пользователя появилось опциональное свободнотекстовое описание (`*string`, nillable;
+видно только в админ-UI): задаётся при создании/редактировании, показывается иконкой с
+тултипом в таблице. Колонка `users.description` (nullable) добавляется миграцией
+`migrations/0002-users-description.sql` через раннер. Сервисные входы вынесены в структуры
+`entity.UserCreateParams` / `entity.UserEditParams` (убрал `entity.ConnectionSelection`).
+См. [ADR-0004](docs/decisions/0004-optional-user-description.md).
+
 ## 2026-06-11 — Валидация запросов — в сервисном слое, не в OpenAPI (#19)
 
 Из `openapi/*.yaml` убраны все value-constraints (`minLength`/`minItems`/`minimum`) —

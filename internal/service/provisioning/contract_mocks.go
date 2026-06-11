@@ -98,6 +98,20 @@ func (mr *MockuserRepoMockRecorder) ReplaceConnections(ctx, userID, inboundIDs a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceConnections", reflect.TypeOf((*MockuserRepo)(nil).ReplaceConnections), ctx, userID, inboundIDs)
 }
 
+// SetDescription mocks base method.
+func (m *MockuserRepo) SetDescription(ctx context.Context, userID int64, description *string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetDescription", ctx, userID, description)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetDescription indicates an expected call of SetDescription.
+func (mr *MockuserRepoMockRecorder) SetDescription(ctx, userID, description any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDescription", reflect.TypeOf((*MockuserRepo)(nil).SetDescription), ctx, userID, description)
+}
+
 // MocknodeRepo is a mock of nodeRepo interface.
 type MocknodeRepo struct {
 	ctrl     *gomock.Controller

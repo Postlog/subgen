@@ -36,11 +36,12 @@ type UserStats struct {
 
 // User is one row of the users API (GET /admin/api/users).
 type User struct {
-	ID       int64         `json:"id"`
-	Name     string        `json:"name"`
-	Sub      UserSub       `json:"sub"`
-	Inbounds []UserInbound `json:"inbounds"`
-	Stats    UserStats     `json:"stats"`
+	ID          int64         `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Sub         UserSub       `json:"sub"`
+	Inbounds    []UserInbound `json:"inbounds"`
+	Stats       UserStats     `json:"stats"`
 }
 
 // CreateUser POSTs /admin/api/users/create (nickname + the inbound ids to bind).
@@ -48,9 +49,20 @@ func (c *Client) CreateUser(name string, inboundIDs []int64) (Result, error) {
 	return c.post("/admin/api/users/create", map[string]any{"name": name, "inboundIDs": inboundIDs})
 }
 
+// CreateUserWith POSTs /admin/api/users/create with an optional free-text description
+// (the description-less CreateUser stays churn-free for the many scenarios that ignore it).
+func (c *Client) CreateUserWith(name string, inboundIDs []int64, description string) (Result, error) {
+	return c.post("/admin/api/users/create", map[string]any{"name": name, "inboundIDs": inboundIDs, "description": description})
+}
+
 // EditUser POSTs /admin/api/users/edit (re-bind a user to a new inbound-id set).
 func (c *Client) EditUser(id int64, inboundIDs []int64) (Result, error) {
 	return c.post("/admin/api/users/edit", map[string]any{"id": id, "inboundIDs": inboundIDs})
+}
+
+// EditUserWith POSTs /admin/api/users/edit with a description alongside the new inbound set.
+func (c *Client) EditUserWith(id int64, inboundIDs []int64, description string) (Result, error) {
+	return c.post("/admin/api/users/edit", map[string]any{"id": id, "inboundIDs": inboundIDs, "description": description})
 }
 
 // DeleteUser POSTs /admin/api/users/delete.

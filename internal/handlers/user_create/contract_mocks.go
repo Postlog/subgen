@@ -42,16 +42,16 @@ func (m *Mockcreator) EXPECT() *MockcreatorMockRecorder {
 }
 
 // CreateUser mocks base method.
-func (m *Mockcreator) CreateUser(ctx context.Context, name string, sel entity.ConnectionSelection) (*entity.User, error) {
+func (m *Mockcreator) CreateUser(ctx context.Context, p entity.UserCreateParams) (*entity.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, name, sel)
+	ret := m.ctrl.Call(m, "CreateUser", ctx, p)
 	ret0, _ := ret[0].(*entity.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateUser indicates an expected call of CreateUser.
-func (mr *MockcreatorMockRecorder) CreateUser(ctx, name, sel any) *gomock.Call {
+func (mr *MockcreatorMockRecorder) CreateUser(ctx, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*Mockcreator)(nil).CreateUser), ctx, name, sel)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*Mockcreator)(nil).CreateUser), ctx, p)
 }

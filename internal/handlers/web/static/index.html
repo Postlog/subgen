@@ -60,7 +60,7 @@
           <thead><tr><th>Имя</th><th>Подключения</th><th>Трафик</th><th>Подписка</th><th></th></tr></thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" :class="{acting:actingId===u.id}">
-              <td class="uname">{{ u.name }}</td>
+              <td class="uname">{{ u.name }}<span v-if="u.description" class="udesc"><svg class="udesc-ic" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity=".16"></circle><circle cx="8" cy="4.7" r="1" fill="currentColor"></circle><rect x="7" y="6.7" width="2" height="5" rx="1" fill="currentColor"></rect></svg><span class="udesc-pop">{{ u.description }}</span></span></td>
               <td>
                 <div v-if="u.inbounds.length" class="conn">
                   <span class="badge tag" :class="u.inbounds[0].missing ? 'miss' : 'inb'">
@@ -343,6 +343,11 @@
         <input class="form-control" v-model="uForm.name" maxlength="32" @keyup.enter="submitUser()">
       </div>
       <div v-else class="mb-3 text-dim">Пользователь <span class="fw-semibold">{{ uForm.name }}</span></div>
+
+      <div class="mb-3">
+        <label class="form-label">Описание <span class="text-dim small">(необязательно)</span></label>
+        <textarea class="form-control" v-model="uForm.description" maxlength="500" rows="2" placeholder="Заметка, видна только в админке"></textarea>
+      </div>
 
       <div>
         <label class="form-label">Инбаунды</label>

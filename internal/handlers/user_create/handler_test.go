@@ -11,10 +11,13 @@ import (
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/oas"
+	"github.com/postlog/subgen/internal/utils"
 )
 
-// sel is the ConnectionSelection the handler builds from a request's inbound ids.
-func sel(ids ...int64) entity.ConnectionSelection { return entity.ConnectionSelection{InboundIDs: ids} }
+// params is the entity.UserCreateParams the handler builds from a request (no description).
+func params(name string, ids ...int64) entity.UserCreateParams {
+	return entity.UserCreateParams{Name: name, InboundIDs: ids}
+}
 
 func TestHandler_UserCreate(t *testing.T) {
 	internalErr := errors.New("db down")
@@ -30,9 +33,11 @@ func TestHandler_UserCreate(t *testing.T) {
 	}{
 		{
 			name: "success",
-			req:  &oas.UserCreateReq{Name: "alice", InboundIDs: []int64{1, 2}},
+			req:  &oas.UserCreateReq{Name: "alice", Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "alice", sel(1, 2)).Return(&entity.User{ID: 7}, nil)
+				m.EXPECT().CreateUser(gomock.Any(), entity.UserCreateParams{
+					Name: "alice", Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
+				}).Return(&entity.User{ID: 7}, nil)
 			},
 			result: &oas.MessageResponse{Message: MsgCreated},
 		},
@@ -40,7 +45,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.name_taken",
 			req:  &oas.UserCreateReq{Name: "bob", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "bob", sel(1)).Return(nil, entity.ErrNameTaken)
+				m.EXPECT().CreateUser(gomock.Any(), params("bob", 1)).Return(nil, entity.ErrNameTaken)
 			},
 			result: &oas.UserCreateConflict{ErrMessage: MsgNameTaken},
 		},
@@ -48,7 +53,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.panel_client_exists",
 			req:  &oas.UserCreateReq{Name: "bob", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "bob", sel(1)).Return(nil, entity.PanelClientExistsError{Node: "N1"})
+				m.EXPECT().CreateUser(gomock.Any(), params("bob", 1)).Return(nil, entity.PanelClientExistsError{Node: "N1"})
 			},
 			result: &oas.UserCreateConflict{ErrMessage: "на панели «N1» уже есть клиент с таким именем — удалите его там вручную или выберите другое имя"},
 		},
@@ -56,7 +61,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.invalid_name",
 			req:  &oas.UserCreateReq{Name: "bad name", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "bad name", sel(1)).Return(nil, entity.ErrInvalidUserName)
+				m.EXPECT().CreateUser(gomock.Any(), params("bad name", 1)).Return(nil, entity.ErrInvalidUserName)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgInvalidName},
 		},
@@ -64,15 +69,23 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.no_connection",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "carol", sel(1)).Return(nil, entity.ErrNoConnectionSelected)
+				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrNoConnectionSelected)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgNoConnection},
+		},
+		{
+			name: "error.description_too_long",
+			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
+			buildCreatorMock: func(m *Mockcreator) {
+				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrDescriptionTooLong)
+			},
+			result: &oas.UserCreateBadRequest{ErrMessage: MsgDescTooLong},
 		},
 		{
 			name: "error.inbound_not_found",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{99}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "carol", sel(99)).Return(nil, entity.ErrInboundNotFound)
+				m.EXPECT().CreateUser(gomock.Any(), params("carol", 99)).Return(nil, entity.ErrInboundNotFound)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgInboundNotFound},
 		},
@@ -80,7 +93,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.node_not_found",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "carol", sel(1)).Return(nil, entity.ErrNodeNotFound)
+				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrNodeNotFound)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgNodeNotFound},
 		},
@@ -88,7 +101,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			name: "error.internal",
 			req:  &oas.UserCreateReq{Name: "dave", InboundIDs: []int64{1}},
 			buildCreatorMock: func(m *Mockcreator) {
-				m.EXPECT().CreateUser(gomock.Any(), "dave", sel(1)).Return(nil, internalErr)
+				m.EXPECT().CreateUser(gomock.Any(), params("dave", 1)).Return(nil, internalErr)
 			},
 			err: internalErr,
 		},

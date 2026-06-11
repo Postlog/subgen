@@ -23,6 +23,7 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/repository"
 	"github.com/postlog/subgen/internal/repository/nodes"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 // OpenDB opens a brand-new SQLite database in the test's own temp dir (schema
@@ -115,9 +116,9 @@ func SeedConfig(t *testing.T, db *sql.DB) int64 {
 	return id
 }
 
-// Ptr returns a pointer to v — for the *int64 ids inside mihomo.PolicyRef (InboundID /
-// GroupID), which are nil for built-in policies and set for inbound/group refs.
-func Ptr[T any](v T) *T { return &v }
+// Ptr is the shared utils.Ptr, re-exported for the integration tests' ergonomics (the
+// *int64 ids inside mihomo.PolicyRef, etc.). One universal pointer helper lives in utils.
+func Ptr[T any](v T) *T { return utils.Ptr(v) }
 
 // RuleToInbound builds a single MATCH rule whose target is the given inbound id — the
 // minimal mihomo config that holds an FK to node_inbounds (for the RESTRICT tests).

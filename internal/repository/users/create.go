@@ -20,7 +20,7 @@ func (r *Repository) Create(ctx context.Context, u *entity.User) error {
 
 	now := time.Now().Unix()
 
-	res, err := tx.ExecContext(ctx, `INSERT INTO users(name,sub_id,created_at) VALUES(?,?,?)`, u.Name, u.SubID, now)
+	res, err := tx.ExecContext(ctx, `INSERT INTO users(name,sub_id,description,created_at) VALUES(?,?,?,?)`, u.Name, u.SubID, u.Description, now)
 	if err != nil {
 		if dberr.IsUniqueViolation(err) {
 			return entity.ErrNameTaken

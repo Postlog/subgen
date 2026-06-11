@@ -19,6 +19,7 @@ const (
 	MsgNoConnection    = "Выберите хотя бы одно подключение"
 	MsgInboundNotFound = "Указанный инбаунд не найден"
 	MsgNodeNotFound    = "Узел не найден"
+	MsgDescTooLong     = "Описание слишком длинное (максимум 500 символов)"
 )
 
 // Handler provisions a new user.
@@ -32,7 +33,16 @@ func New(svc creator) *Handler { return &Handler{svc: svc} }
 // UserCreate implements oas.Handler: a nickname clash (or a panel client clash) is a
 // 409, other invalid input is a 400, and any unexpected (infra) failure is a 500.
 func (h *Handler) UserCreate(ctx context.Context, req *oas.UserCreateReq) (oas.UserCreateRes, error) {
-	_, err := h.svc.CreateUser(ctx, req.Name, entity.ConnectionSelection{InboundIDs: req.InboundIDs})
+	var desc *string
+	if v, ok := req.Description.Get(); ok {
+		desc = &v
+	}
+
+	_, err := h.svc.CreateUser(ctx, entity.UserCreateParams{
+		Name:        req.Name,
+		Description: desc,
+		InboundIDs:  req.InboundIDs,
+	})
 	if err == nil {
 		return &oas.MessageResponse{Message: MsgCreated}, nil
 	}
@@ -52,6 +62,9 @@ func (h *Handler) UserCreate(ctx context.Context, req *oas.UserCreateReq) (oas.U
 	case errors.Is(err, entity.ErrNoConnectionSelected):
 		slog.Warn("handler user_create: no connection selected", "name", req.Name)
 		return &oas.UserCreateBadRequest{ErrMessage: MsgNoConnection}, nil
+	case errors.Is(err, entity.ErrDescriptionTooLong):
+		slog.Warn("handler user_create: description too long", "name", req.Name)
+		return &oas.UserCreateBadRequest{ErrMessage: MsgDescTooLong}, nil
 	case errors.Is(err, entity.ErrInboundNotFound):
 		slog.Warn("handler user_create: inbound not found", "name", req.Name)
 		return &oas.UserCreateBadRequest{ErrMessage: MsgInboundNotFound}, nil

@@ -23,7 +23,7 @@ const app = createApp({
       _userTimer: 0,            // debounce handle for the search box
       nodes: [],
       schema: null, // config UI schema (rule/group/policy/provider catalogs), from the backend
-      uForm: { open: false, id: 0, name: "", inbounds: [] },
+      uForm: { open: false, id: 0, name: "", description: "", inbounds: [] },
       nodeForm: { open: false, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [] },
       provForm: { open: false, idx: -1 }, // which provider the edit modal is editing
 
@@ -370,14 +370,14 @@ const app = createApp({
     },
 
     // ---- users --------------------------------------------------------------
-    openCreateUser() { this.uForm = { open: true, id: 0, name: "", inbounds: [] }; },
+    openCreateUser() { this.uForm = { open: true, id: 0, name: "", description: "", inbounds: [] }; },
     openEdit(u) {
-      this.uForm = { open: true, id: u.id, name: u.name, inbounds: (u.inbounds || []).map((i) => i.id) };
+      this.uForm = { open: true, id: u.id, name: u.name, description: u.description || "", inbounds: (u.inbounds || []).map((i) => i.id) };
     },
     async submitUser() {
       const f = this.uForm;
       const url = f.id ? "/admin/api/users/edit" : "/admin/api/users/create";
-      const params = { inboundIDs: f.inbounds };
+      const params = { inboundIDs: f.inbounds, description: f.description };
       if (f.id) params.id = f.id; else params.name = f.name;
       const d = await this.post(url, params);
       if (d.ok) { this.uForm.open = false; this.loadUsers(); }

@@ -13,51 +13,35 @@ import (
 	context "context"
 	reflect "reflect"
 
-	entity "github.com/postlog/subgen/internal/entity"
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MocknodeRepo is a mock of nodeRepo interface.
-type MocknodeRepo struct {
+// MocknodeDeleter is a mock of nodeDeleter interface.
+type MocknodeDeleter struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeRepoMockRecorder
+	recorder *MocknodeDeleterMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeRepoMockRecorder is the mock recorder for MocknodeRepo.
-type MocknodeRepoMockRecorder struct {
-	mock *MocknodeRepo
+// MocknodeDeleterMockRecorder is the mock recorder for MocknodeDeleter.
+type MocknodeDeleterMockRecorder struct {
+	mock *MocknodeDeleter
 }
 
-// NewMocknodeRepo creates a new mock instance.
-func NewMocknodeRepo(ctrl *gomock.Controller) *MocknodeRepo {
-	mock := &MocknodeRepo{ctrl: ctrl}
-	mock.recorder = &MocknodeRepoMockRecorder{mock}
+// NewMocknodeDeleter creates a new mock instance.
+func NewMocknodeDeleter(ctrl *gomock.Controller) *MocknodeDeleter {
+	mock := &MocknodeDeleter{ctrl: ctrl}
+	mock.recorder = &MocknodeDeleterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeRepo) EXPECT() *MocknodeRepoMockRecorder {
+func (m *MocknodeDeleter) EXPECT() *MocknodeDeleterMockRecorder {
 	return m.recorder
 }
 
-// ConnectionCountsByInbound mocks base method.
-func (m *MocknodeRepo) ConnectionCountsByInbound(ctx context.Context, inboundIDs []int64) (map[int64]int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConnectionCountsByInbound", ctx, inboundIDs)
-	ret0, _ := ret[0].(map[int64]int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ConnectionCountsByInbound indicates an expected call of ConnectionCountsByInbound.
-func (mr *MocknodeRepoMockRecorder) ConnectionCountsByInbound(ctx, inboundIDs any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectionCountsByInbound", reflect.TypeOf((*MocknodeRepo)(nil).ConnectionCountsByInbound), ctx, inboundIDs)
-}
-
 // Delete mocks base method.
-func (m *MocknodeRepo) Delete(ctx context.Context, id int64) error {
+func (m *MocknodeDeleter) Delete(ctx context.Context, id int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -65,61 +49,7 @@ func (m *MocknodeRepo) Delete(ctx context.Context, id int64) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MocknodeRepoMockRecorder) Delete(ctx, id any) *gomock.Call {
+func (mr *MocknodeDeleterMockRecorder) Delete(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MocknodeRepo)(nil).Delete), ctx, id)
-}
-
-// Get mocks base method.
-func (m *MocknodeRepo) Get(ctx context.Context, id int64) (*entity.Node, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, id)
-	ret0, _ := ret[0].(*entity.Node)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MocknodeRepoMockRecorder) Get(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MocknodeRepo)(nil).Get), ctx, id)
-}
-
-// MockroutingRepo is a mock of routingRepo interface.
-type MockroutingRepo struct {
-	ctrl     *gomock.Controller
-	recorder *MockroutingRepoMockRecorder
-	isgomock struct{}
-}
-
-// MockroutingRepoMockRecorder is the mock recorder for MockroutingRepo.
-type MockroutingRepoMockRecorder struct {
-	mock *MockroutingRepo
-}
-
-// NewMockroutingRepo creates a new mock instance.
-func NewMockroutingRepo(ctrl *gomock.Controller) *MockroutingRepo {
-	mock := &MockroutingRepo{ctrl: ctrl}
-	mock.recorder = &MockroutingRepoMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockroutingRepo) EXPECT() *MockroutingRepoMockRecorder {
-	return m.recorder
-}
-
-// InboundRefCounts mocks base method.
-func (m *MockroutingRepo) InboundRefCounts(ctx context.Context, inboundIDs []int64) (map[int64]int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InboundRefCounts", ctx, inboundIDs)
-	ret0, _ := ret[0].(map[int64]int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InboundRefCounts indicates an expected call of InboundRefCounts.
-func (mr *MockroutingRepoMockRecorder) InboundRefCounts(ctx, inboundIDs any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InboundRefCounts", reflect.TypeOf((*MockroutingRepo)(nil).InboundRefCounts), ctx, inboundIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MocknodeDeleter)(nil).Delete), ctx, id)
 }

@@ -2,7 +2,10 @@
 
 package users_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"github.com/postlog/subgen/apitest/api"
+	userRecreateHandler "github.com/postlog/subgen/internal/handlers/user_recreate"
+)
 
 // Corner cases considered for POST /admin/api/users/recreate:
 //   - happy.restore_drift   — a client deleted out-of-band on the panel is restored.
@@ -23,7 +26,7 @@ func (s *UserSuite) TestRecreate() {
 	res, err := s.API().RecreateUser(u.ID)
 	s.Require().NoError(err)
 	s.Require().True(res.OK, "recreate: %s", res.Message())
-	s.Equal(msgRecreated, res.Msg)
+	s.Equal(userRecreateHandler.MsgRecreated, res.Msg)
 	s.RequireClient(s.Pan1(), api.N1Smart, u.Name)
 
 	// Idempotent: still exactly one client afterwards.

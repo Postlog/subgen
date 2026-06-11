@@ -29,11 +29,20 @@ type Service struct {
 	users  userRepo
 	nodes  nodeRepo
 	client panelClient
+
+	// Random-id sources, injected so tests can make them deterministic (defaulted in
+	// New): genID mints a subscriber id, genUUID a 3x-ui client uuid.
+	genID   func(int) string
+	genUUID func() uuid.UUID
 }
 
 // New builds the provisioning service from its dependencies.
 func New(users userRepo, nodes nodeRepo, client panelClient) *Service {
-	return &Service{users: users, nodes: nodes, client: client}
+	return &Service{
+		users: users, nodes: nodes, client: client,
+		genID:   randID,
+		genUUID: uuid.New,
+	}
 }
 
 // nameRe is the allowed nickname charset (also the prefix of every client email).
@@ -84,15 +93,17 @@ func (s *Service) nodeIndex(ctx context.Context) (byID map[int64]entity.Node, in
 	return byID, inboundByID, nil
 }
 
-// desiredTargets resolves a selection of inbound ids into connection targets. Each
-// id must exist; any number may be selected. Duplicate ids are ignored.
+// desiredTargets resolves a selection of inbound ids into connection targets. Each id
+// must be a real (positive, existing) inbound; any number may be selected. Duplicate ids
+// are ignored. A non-positive id (the moved-from-schema minimum:1 guard) has no match and
+// so yields ErrInboundNotFound, same as any unknown id.
 func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, sel entity.ConnectionSelection) ([]connTarget, error) {
 	var ts []connTarget
 
 	seen := map[int64]bool{}
 
 	for _, id := range sel.InboundIDs {
-		if id == 0 || seen[id] {
+		if seen[id] {
 			continue
 		}
 
@@ -139,7 +150,7 @@ func (s *Service) CreateUser(ctx context.Context, name string, sel entity.Connec
 		return nil, err
 	}
 
-	u := &entity.User{Name: name, SubID: randID(16)}
+	u := &entity.User{Name: name, SubID: s.genID(16)}
 	for _, t := range targets {
 		u.Connections = append(u.Connections, entity.Connection{InboundID: t.InboundID})
 	}
@@ -310,7 +321,7 @@ func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u 
 		// this user, or a forced recreate), preserving the existing uuid. We never
 		// delete a client we don't own — collisions on a newly-added panel are caught
 		// up front by ensureEmailFree, not reclaimed here.
-		cid := uuid.New()
+		cid := s.genUUID()
 
 		if len(had) > 0 || forceAll {
 			if existing, ok := uuidByEmail[email]; ok {

@@ -38,8 +38,10 @@ func TestRepository_Delete(t *testing.T) {
 		{
 			name: "error.referenced_by_user_connection",
 			arrange: func(t *testing.T, db *sql.DB, seed dbtest.SeededNode) {
-				u := &entity.User{Name: "alice", SubID: "sub-alice",
-					Connections: []entity.Connection{{InboundID: seed.Smart.ID}}}
+				u := &entity.User{
+					Name: "alice", SubID: "sub-alice",
+					Connections: []entity.Connection{{InboundID: seed.Smart.ID}},
+				}
 				require.NoError(t, users.New(db).Create(t.Context(), u))
 			},
 			wantErr: true, // FK from user_connections RESTRICTs the cascade delete
@@ -81,7 +83,8 @@ func TestRepository_Delete(t *testing.T) {
 			err := repo.Delete(t.Context(), seed.NodeID)
 
 			if tc.wantErr {
-				require.Error(t, err)
+				// A still-referenced inbound surfaces as the clean sentinel, not a raw FK error.
+				require.ErrorIs(t, err, entity.ErrInboundReferenced)
 
 				// The node (and its inbounds) survive a blocked delete.
 				got, getErr := repo.Get(t.Context(), seed.NodeID)
@@ -96,4 +99,15 @@ func TestRepository_Delete(t *testing.T) {
 			assert.ErrorIs(t, getErr, sql.ErrNoRows)
 		})
 	}
+}
+
+// TestRepository_Delete_unknownID checks that deleting an id that isn't there removes
+// nothing and reports entity.ErrNodeNotFound (from rows-affected, not a pre-check).
+func TestRepository_Delete_unknownID(t *testing.T) {
+	t.Parallel()
+
+	repo := nodes.New(dbtest.OpenDB(t))
+
+	err := repo.Delete(t.Context(), 99999999)
+	require.ErrorIs(t, err, entity.ErrNodeNotFound)
 }

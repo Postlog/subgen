@@ -43,9 +43,9 @@ func (r *Repository) Update(ctx context.Context, id int64, n entity.Node, setTok
 	// Inbounds are diffed by node_inbounds.id (the UI sends it back for existing
 	// inbounds): id>0 is updated in place so the id stays stable across a port/name
 	// change (user connections reference it); id==0 is a new inbound. Inbounds no
-	// longer present are deleted first — that DELETE is RESTRICTed by
-	// user_connections, so it fails if a removed inbound still has connections (the
-	// handler pre-checks for a friendly error).
+	// longer present are deleted first — that DELETE is RESTRICTed by user_connections
+	// / mihomo, so it fails with a FOREIGN KEY violation if a removed inbound is still
+	// referenced, surfaced as entity.ErrInboundReferenced.
 	keep := make([]int64, 0, len(n.Inbounds))
 
 	for _, in := range n.Inbounds {
@@ -55,6 +55,10 @@ func (r *Repository) Update(ctx context.Context, id int64, n entity.Node, setTok
 	}
 
 	if err := deleteInboundsExcept(ctx, tx, id, keep); err != nil {
+		if dberr.IsForeignKeyViolation(err) {
+			return entity.ErrInboundReferenced
+		}
+
 		return err
 	}
 

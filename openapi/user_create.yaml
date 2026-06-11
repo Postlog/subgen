@@ -15,14 +15,11 @@ post:
           properties:
             name:
               type: string
-              minLength: 1
             inboundIDs:
               type: array
-              minItems: 1
               items:
                 type: integer
                 format: int64
-                minimum: 1
   responses:
     '200':
       description: created

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/postlog/subgen/apitest/api"
+	userEditHandler "github.com/postlog/subgen/internal/handlers/user_edit"
 )
 
 // Corner cases considered for POST /admin/api/users/edit:
@@ -17,7 +18,7 @@ import (
 //   - reconcile.cross_swap       — smart=N1,force=N2 → smart=N2,force=N1 in one edit.
 //   - reconcile.smart_move       — move the only (smart) inbound to another node.
 //   - noop                       — identical selection must NOT churn the panel (uuid stable).
-//   - err.no_connection          — edit to an empty selection → generic 400 (schema minItems:1), no change.
+//   - err.no_connection          — edit with an absent inbound list (null) → generic 400 (kept `required`), no change.
 //   - err.unknown_user           — id with no user row → failure, technical error surfaced.
 //   - err.unknown_inbound        — selection includes a bad inbound id → "инбаунд не найден".
 
@@ -107,8 +108,8 @@ func (s *UserSuite) TestEditValidation() {
 	u := s.createUser(s.userName(), "N1")
 
 	s.Run("no_connection", func() {
-		// An empty selection trips the schema's minItems:1 → 400 generic, before the
-		// handler's own "выберите подключение" check; the binding is left unchanged.
+		// An absent inbound list (nil → null) is rejected as a generic 400 by the kept
+		// `required` (ADR-0003 removed minItems but not required); the binding is unchanged.
 		res, err := s.API().EditUser(u.ID, nil)
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
@@ -122,7 +123,7 @@ func (s *UserSuite) TestEditValidation() {
 		res, err := s.API().EditUser(u.ID, []int64{999999})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInboundNotFound, res.Err)
+		s.Equal(userEditHandler.MsgInboundNotFound, res.Err)
 	})
 
 	s.Run("unknown_user", func() {

@@ -15,6 +15,7 @@ var (
 	ErrNoConnectionSelected  = errors.New("no connection selected")
 	ErrNodeNotFound          = errors.New("node not found")
 	ErrInboundNotFound       = errors.New("inbound not found")
+	ErrInboundReferenced     = errors.New("inbound still referenced")
 	ErrUserConfigExists      = errors.New("user already has a custom config")
 	ErrUserConfigNotFound    = errors.New("user has no custom config")
 )

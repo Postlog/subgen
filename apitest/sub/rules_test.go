@@ -30,8 +30,8 @@ func (s *SubSuite) TestRulesUnknownFile() {
 	})
 
 	s.Run("empty_file_path", func() {
-		// /rules/ has an empty {file} path param; the spec marks it minLength:1, so the
-		// ogen router answers 400 (malformed request), not 404.
+		// /rules/ has an empty {file} path segment; the ogen router rejects it as a malformed
+		// request → 400 (not 404), independent of any field validation.
 		resp, err := s.api.Get("/rules/")
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, resp.Status)

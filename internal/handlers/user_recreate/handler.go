@@ -9,6 +9,10 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
+// MsgRecreated is the success message. Exported so apitest can assert against it without
+// duplicating the text.
+const MsgRecreated = "Клиенты пересозданы"
+
 // Handler re-provisions a user's panel clients from the store.
 type Handler struct {
 	svc recreator
@@ -26,5 +30,5 @@ func (h *Handler) UserRecreate(ctx context.Context, req *oas.UserRecreateReq) (o
 		return nil, err
 	}
 
-	return &oas.MessageResponse{Message: "Клиенты пересозданы"}, nil
+	return &oas.MessageResponse{Message: MsgRecreated}, nil
 }

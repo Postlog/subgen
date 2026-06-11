@@ -93,7 +93,7 @@ func TestHandler_UsersGet(t *testing.T) {
 			name:   "error.list",
 			params: oas.UsersGetParams{},
 			buildUsersMock: func(m *MockuserLister) {
-				m.EXPECT().ListPage(gomock.Any(), gomock.Any()).Return(entity.UserPage{}, internalErr)
+				m.EXPECT().ListPage(gomock.Any(), entity.UserListParams{Limit: 50, Offset: 0}).Return(entity.UserPage{}, internalErr)
 			},
 			err: internalErr,
 		},

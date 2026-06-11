@@ -9,6 +9,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/repository/dberr"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 // SaveMihomoConfig atomically replaces one config's proxy-groups, routing rules,
@@ -46,7 +47,10 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	// references (carried as indices) resolve to the persisted id.
 	groupRows := make([][]any, len(draft.Groups))
 	for i, g := range draft.Groups {
-		groupRows[i] = []any{configID, i, g.Name, g.Type, g.URL, g.Interval, g.Tolerance, boolIntPtr(g.Lazy)}
+		groupRows[i] = []any{
+			configID, i, g.Name, g.Type, g.URL,
+			utils.DereferenceOrNil(g.Interval), utils.DereferenceOrNil(g.Tolerance), boolIntPtr(g.Lazy),
+		}
 	}
 
 	if err := batchInsert(ctx, tx, "mihomo_proxy_groups",
@@ -116,7 +120,7 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 		}
 
 		ruleRows[i] = []any{
-			configID, i, rule.Type, rule.Value, provider,
+			configID, i, rule.Type, utils.DereferenceOrNil(rule.Value), provider,
 			boolInt(rule.NoResolve != nil && *rule.NoResolve), rule.Target.Kind, inbound, group,
 		}
 	}
@@ -154,7 +158,10 @@ func batchInsert(ctx context.Context, tx *sql.Tx, table string, cols []string, r
 	tuple := "(" + strings.Repeat("?,", len(cols)-1) + "?)"
 	tuples := strings.Repeat(tuple+",", len(rows)-1) + tuple
 
-	args := make([]any, 0, len(rows)*len(cols))
+	// Grow by append rather than pre-sizing to len(rows)*len(cols): the product is a
+	// capacity hint only, and CodeQL flags the multiplication as a possible overflow.
+	// Configs are tiny, so the few reallocs are immaterial.
+	var args []any
 	for _, row := range rows {
 		args = append(args, row...)
 	}

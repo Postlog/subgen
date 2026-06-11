@@ -14,7 +14,10 @@ import (
 // Group AND provider ids change on copy, so member ref_group_id / rule target_group_id
 // are remapped to the cloned groups and a RULE-SET rule's provider_id to the cloned
 // providers. Rows are fully read before any insert: SQLite runs on a single connection,
-// so an open query can't overlap writes on the same tx.
+// so an open query can't overlap writes on the same tx. Inserts are batched (one
+// multi-row INSERT per table, like SaveMihomoConfig); the new ids of the id'd tables
+// (groups, providers) are read back in the same order they were inserted to build the
+// old→new remap (dst is a fresh config, so its rows are exactly the clones).
 func (r *Repository) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, dstConfigID int64) error {
 	groupMap, err := cloneGroups(ctx, tx, srcConfigID, dstConfigID)
 	if err != nil {
@@ -41,7 +44,9 @@ func (r *Repository) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, d
 	return cloneProfile(ctx, tx, srcConfigID, dstConfigID)
 }
 
-// cloneGroups copies the groups and returns the old→new group id remap.
+// cloneGroups copies the groups (one batched INSERT) and returns the old→new group id
+// remap. Source order is by position; the new ids are read back by position too, so the
+// i-th old group pairs with the i-th new id.
 func cloneGroups(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]int64, error) {
 	type group struct {
 		id        int64
@@ -80,25 +85,31 @@ func cloneGroups(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]int
 
 	rows.Close()
 
+	groupRows := make([][]any, len(groups))
+	for i, g := range groups {
+		groupRows[i] = []any{dst, g.position, g.name, g.typ, g.url, g.interval, g.tolerance, g.lazy}
+	}
+
+	if err := batchInsert(ctx, tx, "mihomo_proxy_groups",
+		[]string{"config_id", "position", "name", "type", "url", "interval", "tolerance", "lazy"}, groupRows); err != nil {
+		return nil, err
+	}
+
+	newIDs, err := readIDs(ctx, tx, `SELECT id FROM mihomo_proxy_groups WHERE config_id=? ORDER BY position`, dst)
+	if err != nil {
+		return nil, err
+	}
+
 	idMap := make(map[int64]int64, len(groups))
-
-	for _, g := range groups {
-		res, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_proxy_groups(config_id,position,name,type,url,interval,tolerance,lazy)
-			 VALUES(?,?,?,?,?,?,?,?)`,
-			dst, g.position, g.name, g.typ, g.url, g.interval, g.tolerance, g.lazy)
-		if err != nil {
-			return nil, err
-		}
-
-		newID, _ := res.LastInsertId()
-		idMap[g.id] = newID
+	for i, g := range groups {
+		idMap[g.id] = newIDs[i]
 	}
 
 	return idMap, nil
 }
 
-// cloneMembers copies members, remapping group_id and ref_group_id to the clones.
+// cloneMembers copies members (one batched INSERT), remapping group_id and ref_group_id
+// to the clones.
 func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]int64) error {
 	if len(idMap) == 0 {
 		return nil
@@ -140,6 +151,8 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 
 	rows.Close()
 
+	var memberRows [][]any
+
 	for _, m := range members {
 		newGroup, ok := idMap[m.groupID]
 		if !ok {
@@ -158,20 +171,16 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 			inbound = m.inboundID.V
 		}
 
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_proxy_group_members(group_id,position,kind,inbound_id,ref_group_id)
-			 VALUES(?,?,?,?,?)`,
-			newGroup, m.position, m.kind, inbound, refGroup); err != nil {
-			return err
-		}
+		memberRows = append(memberRows, []any{newGroup, m.position, m.kind, inbound, refGroup})
 	}
 
-	return nil
+	return batchInsert(ctx, tx, "mihomo_proxy_group_members",
+		[]string{"group_id", "position", "kind", "inbound_id", "ref_group_id"}, memberRows)
 }
 
-// cloneRules copies the rules, remapping target_group_id to the cloned groups and a
-// RULE-SET's provider_id to the cloned providers. value is nullable (NULL for MATCH/
-// RULE-SET).
+// cloneRules copies the rules (one batched INSERT), remapping target_group_id to the
+// cloned groups and a RULE-SET's provider_id to the cloned providers. value is nullable
+// (NULL for MATCH/RULE-SET).
 func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provMap map[int64]int64) error {
 	type rule struct {
 		position   int
@@ -210,7 +219,9 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 
 	rows.Close()
 
-	for _, ru := range rules {
+	ruleRows := make([][]any, len(rules))
+
+	for i, ru := range rules {
 		var inbound, group, provider any
 		if ru.inboundID.Valid {
 			inbound = ru.inboundID.V
@@ -228,19 +239,17 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 			}
 		}
 
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_routing_rules(config_id,position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id)
-			 VALUES(?,?,?,?,?,?,?,?,?)`,
-			dst, ru.position, ru.typ, ru.value, provider, ru.noResolve, ru.kind, inbound, group); err != nil {
-			return err
-		}
+		ruleRows[i] = []any{dst, ru.position, ru.typ, ru.value, provider, ru.noResolve, ru.kind, inbound, group}
 	}
 
-	return nil
+	return batchInsert(ctx, tx, "mihomo_routing_rules",
+		[]string{"config_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"}, ruleRows)
 }
 
-// cloneProviders copies the rule-providers under the new config_id and returns the
-// old→new provider id remap (a RULE-SET rule's provider_id is remapped through it).
+// cloneProviders copies the rule-providers (one batched INSERT) under the new config_id
+// and returns the old→new provider id remap (a RULE-SET rule's provider_id is remapped
+// through it). Source order is by id; the new ids are read back by id too, so the i-th
+// old provider pairs with the i-th new id.
 func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]int64, error) {
 	type prov struct {
 		id             int64
@@ -279,19 +288,24 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 
 	rows.Close()
 
+	provRows := make([][]any, len(provs))
+	for i, p := range provs {
+		provRows[i] = []any{dst, p.name, p.behavior, p.format, p.mirror, p.url, p.interval, p.mirrorInterval}
+	}
+
+	if err := batchInsert(ctx, tx, "mihomo_rule_providers",
+		[]string{"config_id", "name", "behavior", "format", "mirror", "url", "interval", "mirror_interval"}, provRows); err != nil {
+		return nil, err
+	}
+
+	newIDs, err := readIDs(ctx, tx, `SELECT id FROM mihomo_rule_providers WHERE config_id=? ORDER BY id`, dst)
+	if err != nil {
+		return nil, err
+	}
+
 	idMap := make(map[int64]int64, len(provs))
-
-	for _, p := range provs {
-		res, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_rule_providers(config_id,name,behavior,format,mirror,url,interval,mirror_interval)
-			 VALUES(?,?,?,?,?,?,?,?)`,
-			dst, p.name, p.behavior, p.format, p.mirror, p.url, p.interval, p.mirrorInterval)
-		if err != nil {
-			return nil, err
-		}
-
-		newID, _ := res.LastInsertId()
-		idMap[p.id] = newID
+	for i, p := range provs {
+		idMap[p.id] = newIDs[i]
 	}
 
 	return idMap, nil

@@ -163,8 +163,9 @@ client GET /sub/{kind}/{token} --(token=HMAC(secret,subId))-->  resolve subId  -
 ```
 cmd/service/            composition root: load config, wire services, gorilla/mux router, TLS, shutdown
 cmd/subctl/             CLI utility: -dump-fleet / -print <subId>
-migrations/init.sql     SQLite schema (embedded, applied on open)
-migrations/*.manual.sql one-off hand-run migrations (NOT auto-applied; e.g. per_user_configs)
+migrations/0001-init.sql baseline schema (first migration; embedded)
+migrations/NNNN-*.sql    ordered migrations, run in filename order by migrations.Apply on open
+migrations/{embed,run}.go migration runner (tracks applied files in schema_migrations)
 internal/entity/        kernel domain types + sentinel errors (User, Node, Inbound,
                         Fleet, Subscriber, Proxy, …)
 internal/mihomo/        mihomo-config subdomain: schema (RoutingRule, ProxyGroup, PolicyRef,

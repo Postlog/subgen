@@ -2,8 +2,8 @@
 
 // Package repository_test holds the integration test for the Open bootstrap. It runs
 // against a REAL temporary SQLite database (no external services): each subtest opens
-// its own fresh file under t.TempDir() via repository.Open, which applies the embedded
-// schema and turns foreign_keys ON. Open is exported, so this is a black-box test;
+// its own fresh file under t.TempDir() via repository.Open, which runs the embedded
+// migrations and turns foreign_keys ON. Open is exported, so this is a black-box test;
 // the shared open/seed helpers live in the dbtest support package.
 //
 // Run: go test -tags integration ./internal/repository/...
@@ -65,6 +65,17 @@ func TestOpen(t *testing.T) {
 		assert.Empty(t, base)
 	})
 
+	t.Run("migrations.recorded", func(t *testing.T) {
+		t.Parallel()
+		// The runner records each applied migration in schema_migrations, so a fresh open
+		// has at least the baseline ("0001-init.sql") tracked.
+		db := dbtest.OpenDB(t)
+
+		var n int
+		require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE name = '0001-init.sql'`).Scan(&n))
+		assert.Equal(t, 1, n)
+	})
+
 	t.Run("foreign_keys.on", func(t *testing.T) {
 		t.Parallel()
 		db := dbtest.OpenDB(t)
@@ -79,8 +90,9 @@ func TestOpen(t *testing.T) {
 
 	t.Run("idempotent.reopen_same_file", func(t *testing.T) {
 		t.Parallel()
-		// Opening the same path twice re-applies the schema (CREATE … IF NOT EXISTS); the
-		// second Open must not error and must keep the data written via the first.
+		// Opening the same path twice is idempotent: the second Open finds every migration
+		// already recorded in schema_migrations and skips it, so it must not error and must
+		// keep the data written via the first.
 		path := t.TempDir() + "/subgen.db"
 
 		db1, err := repository.Open(t.Context(), path)

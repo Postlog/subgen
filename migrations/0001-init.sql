@@ -1,5 +1,8 @@
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
+-- 0001-init.sql — the baseline: the first migration, run by migrations/run.go in
+-- filename order. Connection PRAGMAs (journal_mode=WAL, foreign_keys=ON) live in the DSN
+-- now (internal/repository/open.go), NOT here: the runner wraps each migration in a
+-- transaction and `PRAGMA journal_mode=WAL` cannot run inside one — so this file stays
+-- pure DDL. Subsequent schema changes are later 0002-*.sql, … files alongside this one.
 
 -- Logical split inside one SQLite file (SQLite has no in-file schemas, and FKs can't
 -- cross attached databases — so a single file keeps inbound↔rule/member FKs intact):

@@ -34,6 +34,8 @@ func TestCheckker_Check(t *testing.T) {
 		{name: "format_mismatch.text_html", format: "text", handler: serve(200, []byte("<!doctype html><h1>x</h1>")), want: entity.RulesetCheckFormatMismatch},
 		{name: "format_mismatch.text_invalid_utf8", format: "text", handler: serve(200, []byte{0xff, 0xfe, 0xfd}), want: entity.RulesetCheckFormatMismatch},
 		{name: "unreachable", format: "text", url: "http://127.0.0.1:1/x", want: entity.RulesetCheckUnreachable},
+		{name: "unreachable.blank_url", format: "text", url: "   ", want: entity.RulesetCheckUnreachable},           // blank is just un-probeable
+		{name: "unreachable.malformed_url", format: "text", url: "://nohost", want: entity.RulesetCheckUnreachable}, // same category as blank
 	}
 
 	t.Parallel()

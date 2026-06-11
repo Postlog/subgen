@@ -1,6 +1,6 @@
 // Package node_delete implements the nodeDelete operation (POST /admin/api/nodes/delete).
-// Id validation and the FK-block check live in the nodes service; this handler maps its
-// errors to responses.
+// Deletion lives in the nodes service; this handler maps its errors to responses. A node
+// whose inbound is still referenced is refused by the database FK (entity.ErrInboundReferenced).
 package node_delete
 
 import (
@@ -9,11 +9,16 @@ import (
 	"log/slog"
 
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgDeleted = "Узел удалён"
+// User-facing messages. Exported so apitest can assert against them without duplicating
+// the text.
+const (
+	MsgDeleted           = "Узел удалён"
+	MsgNotFound          = "Узел не найден"
+	MsgInboundReferenced = "Узел используется — сначала отвяжите его инбаунды от пользователей и правил"
+)
 
 // Handler deletes a node via the nodes service.
 type Handler struct {
@@ -23,20 +28,21 @@ type Handler struct {
 // New builds the handler.
 func New(svc nodeDeleter) *Handler { return &Handler{svc: svc} }
 
-// NodeDelete implements oas.Handler: an invalid id or a still-referenced inbound is a 400,
-// any unexpected (store) failure is a 500.
+// NodeDelete implements oas.Handler: a still-referenced inbound is a 400, any unexpected
+// (store) failure is a 500.
 func (h *Handler) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {
 	err := h.svc.Delete(ctx, req.ID)
 	if err == nil {
-		return &oas.MessageResponse{Message: msgDeleted}, nil
+		return &oas.MessageResponse{Message: MsgDeleted}, nil
 	}
 
-	var blocked entity.InboundsBlockedError
-
 	switch {
-	case errors.As(err, &blocked):
+	case errors.Is(err, entity.ErrNodeNotFound):
+		slog.Warn("handler node_delete: node not found", "id", req.ID)
+		return &oas.NodeDeleteBadRequest{ErrMessage: MsgNotFound}, nil
+	case errors.Is(err, entity.ErrInboundReferenced):
 		slog.Warn("handler node_delete: inbound still referenced", "id", req.ID)
-		return &oas.NodeDeleteBadRequest{ErrMessage: web.InboundsBlockedMessage(blocked)}, nil
+		return &oas.NodeDeleteBadRequest{ErrMessage: MsgInboundReferenced}, nil
 	default:
 		slog.Error("handler node_delete: delete failed", "id", req.ID, "err", err)
 		return nil, err

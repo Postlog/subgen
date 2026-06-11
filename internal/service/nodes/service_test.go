@@ -14,7 +14,9 @@ import (
 
 var ctx = context.Background()
 
-// validNode is a node that passes validateNode: one inbound "force" :8443 (id 10).
+// validNode is a node that passes validateNode: one inbound "force" :8443 (id 10). Its
+// base path already starts with "/", so validateNode does not mutate it — the value the
+// service forwards to the repo equals validNode() (mocks assert that exact node).
 func validNode() entity.Node {
 	return entity.Node{
 		Name: "RU1", VPNHost: "1.2.3.4", PanelBaseURL: "https://1.2.3.4:2096", PanelBasePath: "/p/",
@@ -22,25 +24,19 @@ func validNode() entity.Node {
 	}
 }
 
-type mocks struct {
-	nodes   *MocknodeRepo
-	routing *MockroutingRepo
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{nodes: NewMocknodeRepo(ctrl), routing: NewMockroutingRepo(ctrl)}
-}
+// updateNode is validNode with an id set — an update rather than a create. Token is empty,
+// so the service calls Update with setToken=false.
+func updateNode() entity.Node { n := validNode(); n.ID = 7; return n }
 
 func TestService_Save(t *testing.T) {
 	targetErr := errors.New("store")
 
 	tt := []struct {
-		name       string
-		node       entity.Node
-		buildMocks func(m *mocks)
-		wantID     int64
-		err        error // sentinel/target to ErrorIs; nil => success
-		wantErr    bool  // for InboundsBlockedError (errors.As, not a sentinel)
+		name      string
+		node      entity.Node
+		buildMock func(m *MocknodeRepo)
+		wantID    int64
+		err       error // sentinel/target to ErrorIs; nil => success
 	}{
 		{
 			name: "error.invalid_node", node: func() entity.Node { n := validNode(); n.Name = "bad.name"; return n }(),
@@ -48,48 +44,35 @@ func TestService_Save(t *testing.T) {
 		},
 		{
 			name: "success.create", node: validNode(), wantID: 5,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Create(gomock.Any(), gomock.Any()).Return(int64(5), nil)
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Create(gomock.Any(), validNode()).Return(int64(5), nil)
 			},
 		},
 		{
 			name: "error.create_conflict", node: validNode(),
 			err: entity.ErrNodeNameTaken,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Create(gomock.Any(), gomock.Any()).Return(int64(0), entity.ErrNodeNameTaken)
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Create(gomock.Any(), validNode()).Return(int64(0), entity.ErrNodeNameTaken)
 			},
 		},
 		{
-			name: "success.update", node: func() entity.Node { n := validNode(); n.ID = 7; return n }(), wantID: 7,
-			buildMocks: func(m *mocks) {
-				// current node has the same inbound → nothing removed → no block check.
-				cur := &entity.Node{ID: 7, Name: "RU1", Inbounds: []entity.Inbound{{ID: 10, Name: "force", Port: 8443}}}
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(cur, nil)
-				m.nodes.EXPECT().Update(gomock.Any(), int64(7), gomock.Any(), gomock.Any()).Return(nil)
+			name: "success.update", node: updateNode(), wantID: 7,
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(nil)
 			},
 		},
 		{
-			name: "error.update_blocked", node: func() entity.Node { n := validNode(); n.ID = 7; return n }(),
-			wantErr: true, // dropping inbound 11, still referenced → InboundsBlockedError
-			buildMocks: func(m *mocks) {
-				// current has an extra inbound 11 absent from the submission → "removed".
-				cur := &entity.Node{ID: 7, Name: "RU1", Inbounds: []entity.Inbound{
-					{ID: 10, Name: "force", Port: 8443}, {ID: 11, Name: "alt", Port: 9000},
-				}}
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(cur, nil)
-				// blocked() re-reads the node, then counts.
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(cur, nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{11}).Return(map[int64]int{11: 3}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{11}).Return(map[int64]int{}, nil)
+			name: "error.update_referenced", node: updateNode(),
+			err: entity.ErrInboundReferenced, // FK refused a dropped inbound — propagated
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(entity.ErrInboundReferenced)
 			},
 		},
 		{
-			name: "error.update_repo", node: func() entity.Node { n := validNode(); n.ID = 7; return n }(),
+			name: "error.update_repo", node: updateNode(),
 			err: targetErr,
-			buildMocks: func(m *mocks) {
-				cur := &entity.Node{ID: 7, Name: "RU1", Inbounds: []entity.Inbound{{ID: 10, Name: "force", Port: 8443}}}
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(cur, nil)
-				m.nodes.EXPECT().Update(gomock.Any(), int64(7), gomock.Any(), gomock.Any()).Return(targetErr)
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(targetErr)
 			},
 		},
 	}
@@ -101,57 +84,52 @@ func TestService_Save(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := newMocks(ctrl)
-			if tc.buildMocks != nil {
-				tc.buildMocks(m)
+			m := NewMocknodeRepo(ctrl)
+			if tc.buildMock != nil {
+				tc.buildMock(m)
 			}
 
-			id, err := New(m.nodes, m.routing).Save(ctx, tc.node)
+			id, err := New(m).Save(ctx, tc.node)
 
-			if tc.wantErr {
-				var blocked entity.InboundsBlockedError
-				require.ErrorAs(t, err, &blocked)
-				assert.NotEmpty(t, blocked.Inbounds)
-
-				return
-			}
-
-			if tc.err != nil {
-				require.ErrorIs(t, err, tc.err)
-				return
-			}
-
-			require.NoError(t, err)
+			require.ErrorIs(t, err, tc.err)
 			assert.Equal(t, tc.wantID, id)
 		})
 	}
 }
 
 func TestService_Delete(t *testing.T) {
-	node := &entity.Node{ID: 7, Name: "RU1", Inbounds: []entity.Inbound{{ID: 10, Name: "force", Port: 8443}}}
+	targetErr := errors.New("store")
 
 	tt := []struct {
-		name       string
-		buildMocks func(m *mocks)
-		wantErr    bool // expect InboundsBlockedError
-		err        error
+		name      string
+		buildMock func(m *MocknodeRepo)
+		err       error
 	}{
 		{
 			name: "success",
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node, nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.nodes.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
 			},
 		},
 		{
-			name:    "error.blocked",
-			wantErr: true,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node, nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{10: 2}, nil)
+			name: "error.not_found",
+			err:  entity.ErrNodeNotFound, // repo found no row to delete — propagated
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(entity.ErrNodeNotFound)
+			},
+		},
+		{
+			name: "error.referenced",
+			err:  entity.ErrInboundReferenced, // FK refused a referenced inbound — propagated
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(entity.ErrInboundReferenced)
+			},
+		},
+		{
+			name: "error.repo",
+			err:  targetErr,
+			buildMock: func(m *MocknodeRepo) {
+				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(targetErr)
 			},
 		},
 	}
@@ -163,19 +141,12 @@ func TestService_Delete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := newMocks(ctrl)
-			if tc.buildMocks != nil {
-				tc.buildMocks(m)
+			m := NewMocknodeRepo(ctrl)
+			if tc.buildMock != nil {
+				tc.buildMock(m)
 			}
 
-			err := New(m.nodes, m.routing).Delete(ctx, 7)
-
-			if tc.wantErr {
-				var blocked entity.InboundsBlockedError
-				require.ErrorAs(t, err, &blocked)
-
-				return
-			}
+			err := New(m).Delete(ctx, 7)
 
 			require.ErrorIs(t, err, tc.err)
 		})

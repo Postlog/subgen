@@ -13,6 +13,11 @@ import (
 )
 
 func TestHandler_ProviderCheck(t *testing.T) {
+	const (
+		url    = "http://host/file"
+		format = "yaml"
+	)
+
 	tt := []struct {
 		name string
 		req  *oas.ProviderCheckReq
@@ -23,53 +28,48 @@ func TestHandler_ProviderCheck(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
+			req:  &oas.ProviderCheckReq{URL: url, Format: format},
 			buildCheckerMock: func(m *MockproviderChecker) {
-				m.EXPECT().Check(gomock.Any(), "http://host/file", "yaml").
+				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckOK, Size: 1024})
 			},
 			result: &oas.MessageResponse{Message: "Доступен:  формат «yaml», 1.0 KB"},
 		},
 		{
-			name:   "empty_url",
-			req:    &oas.ProviderCheckReq{URL: "   ", Format: "yaml"},
-			result: &oas.ProviderCheckBadRequest{ErrMessage: msgURLRequired}, // guard, no checker call
-		},
-		{
 			name: "http_error",
-			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
+			req:  &oas.ProviderCheckReq{URL: url, Format: format},
 			buildCheckerMock: func(m *MockproviderChecker) {
-				m.EXPECT().Check(gomock.Any(), gomock.Any(), gomock.Any()).
+				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckHTTPError, Status: 404})
 			},
 			result: &oas.ProviderCheckBadRequest{ErrMessage: "Сервер вернул HTTP 404 — файла нет или нет доступа"},
 		},
 		{
 			name: "empty",
-			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
+			req:  &oas.ProviderCheckReq{URL: url, Format: format},
 			buildCheckerMock: func(m *MockproviderChecker) {
-				m.EXPECT().Check(gomock.Any(), gomock.Any(), gomock.Any()).
+				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckEmpty})
 			},
-			result: &oas.ProviderCheckBadRequest{ErrMessage: msgEmpty},
+			result: &oas.ProviderCheckBadRequest{ErrMessage: MsgEmpty},
 		},
 		{
 			name: "format_mismatch",
-			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
+			req:  &oas.ProviderCheckReq{URL: url, Format: format},
 			buildCheckerMock: func(m *MockproviderChecker) {
-				m.EXPECT().Check(gomock.Any(), gomock.Any(), gomock.Any()).
+				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckFormatMismatch, Size: 512})
 			},
 			result: &oas.ProviderCheckBadRequest{ErrMessage: "Скачалось (512 B), но содержимое не похоже на формат «yaml»"},
 		},
 		{
 			name: "unreachable",
-			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
+			req:  &oas.ProviderCheckReq{URL: url, Format: format},
 			buildCheckerMock: func(m *MockproviderChecker) {
-				m.EXPECT().Check(gomock.Any(), gomock.Any(), gomock.Any()).
+				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckUnreachable})
 			},
-			result: &oas.ProviderCheckBadRequest{ErrMessage: msgUnreachable},
+			result: &oas.ProviderCheckBadRequest{ErrMessage: MsgUnreachable},
 		},
 	}
 

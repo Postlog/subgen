@@ -8,6 +8,10 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
+// MsgDeleted is the success message. Exported so apitest can assert against it without
+// duplicating the text.
+const MsgDeleted = "Пользователь удалён"
+
 // Handler deletes a user and deprovisions its panel clients.
 type Handler struct {
 	svc deleter
@@ -24,5 +28,5 @@ func (h *Handler) UserDelete(ctx context.Context, req *oas.UserDeleteReq) (oas.U
 		return nil, err
 	}
 
-	return &oas.MessageResponse{Message: "Пользователь удалён"}, nil
+	return &oas.MessageResponse{Message: MsgDeleted}, nil
 }

@@ -5,8 +5,10 @@ package config_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/postlog/subgen/apitest/api"
+	"github.com/postlog/subgen/internal/handlers/provider_check"
 )
 
 // Corner cases considered for POST /admin/api/config/mihomo/provider/check (a read-only
@@ -19,7 +21,8 @@ import (
 //   - http_404                    — server returns 404 → {ok:false} "Сервер вернул HTTP 404".
 //   - empty_body                  — 200 with an empty body → {ok:false} (no file).
 //   - unreachable                 — connection refused on a closed port → {ok:false}.
-//   - empty_url                   — "" → handler guard → friendly 400 ("Укажите URL").
+//   - empty_url                   — "" is just an un-probeable URL (same category as a
+//                                   malformed one) → {ok:false} unreachable 400, no special case.
 //   - malformed_json              — non-JSON body → generic 400.
 
 // providerServer starts an in-test HTTP file server with a fixed set of sample
@@ -90,7 +93,7 @@ func (s *ConfigSuite) TestProviderCheck() {
 		res, err := s.api.CheckProvider(srv.URL+"/empty", "text")
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Contains(res.Err, "пуст", "an empty body must report no file")
+		s.Equal(provider_check.MsgEmpty, res.Err, "an empty body must report no file")
 	})
 
 	s.Run("unreachable", func() {
@@ -102,13 +105,13 @@ func (s *ConfigSuite) TestProviderCheck() {
 	})
 
 	s.Run("empty_url", func() {
-		// Schema no longer carries minLength; the empty URL reaches the handler's own guard
-		// → friendly 400 (ADR-0003: validation in code).
+		// An empty URL is not a distinct state — it's just un-probeable, like a malformed
+		// one, so the checker reports it unreachable (no dedicated empty-URL guard/message).
 		res, err := s.api.CheckProvider("", "yaml")
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal("Укажите URL", res.Err)
+		s.True(strings.HasPrefix(res.Err, provider_check.MsgUnreachableP), "got %q", res.Err)
 	})
 
 	s.Run("malformed_json", func() {

@@ -30,7 +30,7 @@ func TestHandler_UserRecreate(t *testing.T) {
 			buildRecreatorMock: func(m *Mockrecreator) {
 				m.EXPECT().RecreateUser(gomock.Any(), int64(7)).Return(nil)
 			},
-			result: &oas.MessageResponse{Message: "Клиенты пересозданы"},
+			result: &oas.MessageResponse{Message: MsgRecreated},
 		},
 		{
 			name: "error.internal",

@@ -53,7 +53,7 @@ func (s *NodeSuite) TestDeleteBlockedByUser() {
 	del, err := s.API().DeleteNode(n.ID)
 	s.Require().NoError(err)
 	s.False(del.OK, "deleting a node with a bound user must be refused")
-	s.Contains(del.Err, fragBlocked)
+	s.Equal(msgDeleteReferenced, del.Err)
 
 	still, err := s.API().FindNode(node)
 	s.Require().NoError(err)
@@ -87,13 +87,13 @@ func (s *NodeSuite) TestDeleteBlockedByRule() {
 	del, err := s.API().DeleteNode(n.ID)
 	s.Require().NoError(err)
 	s.False(del.OK, "deleting a node referenced by a routing rule must be refused")
-	s.Contains(del.Err, fragBlocked)
+	s.Equal(msgDeleteReferenced, del.Err)
 }
 
 // TestDeleteUnknownID covers deleting a never-existed node id.
 func (s *NodeSuite) TestDeleteUnknownID() {
 	res, err := s.API().DeleteNode(99999999)
 	s.Require().NoError(err)
-	s.False(res.OK, "deleting a non-existent node must report failure (Get → no rows)")
-	s.NotEmpty(res.Err)
+	s.False(res.OK, "deleting a non-existent node must report failure (no row to delete)")
+	s.Equal(msgNodeNotFound, res.Err)
 }

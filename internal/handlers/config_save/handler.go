@@ -16,33 +16,36 @@ import (
 
 // User-facing messages for the domain errors this handler can surface: the mihomo
 // decode/validate sentinels (4xx invalid config), plus the two store-level conflicts.
+// Exported so apitest can assert against them without duplicating the text.
 const (
-	msgGroupNameEmpty   = "Укажите название proxy-группы"
-	msgGroupNameTaken   = "Proxy-группа с таким названием уже существует"
-	msgGroupUnknownType = "Неизвестный тип proxy-группы"
-	msgGroupNoMembers   = "Пустая proxy-группа"
-	msgGroupCycle       = "Proxy-группы образуют циклическую ссылку"
-	msgBadRef           = "Некорректная цель правила/элемента группы"
-	msgGroupRefRange    = "Ссылка на несуществующую группу"
-	msgUnknownRuleType  = "Неизвестный тип правила"
-	msgMatchNotLast     = "Правило MATCH должно быть последним"
-	msgRuleValueReq     = "У правила не указано значение"
-	msgBaseYAMLInvalid  = "YAML невалиден — проверьте синтаксис"
-	msgGeneratedKey     = "Уберите из YAML генерируемые разделы"
+	MsgSaved = "Конфиг сохранён"
 
-	msgProviderNameEmpty   = "Укажите название rule-provider"
-	msgProviderBadBehavior = "Неизвестный behavior у rule-provider"
-	msgProviderBadFormat   = "Неизвестный format у rule-provider"
-	msgProviderURLEmpty    = "Укажите URL у rule-provider"
-	msgRuleSetUnknownProv  = "RULE-SET ссылается на несуществующего rule-provider"
+	MsgGroupNameEmpty   = "Укажите название proxy-группы"
+	MsgGroupNameTaken   = "Proxy-группа с таким названием уже существует"
+	MsgGroupUnknownType = "Неизвестный тип proxy-группы"
+	MsgGroupNoMembers   = "Пустая proxy-группа"
+	MsgGroupCycle       = "Proxy-группы образуют циклическую ссылку"
+	MsgBadRef           = "Некорректная цель правила/элемента группы"
+	MsgGroupRefRange    = "Ссылка на несуществующую группу"
+	MsgUnknownRuleType  = "Неизвестный тип правила"
+	MsgMatchNotLast     = "Правило MATCH должно быть последним"
+	MsgRuleValueReq     = "У правила не указано значение"
+	MsgBaseYAMLInvalid  = "YAML невалиден — проверьте синтаксис"
+	MsgGeneratedKey     = "Уберите из YAML генерируемые разделы"
 
-	msgProfileTitleEmpty      = "Укажите название профиля (Profile title)"
-	msgProfileFilenameEmpty   = "Укажите имя файла подписки"
-	msgProfileFilenameInvalid = "Имя файла не должно содержать / \\ или управляющие символы"
-	msgProfileIntervalInvalid = "Интервал обновления — положительное число часов"
+	MsgProviderNameEmpty   = "Укажите название rule-provider"
+	MsgProviderBadBehavior = "Неизвестный behavior у rule-provider"
+	MsgProviderBadFormat   = "Неизвестный format у rule-provider"
+	MsgProviderURLEmpty    = "Укажите URL у rule-provider"
+	MsgRuleSetUnknownProv  = "RULE-SET ссылается на несуществующего rule-provider"
 
-	msgUserConfigMissing = "У пользователя нет кастомного конфига"
-	msgProviderNameTaken = "Rule-provider с таким именем уже существует"
+	MsgProfileTitleEmpty      = "Укажите название профиля (Profile title)"
+	MsgProfileFilenameEmpty   = "Укажите имя файла подписки"
+	MsgProfileFilenameInvalid = "Имя файла не должно содержать / \\ или управляющие символы"
+	MsgProfileIntervalInvalid = "Интервал обновления — положительное число часов"
+
+	MsgUserConfigMissing = "У пользователя нет кастомного конфига"
+	MsgProviderNameTaken = "Rule-provider с таким именем уже существует"
 )
 
 // Handler saves a mihomo config (base or a user's custom).
@@ -109,7 +112,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 	if err != nil {
 		if errors.Is(err, entity.ErrUserConfigNotFound) {
 			slog.Warn("handler config_save: user has no custom config", "userId", req.UserId.Or(0))
-			return &oas.ConfigSaveBadRequest{ErrMessage: msgUserConfigMissing}, nil
+			return &oas.ConfigSaveBadRequest{ErrMessage: MsgUserConfigMissing}, nil
 		}
 
 		slog.Error("handler config_save: resolve config failed", "userId", req.UserId.Or(0), "err", err)
@@ -120,7 +123,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base, profile); err != nil {
 		if errors.Is(err, entity.ErrRuleProviderNameTaken) {
 			slog.Warn("handler config_save: rule-provider name taken", "configID", configID)
-			return &oas.ConfigSaveBadRequest{ErrMessage: msgProviderNameTaken}, nil
+			return &oas.ConfigSaveBadRequest{ErrMessage: MsgProviderNameTaken}, nil
 		}
 
 		slog.Error("handler config_save: save failed", "configID", configID, "err", err)
@@ -128,7 +131,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	return &oas.MessageResponse{Message: "Конфиг сохранён"}, nil
+	return &oas.MessageResponse{Message: MsgSaved}, nil
 }
 
 // validationMessage maps a mihomo decode/validate sentinel to its user-facing text,
@@ -137,47 +140,47 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 func validationMessage(err error) (string, bool) {
 	switch {
 	case errors.Is(err, mihomo.ErrGroupNameEmpty):
-		return msgGroupNameEmpty, true
+		return MsgGroupNameEmpty, true
 	case errors.Is(err, mihomo.ErrGroupNameTaken):
-		return msgGroupNameTaken, true
+		return MsgGroupNameTaken, true
 	case errors.Is(err, mihomo.ErrGroupUnknownType):
-		return msgGroupUnknownType, true
+		return MsgGroupUnknownType, true
 	case errors.Is(err, mihomo.ErrGroupNoMembers):
-		return msgGroupNoMembers, true
+		return MsgGroupNoMembers, true
 	case errors.Is(err, mihomo.ErrGroupCycle):
-		return msgGroupCycle, true
+		return MsgGroupCycle, true
 	case errors.Is(err, mihomo.ErrBadRef):
-		return msgBadRef, true
+		return MsgBadRef, true
 	case errors.Is(err, mihomo.ErrGroupRefRange):
-		return msgGroupRefRange, true
+		return MsgGroupRefRange, true
 	case errors.Is(err, mihomo.ErrUnknownRuleType):
-		return msgUnknownRuleType, true
+		return MsgUnknownRuleType, true
 	case errors.Is(err, mihomo.ErrMatchNotLast):
-		return msgMatchNotLast, true
+		return MsgMatchNotLast, true
 	case errors.Is(err, mihomo.ErrRuleValueRequired):
-		return msgRuleValueReq, true
+		return MsgRuleValueReq, true
 	case errors.Is(err, mihomo.ErrBaseYAMLInvalid):
-		return msgBaseYAMLInvalid, true
+		return MsgBaseYAMLInvalid, true
 	case errors.Is(err, mihomo.ErrGeneratedKeyPresent):
-		return msgGeneratedKey, true
+		return MsgGeneratedKey, true
 	case errors.Is(err, mihomo.ErrProviderNameEmpty):
-		return msgProviderNameEmpty, true
+		return MsgProviderNameEmpty, true
 	case errors.Is(err, mihomo.ErrProviderBadBehavior):
-		return msgProviderBadBehavior, true
+		return MsgProviderBadBehavior, true
 	case errors.Is(err, mihomo.ErrProviderBadFormat):
-		return msgProviderBadFormat, true
+		return MsgProviderBadFormat, true
 	case errors.Is(err, mihomo.ErrProviderURLEmpty):
-		return msgProviderURLEmpty, true
+		return MsgProviderURLEmpty, true
 	case errors.Is(err, mihomo.ErrRuleSetUnknownProvider):
-		return msgRuleSetUnknownProv, true
+		return MsgRuleSetUnknownProv, true
 	case errors.Is(err, mihomo.ErrProfileTitleEmpty):
-		return msgProfileTitleEmpty, true
+		return MsgProfileTitleEmpty, true
 	case errors.Is(err, mihomo.ErrProfileFilenameEmpty):
-		return msgProfileFilenameEmpty, true
+		return MsgProfileFilenameEmpty, true
 	case errors.Is(err, mihomo.ErrProfileFilenameInvalid):
-		return msgProfileFilenameInvalid, true
+		return MsgProfileFilenameInvalid, true
 	case errors.Is(err, mihomo.ErrProfileUpdateIntervalInvalid):
-		return msgProfileIntervalInvalid, true
+		return MsgProfileIntervalInvalid, true
 	default:
 		return "", false
 	}

@@ -17,22 +17,3 @@ var (
 	ErrValidationInboundNameUq = errors.New("duplicate inbound name")
 	ErrValidationInboundPortUq = errors.New("duplicate inbound port")
 )
-
-// BlockedInbound describes one inbound that cannot be removed/detached because it is
-// still referenced. Label is "<node>-<inbound>:<port>"; Users/Refs are the reference
-// counts (user connections and mihomo rules/group members).
-type BlockedInbound struct {
-	Label string
-	Users int
-	Refs  int
-}
-
-// InboundsBlockedError means one or more inbounds can't be removed or their node deleted
-// because they are still referenced. It carries the per-inbound counts so the handler
-// layer can format the user-facing message (no human text in the lower layers). Compare
-// with errors.As.
-type InboundsBlockedError struct {
-	Inbounds []BlockedInbound
-}
-
-func (e InboundsBlockedError) Error() string { return "inbounds still referenced" }

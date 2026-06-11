@@ -187,7 +187,7 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	sess := web.NewSession(cfg.Secret)
 
-	nodesSvc := nodessvc.New(nodesRepo, routingRepo)
+	nodesSvc := nodessvc.New(nodesRepo)
 
 	// The login handler serves both the sign-in action (POST /admin/api/login) and the
 	// login PAGE (GET /admin/login).

@@ -2,22 +2,27 @@
 
 package users_test
 
-// User-facing messages the API returns, mirrored from the presentation layer
-// (internal/handlers/web/messages.go + each user handler's success constant). Black-box
-// tests assert the exact text subgen produces; re-stating it here is the seam between
-// the (unexported) production strings and these tests.
-const (
-	// Validation (web.UserMessage → entity sentinels). Since ADR-0003 (validation in code,
-	// no schema value-constraints), an empty name reaches the handler → validateName →
-	// msgInvalidUserName. An absent inbound-id list is still rejected as a generic 400 by
-	// the kept `required` (a null array), so the no-connection cases assert api.MsgBadRequest.
-	msgInvalidUserName = "Имя клиента: разрешены символы a-z, 0-9, _ и -. От 1 до 32 символов"
-	msgNameTaken       = "Имя занято"
-	msgInboundNotFound = "Указанный инбаунд не найден"
+import (
+	"github.com/postlog/subgen/internal/handlers/user_create"
+	"github.com/postlog/subgen/internal/handlers/user_delete"
+	"github.com/postlog/subgen/internal/handlers/user_edit"
+	"github.com/postlog/subgen/internal/handlers/user_recreate"
+)
 
-	// Success messages (per-handler constants).
-	msgCreated   = "Создан пользователь"
-	msgUpdated   = "Подключения обновлены"
-	msgDeleted   = "Пользователь удалён"
-	msgRecreated = "Клиенты пересозданы"
+// User-facing messages the user endpoints return. Black-box tests assert the exact text
+// subgen produces — but rather than re-stating it here, these alias the exported handler
+// constants, so the text lives in exactly one place (the handler). An absent inbound-id
+// list is still rejected as a generic 400 by the kept `required` (a null array), so the
+// no-connection cases assert api.MsgBadRequest, not a constant here.
+const (
+	// Validation (handler ← entity sentinels).
+	msgInvalidUserName = user_create.MsgInvalidName
+	msgNameTaken       = user_create.MsgNameTaken
+	msgInboundNotFound = user_create.MsgInboundNotFound
+
+	// Per-handler success messages.
+	msgCreated   = user_create.MsgCreated
+	msgUpdated   = user_edit.MsgUpdated
+	msgDeleted   = user_delete.MsgDeleted
+	msgRecreated = user_recreate.MsgRecreated
 )

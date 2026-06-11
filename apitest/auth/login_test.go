@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/postlog/subgen/apitest/api"
+	"github.com/postlog/subgen/internal/handlers/login"
 )
 
-// msgBadCreds is the exact rejection text the login handler returns for wrong creds.
-const msgBadCreds = "Неверный логин или пароль"
+// msgBadCreds is the exact rejection text the login handler returns for wrong creds —
+// aliased from the handler so the text lives in exactly one place.
+const msgBadCreds = login.MsgBadCredentials
 
 // Corner cases considered for POST /admin/api/login (idiomatic contract: 200 {message}
 // on success, 4xx {errMessage} otherwise):

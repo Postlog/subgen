@@ -10,9 +10,13 @@
 Из `openapi/*.yaml` убраны все value-constraints (`minLength`/`minItems`/`minimum`) —
 ogen больше не генерит серверные валидаторы значений (общий невнятный 400). Валидация —
 в сервисном слое sentinel-ошибками (`entity.ErrValidation*`), хендлеры тонкие. Заведён
-`internal/service/nodes` (валидация узла + save/delete + FK-блок структурной
-`entity.InboundsBlockedError`); node-валидация и `web.ValidateNode` переехали туда.
-Суррогатные id (PK) **не** валидируем (несуществующий id → not-found).
+`internal/service/nodes` (валидация узла + save/delete); node-валидация и `web.ValidateNode`
+переехали туда. Ссылочную целостность инбаунда **не предчекаем** — её держит FK БД
+(RESTRICT), репозиторий переводит нарушение в `entity.ErrInboundReferenced`. Пустой URL
+provider-check — не спец-кейс (как и кривой URL → `RulesetCheckUnreachable`). Суррогатные id
+(PK) **не** валидируем (несуществующий id → not-found). Тексты сообщений хендлеров сделаны
+публичными и импортируются в apitest (без дублирования). В тестах `gomock.Any()` оставлен
+только для контекста — остальные аргументы проверяются точно (матчеры для random uuid/subId).
 `required`/`type`/`format` оставлены (форма контракта). См.
 [ADR-0003](docs/decisions/0003-validation-in-code.md).
 

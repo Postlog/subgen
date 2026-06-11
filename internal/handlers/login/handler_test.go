@@ -33,7 +33,7 @@ func TestHandler_Login(t *testing.T) {
 			name: "bad_creds",
 			req:  &oas.LoginReq{User: "admin", Password: "wrong"},
 			assert: func(t *testing.T, res oas.LoginRes) {
-				assert.Equal(t, &oas.ErrorResponse{ErrMessage: "Неверный логин или пароль"}, res)
+				assert.Equal(t, &oas.ErrorResponse{ErrMessage: MsgBadCredentials}, res)
 			},
 		},
 	}

@@ -6,17 +6,19 @@ package provider_check
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/oas"
 )
 
+// User-facing messages. Exported so apitest can assert against them without duplicating
+// the text. There is no empty-URL case: a blank URL is just one flavour of un-probeable
+// URL (like a malformed one) and surfaces as RulesetCheckUnreachable — the handler only
+// maps checker outcomes to text, it does not validate the URL.
 const (
-	msgUnreachable  = "Не удалось подключиться к URL"
-	msgEmpty        = "Ответ пустой — по URL нет файла"
-	msgUnreachableP = "Не удалось подключиться: " // + technical detail
-	msgURLRequired  = "Укажите URL"               // moved-from-schema minLength:1 guard
+	MsgUnreachable  = "Не удалось подключиться к URL"
+	MsgEmpty        = "Ответ пустой — по URL нет файла"
+	MsgUnreachableP = "Не удалось подключиться: " // + technical detail
 )
 
 // Handler probes a rule-provider URL via the checker service.
@@ -28,12 +30,9 @@ type Handler struct {
 func New(checker providerChecker) *Handler { return &Handler{checker: checker} }
 
 // ProviderCheck implements oas.Handler: a reachable, right-format file is a 200 with a
-// message; any other outcome is a 400.
+// message; any other outcome is a 400. The handler does not validate the URL — a blank or
+// malformed one is just an un-probeable URL the checker reports as unreachable.
 func (h *Handler) ProviderCheck(ctx context.Context, req *oas.ProviderCheckReq) (oas.ProviderCheckRes, error) {
-	if strings.TrimSpace(req.URL) == "" {
-		return &oas.ProviderCheckBadRequest{ErrMessage: msgURLRequired}, nil
-	}
-
 	res := h.checker.Check(ctx, req.URL, req.Format)
 
 	ok, msg := describe(res, req.Format)
@@ -52,15 +51,15 @@ func describe(res entity.RulesetCheckResult, format string) (bool, string) {
 	case entity.RulesetCheckHTTPError:
 		return false, fmt.Sprintf("Сервер вернул HTTP %d — файла нет или нет доступа", res.Status)
 	case entity.RulesetCheckEmpty:
-		return false, msgEmpty
+		return false, MsgEmpty
 	case entity.RulesetCheckFormatMismatch:
 		return false, fmt.Sprintf("Скачалось (%s), но содержимое не похоже на формат «%s»", humanSize(res.Size), format)
 	default: // RulesetCheckUnreachable
 		if res.Detail != "" {
-			return false, msgUnreachableP + res.Detail
+			return false, MsgUnreachableP + res.Detail
 		}
 
-		return false, msgUnreachable
+		return false, MsgUnreachable
 	}
 }
 

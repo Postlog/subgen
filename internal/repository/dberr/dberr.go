@@ -25,3 +25,15 @@ func IsUniqueViolation(err error) bool {
 		(e.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE ||
 			e.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY)
 }
+
+// IsForeignKeyViolation reports whether err is a SQLite FOREIGN KEY constraint violation
+// (SQLITE_CONSTRAINT_FOREIGNKEY, 787), decided from the driver's typed result code — never
+// by matching the message string. A node-inbound delete (dropping an inbound, or cascading
+// from a node delete) hits this when the inbound is still referenced by a user connection
+// or a mihomo rule / proxy-group member (those FKs RESTRICT). The nodes repository turns it
+// into entity.ErrInboundReferenced — the FK is the source of truth, no pre-check SELECT.
+func IsForeignKeyViolation(err error) bool {
+	var e *sqlitedrv.Error
+
+	return errors.As(err, &e) && e.Code() == sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY
+}

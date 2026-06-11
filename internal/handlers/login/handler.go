@@ -14,6 +14,12 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
+// MsgBadCredentials is the generic sign-in rejection text (no user/pass distinction).
+// Exported so apitest can assert against it without duplicating the text.
+//
+//nolint:gosec // G101 false positive: a user-facing message, not a hardcoded credential.
+const MsgBadCredentials = "Неверный логин или пароль"
+
 // Handler renders the login page (GET) and processes the sign-in action (POST).
 type Handler struct {
 	sess      *web.Session
@@ -51,7 +57,7 @@ func (h *Handler) Login(_ context.Context, req *oas.LoginReq) (oas.LoginRes, err
 	passOK := subtle.ConstantTimeCompare([]byte(req.Password), []byte(h.pass)) == 1
 
 	if !userOK || !passOK {
-		return &oas.ErrorResponse{ErrMessage: "Неверный логин или пароль"}, nil
+		return &oas.ErrorResponse{ErrMessage: MsgBadCredentials}, nil
 	}
 
 	return &oas.MessageResponseHeaders{

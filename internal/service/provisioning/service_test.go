@@ -3,6 +3,8 @@ package provisioning
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -14,6 +16,49 @@ import (
 )
 
 var ctx = context.Background()
+
+// n1Target is the per-call panel credentials the service derives from node N1
+// (target(n) = {BaseURL, BasePath, Token}). Deterministic, so panel calls assert it
+// exactly rather than gomock.Any().
+func n1Target() entity.PanelTarget {
+	return entity.PanelTarget{BaseURL: "u", BasePath: "/", Token: "t"}
+}
+
+// userLike matches an *entity.User the service hands to users.Create by its deterministic
+// fields (Name + Connections). The SubID is minted from crypto/rand and so can't be pinned
+// — the matcher only asserts it was set (non-empty), never gomock.Any() over the whole arg.
+type userLike struct {
+	name  string
+	conns []entity.Connection
+}
+
+func (m userLike) Matches(x any) bool {
+	u, ok := x.(*entity.User)
+
+	return ok && u.Name == m.name && u.SubID != "" && reflect.DeepEqual(u.Connections, m.conns)
+}
+
+func (m userLike) String() string {
+	return fmt.Sprintf("*entity.User{Name:%q, Connections:%v, SubID:<non-empty>}", m.name, m.conns)
+}
+
+// clientSpecLike matches the entity.ClientSpec passed to AddClient by Email/Flow. The uuid
+// (ID) and SubID are randomly minted per call, so the matcher only asserts they were set —
+// not gomock.Any() over the whole spec.
+type clientSpecLike struct {
+	email string
+	flow  string
+}
+
+func (m clientSpecLike) Matches(x any) bool {
+	cs, ok := x.(entity.ClientSpec)
+
+	return ok && cs.Email == m.email && cs.Flow == m.flow && cs.ID != uuid.Nil && cs.SubID != ""
+}
+
+func (m clientSpecLike) String() string {
+	return fmt.Sprintf("entity.ClientSpec{Email:%q, Flow:%q, ID:<set>, SubID:<non-empty>}", m.email, m.flow)
+}
 
 // mocks bundles the service's dependency mocks for a test case.
 type mocks struct {
@@ -78,8 +123,8 @@ func TestService_CreateUser(t *testing.T) {
 			err: entity.ErrNameTaken,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return(panelInbounds(), nil)
-				m.users.EXPECT().Create(gomock.Any(), gomock.Any()).Return(entity.ErrNameTaken)
+				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil)
+				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}}}).Return(entity.ErrNameTaken)
 			},
 		},
 		{
@@ -104,8 +149,8 @@ func TestService_CreateUser(t *testing.T) {
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 				// pre-flight email check: panel is free
-				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return(panelInbounds(), nil)
-				m.users.EXPECT().Create(gomock.Any(), gomock.Any()).Return(targetErr)
+				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil)
+				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}}}).Return(targetErr)
 			},
 		},
 		{
@@ -117,7 +162,7 @@ func TestService_CreateUser(t *testing.T) {
 			err: entity.PanelClientExistsError{Node: "N1"},
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return([]entity.PanelInbound{
+				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return([]entity.PanelInbound{
 					{ID: 1, Port: 4433, Enable: true, Clients: []entity.PanelClient{{Email: "postlog", UUID: uuid.New()}}},
 				}, nil)
 				// no Create, no DelClient, no AddClient
@@ -129,12 +174,12 @@ func TestService_CreateUser(t *testing.T) {
 			wantConns: 2,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.users.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
 				// ListInbounds twice: pre-flight email check + syncPanels lookup; the
 				// panel has no "postlog" client → free.
-				m.client.EXPECT().ListInbounds(gomock.Any(), gomock.Any()).Return(panelInbounds(), nil).Times(2)
+				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil).Times(2)
 				// one panel, two inbounds (4433+8443) → single add with both 3x-ui ids.
-				m.client.EXPECT().AddClient(gomock.Any(), gomock.Any(), []int{1, 2}, gomock.Any()).Return(nil)
+				m.client.EXPECT().AddClient(gomock.Any(), n1Target(), []int{1, 2}, clientSpecLike{email: "postlog", flow: ""}).Return(nil)
 			},
 		},
 	}
@@ -180,7 +225,7 @@ func TestService_DeleteUser(t *testing.T) {
 			buildMocks: func(m *mocks) {
 				m.users.EXPECT().Get(gomock.Any(), int64(7)).Return(user, nil)
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.client.EXPECT().DelClient(gomock.Any(), gomock.Any(), "postlog").Return(nil)
+				m.client.EXPECT().DelClient(gomock.Any(), n1Target(), "postlog").Return(nil)
 				m.users.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
 			},
 		},

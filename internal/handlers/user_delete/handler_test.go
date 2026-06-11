@@ -30,7 +30,7 @@ func TestHandler_UserDelete(t *testing.T) {
 			buildDeleterMock: func(m *Mockdeleter) {
 				m.EXPECT().DeleteUser(gomock.Any(), int64(7)).Return(nil)
 			},
-			result: &oas.MessageResponse{Message: "Пользователь удалён"},
+			result: &oas.MessageResponse{Message: MsgDeleted},
 		},
 		{
 			name: "error.internal",

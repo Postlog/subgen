@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/postlog/subgen/apitest/api"
+	userEditHandler "github.com/postlog/subgen/internal/handlers/user_edit"
 )
 
 // Corner cases considered for POST /admin/api/users/edit:
@@ -122,7 +123,7 @@ func (s *UserSuite) TestEditValidation() {
 		res, err := s.API().EditUser(u.ID, []int64{999999})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInboundNotFound, res.Err)
+		s.Equal(userEditHandler.MsgInboundNotFound, res.Err)
 	})
 
 	s.Run("unknown_user", func() {

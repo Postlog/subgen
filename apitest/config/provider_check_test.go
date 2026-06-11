@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/postlog/subgen/apitest/api"
-	"github.com/postlog/subgen/internal/handlers/provider_check"
+	providerCheckHandler "github.com/postlog/subgen/internal/handlers/provider_check"
 )
 
 // Corner cases considered for POST /admin/api/config/mihomo/provider/check (a read-only
@@ -93,7 +93,7 @@ func (s *ConfigSuite) TestProviderCheck() {
 		res, err := s.api.CheckProvider(srv.URL+"/empty", "text")
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(provider_check.MsgEmpty, res.Err, "an empty body must report no file")
+		s.Equal(providerCheckHandler.MsgEmpty, res.Err, "an empty body must report no file")
 	})
 
 	s.Run("unreachable", func() {
@@ -111,7 +111,7 @@ func (s *ConfigSuite) TestProviderCheck() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.True(strings.HasPrefix(res.Err, provider_check.MsgUnreachableP), "got %q", res.Err)
+		s.True(strings.HasPrefix(res.Err, providerCheckHandler.MsgUnreachableP), "got %q", res.Err)
 	})
 
 	s.Run("malformed_json", func() {

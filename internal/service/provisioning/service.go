@@ -29,11 +29,20 @@ type Service struct {
 	users  userRepo
 	nodes  nodeRepo
 	client panelClient
+
+	// Random-id sources, injected so tests can make them deterministic (defaulted in
+	// New): genID mints a subscriber id, genUUID a 3x-ui client uuid.
+	genID   func(int) string
+	genUUID func() uuid.UUID
 }
 
 // New builds the provisioning service from its dependencies.
 func New(users userRepo, nodes nodeRepo, client panelClient) *Service {
-	return &Service{users: users, nodes: nodes, client: client}
+	return &Service{
+		users: users, nodes: nodes, client: client,
+		genID:   randID,
+		genUUID: uuid.New,
+	}
 }
 
 // nameRe is the allowed nickname charset (also the prefix of every client email).
@@ -141,7 +150,7 @@ func (s *Service) CreateUser(ctx context.Context, name string, sel entity.Connec
 		return nil, err
 	}
 
-	u := &entity.User{Name: name, SubID: randID(16)}
+	u := &entity.User{Name: name, SubID: s.genID(16)}
 	for _, t := range targets {
 		u.Connections = append(u.Connections, entity.Connection{InboundID: t.InboundID})
 	}
@@ -312,7 +321,7 @@ func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u 
 		// this user, or a forced recreate), preserving the existing uuid. We never
 		// delete a client we don't own — collisions on a newly-added panel are caught
 		// up front by ensureEmailFree, not reclaimed here.
-		cid := uuid.New()
+		cid := s.genUUID()
 
 		if len(had) > 0 || forceAll {
 			if existing, ok := uuidByEmail[email]; ok {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/postlog/subgen/apitest/api"
 	"github.com/postlog/subgen/internal/entity"
+	userCreateHandler "github.com/postlog/subgen/internal/handlers/user_create"
 )
 
 // Corner cases considered for POST /admin/api/users/create:
@@ -76,7 +77,7 @@ func (s *UserSuite) TestCreateValidation() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(msgInvalidUserName, res.Err)
+		s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 	})
 
 	s.Run("name_bad_chars", func() {
@@ -84,7 +85,7 @@ func (s *UserSuite) TestCreateValidation() {
 			res, err := s.API().CreateUser(bad, []int64{smartN1})
 			s.Require().NoError(err)
 			s.False(res.OK, "nickname %q must be rejected", bad)
-			s.Equal(msgInvalidUserName, res.Err)
+			s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 		}
 	})
 
@@ -93,7 +94,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", []int64{smartN1})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInvalidUserName, res.Err)
+		s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 	})
 
 	s.Run("no_connections", func() {
@@ -115,7 +116,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser(s.userName(), []int64{999999})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInboundNotFound, res.Err)
+		s.Equal(userCreateHandler.MsgInboundNotFound, res.Err)
 	})
 
 	s.Run("duplicate_name", func() {
@@ -128,7 +129,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser(u.Name, []int64{s.InboundID("N2", "force")})
 		s.Require().NoError(err)
 		s.False(res.OK, "duplicate nickname must be rejected")
-		s.Equal(msgNameTaken, res.Err)
+		s.Equal(userCreateHandler.MsgNameTaken, res.Err)
 		s.RequireNoClient(s.Pan2(), api.N2Force, u.Name)
 	})
 

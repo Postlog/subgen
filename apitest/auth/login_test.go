@@ -10,10 +10,6 @@ import (
 	"github.com/postlog/subgen/internal/handlers/login"
 )
 
-// msgBadCreds is the exact rejection text the login handler returns for wrong creds —
-// aliased from the handler so the text lives in exactly one place.
-const msgBadCreds = login.MsgBadCredentials
-
 // Corner cases considered for POST /admin/api/login (idiomatic contract: 200 {message}
 // on success, 4xx {errMessage} otherwise):
 //   - ok             — right user+password → 200 "ok" + a Secure session cookie.
@@ -44,7 +40,7 @@ func (s *AuthSuite) TestLoginPost() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status, "wrong creds are 401")
 		s.False(res.OK)
-		s.Equal(msgBadCreds, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("wrong_password", func() {
@@ -52,7 +48,7 @@ func (s *AuthSuite) TestLoginPost() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status)
 		s.False(res.OK)
-		s.Equal(msgBadCreds, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("empty_fields", func() {
@@ -62,7 +58,7 @@ func (s *AuthSuite) TestLoginPost() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status, "empty creds are wrong creds → 401")
 		s.False(res.OK)
-		s.Equal(msgBadCreds, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("missing_fields", func() {

@@ -3,8 +3,6 @@ package provisioning
 import (
 	"context"
 	"errors"
-	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,47 +15,27 @@ import (
 
 var ctx = context.Background()
 
+// Deterministic random-id sources: the test overrides Service.genID/genUUID with these so
+// the *entity.User and entity.ClientSpec the service builds are fully pinned (no matchers).
+const fixedSubID = "subid000000000000"
+
+var fixedClientID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+// newService builds the provisioning service with its random-id sources pinned, so panel
+// calls and users.Create can be asserted exactly.
+func newService(m *mocks) *Service {
+	s := New(m.users, m.nodes, m.client)
+	s.genID = func(int) string { return fixedSubID }
+	s.genUUID = func() uuid.UUID { return fixedClientID }
+
+	return s
+}
+
 // n1Target is the per-call panel credentials the service derives from node N1
 // (target(n) = {BaseURL, BasePath, Token}). Deterministic, so panel calls assert it
 // exactly rather than gomock.Any().
 func n1Target() entity.PanelTarget {
 	return entity.PanelTarget{BaseURL: "u", BasePath: "/", Token: "t"}
-}
-
-// userLike matches an *entity.User the service hands to users.Create by its deterministic
-// fields (Name + Connections). The SubID is minted from crypto/rand and so can't be pinned
-// — the matcher only asserts it was set (non-empty), never gomock.Any() over the whole arg.
-type userLike struct {
-	name  string
-	conns []entity.Connection
-}
-
-func (m userLike) Matches(x any) bool {
-	u, ok := x.(*entity.User)
-
-	return ok && u.Name == m.name && u.SubID != "" && reflect.DeepEqual(u.Connections, m.conns)
-}
-
-func (m userLike) String() string {
-	return fmt.Sprintf("*entity.User{Name:%q, Connections:%v, SubID:<non-empty>}", m.name, m.conns)
-}
-
-// clientSpecLike matches the entity.ClientSpec passed to AddClient by Email/Flow. The uuid
-// (ID) and SubID are randomly minted per call, so the matcher only asserts they were set —
-// not gomock.Any() over the whole spec.
-type clientSpecLike struct {
-	email string
-	flow  string
-}
-
-func (m clientSpecLike) Matches(x any) bool {
-	cs, ok := x.(entity.ClientSpec)
-
-	return ok && cs.Email == m.email && cs.Flow == m.flow && cs.ID != uuid.Nil && cs.SubID != ""
-}
-
-func (m clientSpecLike) String() string {
-	return fmt.Sprintf("entity.ClientSpec{Email:%q, Flow:%q, ID:<set>, SubID:<non-empty>}", m.email, m.flow)
 }
 
 // mocks bundles the service's dependency mocks for a test case.
@@ -124,7 +102,7 @@ func TestService_CreateUser(t *testing.T) {
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil)
-				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}}}).Return(entity.ErrNameTaken)
+				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Connections: []entity.Connection{{InboundID: 10}}}).Return(entity.ErrNameTaken)
 			},
 		},
 		{
@@ -150,7 +128,7 @@ func TestService_CreateUser(t *testing.T) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
 				// pre-flight email check: panel is free
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil)
-				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}}}).Return(targetErr)
+				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Connections: []entity.Connection{{InboundID: 10}}}).Return(targetErr)
 			},
 		},
 		{
@@ -174,12 +152,12 @@ func TestService_CreateUser(t *testing.T) {
 			wantConns: 2,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.users.EXPECT().Create(gomock.Any(), userLike{name: "postlog", conns: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
+				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Connections: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
 				// ListInbounds twice: pre-flight email check + syncPanels lookup; the
 				// panel has no "postlog" client → free.
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil).Times(2)
 				// one panel, two inbounds (4433+8443) → single add with both 3x-ui ids.
-				m.client.EXPECT().AddClient(gomock.Any(), n1Target(), []int{1, 2}, clientSpecLike{email: "postlog", flow: ""}).Return(nil)
+				m.client.EXPECT().AddClient(gomock.Any(), n1Target(), []int{1, 2}, entity.ClientSpec{ID: fixedClientID, Email: "postlog", Flow: "", SubID: fixedSubID}).Return(nil)
 			},
 		},
 	}
@@ -194,7 +172,7 @@ func TestService_CreateUser(t *testing.T) {
 				tc.buildMocks(m)
 			}
 
-			svc := New(m.users, m.nodes, m.client)
+			svc := newService(m)
 			u, err := svc.CreateUser(ctx, tc.inName, tc.sel)
 
 			if tc.err != nil {
@@ -204,7 +182,7 @@ func TestService_CreateUser(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Len(t, u.Connections, tc.wantConns)
-			assert.NotEmpty(t, u.SubID)
+			assert.Equal(t, fixedSubID, u.SubID)
 		})
 	}
 }
@@ -245,7 +223,7 @@ func TestService_DeleteUser(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			m := newMocks(ctrl)
 			tc.buildMocks(m)
-			svc := New(m.users, m.nodes, m.client)
+			svc := newService(m)
 			require.NoError(t, svc.DeleteUser(ctx, 7))
 		})
 	}

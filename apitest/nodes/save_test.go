@@ -2,7 +2,10 @@
 
 package nodes_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"github.com/postlog/subgen/apitest/api"
+	nodeSaveHandler "github.com/postlog/subgen/internal/handlers/node_save"
+)
 
 // Corner cases considered for POST /admin/api/nodes/save:
 //   - create                — a new node with one inbound appears in the registry.
@@ -129,25 +132,25 @@ func (s *NodeSuite) TestSaveValidation() {
 	s.Run("bad_vpn_host", func() {
 		spec := valid()
 		spec.VPNHost = "http://bad:8080"
-		s.rejected(spec, msgHost)
+		s.rejected(spec, nodeSaveHandler.MsgHost)
 	})
 
 	s.Run("no_inbounds", func() {
 		spec := valid()
 		spec.Inbounds = nil
-		s.rejected(spec, msgNoInbounds)
+		s.rejected(spec, nodeSaveHandler.MsgNoInbounds)
 	})
 
 	s.Run("bad_inbound_name", func() {
 		spec := valid()
 		spec.Inbounds = []api.InboundSpec{{Name: "bad name!", Port: 7100}}
-		s.rejected(spec, msgInboundName)
+		s.rejected(spec, nodeSaveHandler.MsgInboundName)
 	})
 
 	s.Run("bad_node_name", func() {
 		spec := valid()
 		spec.Name = "bad/name"
-		s.rejected(spec, msgNodeName)
+		s.rejected(spec, nodeSaveHandler.MsgNodeName)
 	})
 
 	s.Run("duplicate_inbound_name", func() {
@@ -156,7 +159,7 @@ func (s *NodeSuite) TestSaveValidation() {
 			{Name: "dup", Port: 7101},
 			{Name: "dup", Port: 7102},
 		}
-		s.rejected(spec, msgInboundNameUq)
+		s.rejected(spec, nodeSaveHandler.MsgInboundNameUq)
 	})
 
 	s.Run("duplicate_inbound_port", func() {
@@ -165,7 +168,7 @@ func (s *NodeSuite) TestSaveValidation() {
 			{Name: "a", Port: 7103},
 			{Name: "b", Port: 7103},
 		}
-		s.rejected(spec, msgInboundPortUq)
+		s.rejected(spec, nodeSaveHandler.MsgInboundPortUq)
 	})
 
 	s.Run("duplicate_node_name", func() {
@@ -177,7 +180,7 @@ func (s *NodeSuite) TestSaveValidation() {
 		res, err := s.API().SaveNode(dup)
 		s.Require().NoError(err)
 		s.False(res.OK, "duplicate node name must be rejected")
-		s.Equal(msgNodeNameTaken, res.Err)
+		s.Equal(nodeSaveHandler.MsgNodeNameTaken, res.Err)
 	})
 
 	s.Run("malformed_json", func() {

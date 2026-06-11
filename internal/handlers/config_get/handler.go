@@ -79,6 +79,11 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 		idx[g.ID] = i
 	}
 
+	provIdx := map[int64]int{} // rule_provider id -> array index
+	for i, rp := range rps {
+		provIdx[rp.ID] = i
+	}
+
 	out := &oas.MihomoConfig{
 		BaseYAML:              baseYAML,
 		ProfileTitle:          profile.Title,
@@ -93,17 +98,43 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 			members = append(members, refToView(m, idx))
 		}
 
-		out.Groups = append(out.Groups, oas.MihomoGroup{
-			Name: g.Name, Type: g.Type.String(), URL: g.URL,
-			Interval: g.Interval, Tolerance: g.Tolerance, Lazy: g.Lazy, Members: members,
-		})
+		mg := oas.MihomoGroup{Name: g.Name, Type: g.Type.String(), URL: g.URL, Members: members}
+
+		if g.Interval != nil {
+			mg.Interval = oas.NewOptInt(*g.Interval)
+		}
+
+		if g.Tolerance != nil {
+			mg.Tolerance = oas.NewOptInt(*g.Tolerance)
+		}
+
+		if g.Lazy != nil {
+			mg.Lazy = oas.NewOptBool(*g.Lazy)
+		}
+
+		out.Groups = append(out.Groups, mg)
 	}
 
 	out.Rules = make([]oas.MihomoRule, 0, len(rules))
 	for _, r := range rules {
-		out.Rules = append(out.Rules, oas.MihomoRule{
-			Type: r.Type.String(), Value: r.Value, NoResolve: r.NoResolve, Target: refToView(r.Target, idx),
-		})
+		mr := oas.MihomoRule{Type: r.Type.String(), Target: refToView(r.Target, idx)}
+
+		if r.Value != nil {
+			mr.Value = oas.NewOptString(*r.Value)
+		}
+
+		if r.NoResolve != nil {
+			mr.NoResolve = oas.NewOptBool(*r.NoResolve)
+		}
+
+		// RULE-SET: surface the provider as its array index (real id never leaves).
+		if r.ProviderID != nil {
+			if i, ok := provIdx[*r.ProviderID]; ok {
+				mr.ProviderIdx = oas.NewOptInt(i)
+			}
+		}
+
+		out.Rules = append(out.Rules, mr)
 	}
 
 	out.Providers = make([]oas.MihomoProvider, 0, len(rps))

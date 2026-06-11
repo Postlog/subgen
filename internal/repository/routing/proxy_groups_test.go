@@ -36,21 +36,21 @@ func TestRepository_ProxyGroups(t *testing.T) {
 		// group[0] "auto" is a url-test with health-check fields and lazy set; its members
 		// are (in order) an inbound and a built-in direct. group[1] "pick" references
 		// group[0] by index 0.
-		groups := []mihomo.ProxyGroup{
+		groups := []mihomo.GroupDraft{
 			{
 				Name: "auto", Type: mihomo.GroupURLTest,
-				URL: "http://gstatic/generate_204", Interval: 300, Tolerance: 50, Lazy: true,
-				Members: []mihomo.PolicyRef{
+				URL: "http://gstatic/generate_204", Interval: dbtest.Ptr(300), Tolerance: dbtest.Ptr(50), Lazy: dbtest.Ptr(true),
+				Members: []mihomo.RefDraft{
 					{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
 					{Kind: mihomo.PolicyDirect},
 				},
 			},
 			{
 				Name: "pick", Type: mihomo.GroupSelect,
-				Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}},
+				Members: []mihomo.RefDraft{{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
 			},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, groups, nil, "", mihomo.Profile{}))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(nil, groups, nil, "", mihomo.Profile{})))
 
 		got, err := repo.ProxyGroups(t.Context(), cfg)
 		require.NoError(t, err)
@@ -66,9 +66,17 @@ func TestRepository_ProxyGroups(t *testing.T) {
 		assert.Equal(t, "auto", auto.Name)
 		assert.Equal(t, mihomo.GroupURLTest, auto.Type)
 		assert.Equal(t, "http://gstatic/generate_204", auto.URL)
-		assert.Equal(t, 300, auto.Interval)
-		assert.Equal(t, 50, auto.Tolerance)
-		assert.True(t, auto.Lazy)
+		require.NotNil(t, auto.Interval)
+		assert.Equal(t, 300, *auto.Interval)
+		require.NotNil(t, auto.Tolerance)
+		assert.Equal(t, 50, *auto.Tolerance)
+		require.NotNil(t, auto.Lazy)
+		assert.True(t, *auto.Lazy)
+
+		// pick is a select group → the health-check fields come back nil (not applicable).
+		assert.Nil(t, pick.Interval)
+		assert.Nil(t, pick.Tolerance)
+		assert.Nil(t, pick.Lazy)
 
 		// Members come back in position order with their typed refs.
 		require.Len(t, auto.Members, 2)

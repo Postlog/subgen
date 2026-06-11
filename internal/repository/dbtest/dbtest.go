@@ -117,23 +117,30 @@ func SeedConfig(t *testing.T, db *sql.DB) int64 {
 }
 
 // Ptr is the shared utils.Ptr, re-exported for the integration tests' ergonomics (the
-// *int64 ids inside mihomo.PolicyRef, etc.). One universal pointer helper lives in utils.
+// *int64 ids / *int indices inside the save-time draft refs, etc.). One universal pointer
+// helper lives in utils.
 func Ptr[T any](v T) *T { return utils.Ptr(v) }
+
+// Draft wraps save-time pieces into a mihomo.ConfigDraft (the SaveMihomoConfig input),
+// so call sites pass rules/groups/providers without repeating the struct literal.
+func Draft(rules []mihomo.RuleDraft, groups []mihomo.GroupDraft, provs []mihomo.RuleProvider, baseYAML string, profile mihomo.Profile) mihomo.ConfigDraft {
+	return mihomo.ConfigDraft{Rules: rules, Groups: groups, Providers: provs, BaseYAML: baseYAML, Profile: profile}
+}
 
 // RuleToInbound builds a single MATCH rule whose target is the given inbound id — the
 // minimal mihomo config that holds an FK to node_inbounds (for the RESTRICT tests).
-func RuleToInbound(inboundID int64) mihomo.RoutingRule {
-	return mihomo.RoutingRule{
+func RuleToInbound(inboundID int64) mihomo.RuleDraft {
+	return mihomo.RuleDraft{
 		Type:   mihomo.RuleMatch,
-		Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)},
+		Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)},
 	}
 }
 
 // GroupWithInbound builds a select proxy-group with one member of kind inbound — the
 // other way the mihomo config holds an FK to node_inbounds (via a group member).
-func GroupWithInbound(name string, inboundID int64) mihomo.ProxyGroup {
-	return mihomo.ProxyGroup{
+func GroupWithInbound(name string, inboundID int64) mihomo.GroupDraft {
+	return mihomo.GroupDraft{
 		Name: name, Type: mihomo.GroupSelect,
-		Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)}},
+		Members: []mihomo.RefDraft{{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)}},
 	}
 }

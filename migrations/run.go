@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -85,6 +86,15 @@ func applyOne(ctx context.Context, db *sql.DB, name string) error {
 		return err
 	}
 
+	// A `.notx.sql` migration runs OUTSIDE a transaction — the escape hatch for what
+	// SQLite can't do inside one, notably toggling `PRAGMA foreign_keys` (a no-op
+	// mid-transaction) for a table rebuild that drops a table other tables reference.
+	// Such a file owns its own atomicity AND its schema_migrations record (its DDL and
+	// the INSERT share the file's own BEGIN/COMMIT), so "applied" commits with the change.
+	if strings.HasSuffix(name, ".notx.sql") {
+		return applyNoTx(ctx, db, string(body))
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -101,4 +111,21 @@ func applyOne(ctx context.Context, db *sql.DB, name string) error {
 	}
 
 	return tx.Commit()
+}
+
+// applyNoTx runs a `.notx.sql` migration on a dedicated connection without wrapping it in
+// a transaction, then discards the connection so any PRAGMA the file left (e.g.
+// foreign_keys) can't leak into the pool. The file records itself in schema_migrations
+// inside its own transaction (see applyOne), so there is no separate, non-atomic mark.
+func applyNoTx(ctx context.Context, db *sql.DB, body string) error {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = conn.Close() }()
+
+	_, err = conn.ExecContext(ctx, body)
+
+	return err
 }

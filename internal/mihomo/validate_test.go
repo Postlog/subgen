@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-)
 
-func i64(v int64) *int64 { return &v }
+	"github.com/postlog/subgen/internal/utils"
+)
 
 func TestValidateBaseYAML(t *testing.T) {
 	tt := []struct {
@@ -31,47 +31,71 @@ func TestValidateBaseYAML(t *testing.T) {
 
 func TestValidateRoutingRules(t *testing.T) {
 	tt := []struct {
-		name      string
-		rules     []RoutingRule
-		numGroups int
-		err       error
+		name         string
+		rules        []RuleDraft
+		numGroups    int
+		numProviders int
+		err          error
 	}{
 		{
 			name: "success.valid",
-			rules: []RoutingRule{
-				{Type: RuleDomainSuffix, Value: "x.com", Target: PolicyRef{Kind: PolicyDirect}},
-				{Type: RuleMatch, Target: PolicyRef{Kind: PolicyGroup, GroupID: i64(0)}},
+			rules: []RuleDraft{
+				{Type: RuleDomainSuffix, Value: utils.Ptr("x.com"), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}},
 			},
-			numGroups: 1,
+			numGroups:    1,
+			numProviders: 1,
 		},
 		{
 			name:  "error.bad_type",
-			rules: []RoutingRule{{Type: "NOPE", Target: PolicyRef{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: "NOPE", Target: RefDraft{Kind: PolicyDirect}}},
 			err:   ErrUnknownRuleType,
 		},
 		{
 			name:  "error.no_value",
-			rules: []RoutingRule{{Type: RuleDomain, Target: PolicyRef{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleDomain, Target: RefDraft{Kind: PolicyDirect}}},
 			err:   ErrRuleValueRequired,
 		},
 		{
 			name: "error.match_not_last",
-			rules: []RoutingRule{
-				{Type: RuleMatch, Target: PolicyRef{Kind: PolicyDirect}},
-				{Type: RuleDomain, Value: "x", Target: PolicyRef{Kind: PolicyDirect}},
+			rules: []RuleDraft{
+				{Type: RuleMatch, Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleDomain, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}},
 			},
 			err: ErrMatchNotLast,
 		},
 		{
 			name:      "error.group_oob",
-			rules:     []RoutingRule{{Type: RuleMatch, Target: PolicyRef{Kind: PolicyGroup, GroupID: i64(3)}}},
+			rules:     []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(3)}}},
 			numGroups: 1,
 			err:       ErrGroupRefRange,
 		},
 		{
 			name:  "error.bad_ref",
-			rules: []RoutingRule{{Type: RuleMatch, Target: PolicyRef{Kind: PolicyInbound}}}, // inbound without id
+			rules: []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyInbound}}}, // inbound without id
 			err:   ErrBadRef,
+		},
+		{
+			name:         "error.ruleset_provider_oob",
+			rules:        []RuleDraft{{Type: RuleRuleSet, ProviderIdx: utils.Ptr(2), Target: RefDraft{Kind: PolicyDirect}}},
+			numProviders: 1,
+			err:          ErrProviderRefRange,
+		},
+		{
+			name:  "error.ruleset_no_provider",
+			rules: []RuleDraft{{Type: RuleRuleSet, Target: RefDraft{Kind: PolicyDirect}}}, // ProviderIdx nil
+			err:   ErrProviderRefRange,
+		},
+		{
+			name:  "error.value_on_match",
+			rules: []RuleDraft{{Type: RuleMatch, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}}},
+			err:   ErrRulePayloadNotAllowed,
+		},
+		{
+			name:  "error.no_resolve_unsupported",
+			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com"), NoResolve: utils.Ptr(true), Target: RefDraft{Kind: PolicyDirect}}},
+			err:   ErrNoResolveUnsupported,
 		},
 	}
 
@@ -80,7 +104,7 @@ func TestValidateRoutingRules(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			require.ErrorIs(t, ValidateRoutingRules(tc.rules, tc.numGroups), tc.err)
+			require.ErrorIs(t, ValidateRoutingRules(tc.rules, tc.numGroups, tc.numProviders), tc.err)
 		})
 	}
 }
@@ -88,46 +112,51 @@ func TestValidateRoutingRules(t *testing.T) {
 func TestValidateProxyGroups(t *testing.T) {
 	tt := []struct {
 		name   string
-		groups []ProxyGroup
+		groups []GroupDraft
 		err    error
 	}{
 		{
 			name: "success.valid",
-			groups: []ProxyGroup{
-				{Name: "smart", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyDirect}}},
-				{Name: "Conn", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyGroup, GroupID: i64(0)}}},
+			groups: []GroupDraft{
+				{Name: "smart", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
+				{Name: "Conn", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}}},
 			},
 		},
 		{
 			name:   "error.no_name",
-			groups: []ProxyGroup{{Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyDirect}}}},
+			groups: []GroupDraft{{Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}}},
 			err:    ErrGroupNameEmpty,
 		},
 		{
 			name: "error.dup_name",
-			groups: []ProxyGroup{
-				{Name: "g", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyDirect}}},
-				{Name: "g", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyDirect}}},
+			groups: []GroupDraft{
+				{Name: "g", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
+				{Name: "g", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
 			},
 			err: ErrGroupNameTaken,
 		},
 		{
 			name:   "error.bad_type",
-			groups: []ProxyGroup{{Name: "g", Type: "nope", Members: []PolicyRef{{Kind: PolicyDirect}}}},
+			groups: []GroupDraft{{Name: "g", Type: "nope", Members: []RefDraft{{Kind: PolicyDirect}}}},
 			err:    ErrGroupUnknownType,
 		},
 		{
 			name:   "error.no_members",
-			groups: []ProxyGroup{{Name: "g", Type: GroupSelect}},
+			groups: []GroupDraft{{Name: "g", Type: GroupSelect}},
 			err:    ErrGroupNoMembers,
 		},
 		{
 			name: "error.cycle",
-			groups: []ProxyGroup{
-				{Name: "a", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyGroup, GroupID: i64(1)}}},
-				{Name: "b", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyGroup, GroupID: i64(0)}}},
+			groups: []GroupDraft{
+				{Name: "a", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}}},
+				{Name: "b", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}}},
 			},
 			err: ErrGroupCycle,
+		},
+		{
+			name:   "error.field_on_select",
+			groups: []GroupDraft{{Name: "g", Type: GroupSelect, Interval: utils.Ptr(300), Members: []RefDraft{{Kind: PolicyDirect}}}},
+			err:    ErrGroupFieldNotAllowed,
 		},
 	}
 
@@ -179,38 +208,6 @@ func TestValidateRuleProviders(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.ErrorIs(t, ValidateRuleProviders(tc.provs), tc.err)
-		})
-	}
-}
-
-func TestValidateRuleProviderRefs(t *testing.T) {
-	provs := []RuleProvider{{Name: "geosite", Behavior: "domain", Format: "mrs", URL: "https://x"}}
-
-	tt := []struct {
-		name  string
-		rules []RoutingRule
-		err   error
-	}{
-		{
-			name: "success.known_provider",
-			rules: []RoutingRule{
-				{Type: RuleRuleSet, Value: "geosite", Target: PolicyRef{Kind: PolicyDirect}},
-				{Type: RuleDomainSuffix, Value: "x.com", Target: PolicyRef{Kind: PolicyDirect}},
-			},
-		},
-		{
-			name:  "error.unknown_provider",
-			rules: []RoutingRule{{Type: RuleRuleSet, Value: "missing", Target: PolicyRef{Kind: PolicyDirect}}},
-			err:   ErrRuleSetUnknownProvider,
-		},
-	}
-
-	t.Parallel()
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.ErrorIs(t, ValidateRuleProviderRefs(tc.rules, provs), tc.err)
 		})
 	}
 }

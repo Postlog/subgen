@@ -5,24 +5,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/postlog/subgen/internal/utils"
 )
 
 func TestDecodeConfig(t *testing.T) {
 	tt := []struct {
 		name string
 		body string
-
-		wantRules   []RoutingRule
-		wantGroups  []ProxyGroup
-		wantProvs   []RuleProvider
-		wantBase    string
-		wantProfile Profile
+		want ConfigDraft
 	}{
 		{
 			// two groups: "smart" (→direct) and "Conn" (member group→idx 0, inbound 5);
-			// rules: DOMAIN-SUFFIX→inbound 5, MATCH→group idx 1. Group refs decode to the
-			// array INDEX (the SaveMihomoConfig convention), not a persisted id. The profile
-			// title is whitespace-padded to exercise trimming.
+			// rules: DOMAIN-SUFFIX→inbound 5, RULE-SET→provider idx 0, MATCH→group idx 1.
+			// Group/provider refs decode to the array INDEX (the SaveMihomoConfig
+			// convention), not a persisted id. The profile title is padded to exercise trim.
 			name: "success.full",
 			body: `{
 				"baseYAML": "mode: rule",
@@ -33,37 +30,45 @@ func TestDecodeConfig(t *testing.T) {
 					{"name":"smart","type":"select","members":[{"kind":"direct"}]},
 					{"name":"Conn","type":"select","members":[{"kind":"group","groupIdx":0},{"kind":"inbound","inboundId":5}]}
 				],
+				"providers": [
+					{"name":"allow","behavior":"domain","format":"mrs","url":"https://x"}
+				],
 				"rules": [
 					{"type":"DOMAIN-SUFFIX","value":"example.com","target":{"kind":"inbound","inboundId":5}},
+					{"type":"RULE-SET","providerIdx":0,"target":{"kind":"direct"}},
 					{"type":"MATCH","target":{"kind":"group","groupIdx":1}}
 				]
 			}`,
-			wantGroups: []ProxyGroup{
-				{Name: "smart", Type: GroupSelect, Members: []PolicyRef{{Kind: PolicyDirect}}},
-				{Name: "Conn", Type: GroupSelect, Members: []PolicyRef{
-					{Kind: PolicyGroup, GroupID: i64(0)},
-					{Kind: PolicyInbound, InboundID: i64(5)},
-				}},
+			want: ConfigDraft{
+				BaseYAML: "mode: rule",
+				Profile:  Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
+				Groups: []GroupDraft{
+					{Name: "smart", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
+					{Name: "Conn", Type: GroupSelect, Members: []RefDraft{
+						{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)},
+						{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)},
+					}},
+				},
+				Rules: []RuleDraft{
+					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
+					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
+				},
+				Providers: []RuleProvider{{Name: "allow", Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},
-			wantRules: []RoutingRule{
-				{Type: RuleDomainSuffix, Value: "example.com", Target: PolicyRef{Kind: PolicyInbound, InboundID: i64(5)}},
-				{Type: RuleMatch, Target: PolicyRef{Kind: PolicyGroup, GroupID: i64(1)}},
-			},
-			wantProvs:   nil,
-			wantBase:    "mode: rule",
-			wantProfile: Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
 		},
 		{
 			// Regression: a provider with an all-whitespace name was once silently dropped
 			// (decode skip + frontend filter), so a half-filled row "saved" as a no-op.
 			// Decode now KEEPS it (name trimmed to "") so ValidateRuleProviders can reject
 			// the save (see TestValidateRuleProviders/error.empty_name → ErrProviderNameEmpty).
-			name:       "success.nameless_provider_kept",
-			body:       `{"providers":[{"name":"  ","behavior":"domain","format":"mrs","url":"https://x"}]}`,
-			wantRules:  []RoutingRule{},
-			wantGroups: []ProxyGroup{},
-			wantProvs:  []RuleProvider{{Name: "", Behavior: "domain", Format: "mrs", URL: "https://x"}},
-			wantBase:   "",
+			name: "success.nameless_provider_kept",
+			body: `{"providers":[{"name":"  ","behavior":"domain","format":"mrs","url":"https://x"}]}`,
+			want: ConfigDraft{
+				Groups:    []GroupDraft{},
+				Rules:     []RuleDraft{},
+				Providers: []RuleProvider{{Name: "", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+			},
 		},
 	}
 
@@ -73,14 +78,10 @@ func TestDecodeConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			rules, groups, provs, base, profile, err := DecodeConfig([]byte(tc.body))
+			got, err := DecodeConfig([]byte(tc.body))
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.wantRules, rules)
-			assert.Equal(t, tc.wantGroups, groups)
-			assert.Equal(t, tc.wantProvs, provs)
-			assert.Equal(t, tc.wantBase, base)
-			assert.Equal(t, tc.wantProfile, profile)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

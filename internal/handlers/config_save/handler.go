@@ -25,11 +25,14 @@ const (
 	MsgGroupUnknownType = "Неизвестный тип proxy-группы"
 	MsgGroupNoMembers   = "Пустая proxy-группа"
 	MsgGroupCycle       = "Proxy-группы образуют циклическую ссылку"
+	MsgGroupFieldNA     = "Параметр неприменим к этому типу proxy-группы"
 	MsgBadRef           = "Некорректная цель правила/элемента группы"
 	MsgGroupRefRange    = "Ссылка на несуществующую группу"
 	MsgUnknownRuleType  = "Неизвестный тип правила"
 	MsgMatchNotLast     = "Правило MATCH должно быть последним"
 	MsgRuleValueReq     = "У правила не указано значение"
+	MsgRulePayloadNA    = "Тип правила не принимает это значение"
+	MsgNoResolveNA      = "no-resolve неприменим к этому типу правила"
 	MsgBaseYAMLInvalid  = "YAML невалиден — проверьте синтаксис"
 	MsgGeneratedKey     = "Уберите из YAML генерируемые разделы"
 
@@ -70,29 +73,25 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	rules, groups, provs, base, profile, err := mihomo.DecodeConfig(raw)
+	draft, err := mihomo.DecodeConfig(raw)
 	if err == nil {
-		err = mihomo.ValidateBaseYAML(base)
+		err = mihomo.ValidateBaseYAML(draft.BaseYAML)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateProxyGroups(groups)
+		err = mihomo.ValidateProxyGroups(draft.Groups)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRoutingRules(rules, len(groups))
+		err = mihomo.ValidateRoutingRules(draft.Rules, len(draft.Groups), len(draft.Providers))
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRuleProviders(provs)
+		err = mihomo.ValidateRuleProviders(draft.Providers)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRuleProviderRefs(rules, provs)
-	}
-
-	if err == nil {
-		err = mihomo.ValidateProfile(profile)
+		err = mihomo.ValidateProfile(draft.Profile)
 	}
 
 	if err != nil {
@@ -120,7 +119,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base, profile); err != nil {
+	if err := h.routing.SaveMihomoConfig(ctx, configID, draft); err != nil {
 		if errors.Is(err, entity.ErrRuleProviderNameTaken) {
 			slog.Warn("handler config_save: rule-provider name taken", "configID", configID)
 			return &oas.ConfigSaveBadRequest{ErrMessage: MsgProviderNameTaken}, nil
@@ -149,6 +148,8 @@ func validationMessage(err error) (string, bool) {
 		return MsgGroupNoMembers, true
 	case errors.Is(err, mihomo.ErrGroupCycle):
 		return MsgGroupCycle, true
+	case errors.Is(err, mihomo.ErrGroupFieldNotAllowed):
+		return MsgGroupFieldNA, true
 	case errors.Is(err, mihomo.ErrBadRef):
 		return MsgBadRef, true
 	case errors.Is(err, mihomo.ErrGroupRefRange):
@@ -159,6 +160,10 @@ func validationMessage(err error) (string, bool) {
 		return MsgMatchNotLast, true
 	case errors.Is(err, mihomo.ErrRuleValueRequired):
 		return MsgRuleValueReq, true
+	case errors.Is(err, mihomo.ErrRulePayloadNotAllowed):
+		return MsgRulePayloadNA, true
+	case errors.Is(err, mihomo.ErrNoResolveUnsupported):
+		return MsgNoResolveNA, true
 	case errors.Is(err, mihomo.ErrBaseYAMLInvalid):
 		return MsgBaseYAMLInvalid, true
 	case errors.Is(err, mihomo.ErrGeneratedKeyPresent):
@@ -171,7 +176,7 @@ func validationMessage(err error) (string, bool) {
 		return MsgProviderBadFormat, true
 	case errors.Is(err, mihomo.ErrProviderURLEmpty):
 		return MsgProviderURLEmpty, true
-	case errors.Is(err, mihomo.ErrRuleSetUnknownProvider):
+	case errors.Is(err, mihomo.ErrProviderRefRange):
 		return MsgRuleSetUnknownProv, true
 	case errors.Is(err, mihomo.ErrProfileTitleEmpty):
 		return MsgProfileTitleEmpty, true

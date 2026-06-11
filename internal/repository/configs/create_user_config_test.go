@@ -38,20 +38,21 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
 		require.NoError(t, err)
 
-		groups := []mihomo.ProxyGroup{
-			{Name: "exit", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
+		groups := []mihomo.GroupDraft{
+			{Name: "exit", Type: mihomo.GroupSelect, Members: []mihomo.RefDraft{
 				{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
 			}},
-			{Name: "top", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
-				{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}, // → "exit"
+			{Name: "top", Type: mihomo.GroupSelect, Members: []mihomo.RefDraft{
+				{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}, // → "exit"
 			}},
 		}
-		rules := []mihomo.RoutingRule{
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(1))}},
+		rules := []mihomo.RuleDraft{
+			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}},
 		}
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, rules, groups, provs, "dns: {}",
-			mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(rules, groups, provs, "dns: {}",
+			mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4})))
 
 		// Create the custom config.
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
@@ -73,16 +74,20 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		require.NotNil(t, gotGroups[1].Members[0].GroupID)
 		assert.Equal(t, gotGroups[0].ID, *gotGroups[1].Members[0].GroupID) // remapped to the clone
 
-		gotRules, err := rt.Rules(t.Context(), newID)
-		require.NoError(t, err)
-		require.Len(t, gotRules, 1)
-		require.NotNil(t, gotRules[0].Target.GroupID)
-		assert.Equal(t, gotGroups[1].ID, *gotRules[0].Target.GroupID) // remapped to the clone's "top"
-
 		gotProvs, err := rt.RuleProviders(t.Context(), newID)
 		require.NoError(t, err)
 		require.Len(t, gotProvs, 1)
 		assert.Equal(t, "ads", gotProvs[0].Name)
+
+		gotRules, err := rt.Rules(t.Context(), newID)
+		require.NoError(t, err)
+		require.Len(t, gotRules, 2)
+		// RULE-SET cloned: provider_id remapped to the clone's provider (ids change on clone).
+		require.NotNil(t, gotRules[0].ProviderID)
+		assert.Equal(t, gotProvs[0].ID, *gotRules[0].ProviderID)
+		// MATCH cloned: group target remapped to the clone's "top".
+		require.NotNil(t, gotRules[1].Target.GroupID)
+		assert.Equal(t, gotGroups[1].ID, *gotRules[1].Target.GroupID)
 
 		base, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)
@@ -103,15 +108,15 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 
 		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
 		require.NoError(t, err)
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v1",
-			mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(nil, nil, nil, "base: v1",
+			mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1})))
 
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
 		require.NoError(t, err)
 
 		// Edit the base after cloning — the custom config must not change.
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v2",
-			mihomo.Profile{Title: "v2", Filename: "v2.yaml", UpdateInterval: 2}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(nil, nil, nil, "base: v2",
+			mihomo.Profile{Title: "v2", Filename: "v2.yaml", UpdateInterval: 2})))
 
 		got, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)

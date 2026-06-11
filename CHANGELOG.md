@@ -5,6 +5,15 @@
 в [`AGENTS.md`](AGENTS.md) (раздел «Документирование изменений»). Версий/тегов нет:
 сервис не релизится, деплой непрерывный.
 
+## 2026-06-11 — Строгие ссылки mihomo: RULE-SET → rule-provider по id (#17)
+
+`RoutingRule` больше не хранит имя провайдера строкой в `value` — `RULE-SET` ссылается на
+rule-provider по суррогатному id (`provider_id` FK); save-вход и domain/read разведены на
+отдельные типы (draft с индексами vs domain с реальными id), что убирает двойной смысл
+`PolicyRef.GroupID`. Опциональные поля (`value`/`interval`/`tolerance`/`lazy`/`noResolve`) —
+указатели. Схема мигрируется раннером (`migrations/0003-strict-mihomo-refs.notx.sql` —
+rebuild с FK off вне транзакции). См. [ADR-0005](docs/decisions/0005-strict-mihomo-refs.md).
+
 ## 2026-06-11 — Пользователь: опциональное описание для админки (#15)
 
 У пользователя появилось опциональное свободнотекстовое описание (`*string`, nillable;

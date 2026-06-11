@@ -98,15 +98,15 @@ func (m *MockmihomoSaver) EXPECT() *MockmihomoSaverMockRecorder {
 }
 
 // SaveMihomoConfig mocks base method.
-func (m *MockmihomoSaver) SaveMihomoConfig(ctx context.Context, configID int64, rules []mihomo.RoutingRule, groups []mihomo.ProxyGroup, rps []mihomo.RuleProvider, baseYAML string, profile mihomo.Profile) error {
+func (m *MockmihomoSaver) SaveMihomoConfig(ctx context.Context, configID int64, draft mihomo.ConfigDraft) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveMihomoConfig", ctx, configID, rules, groups, rps, baseYAML, profile)
+	ret := m.ctrl.Call(m, "SaveMihomoConfig", ctx, configID, draft)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveMihomoConfig indicates an expected call of SaveMihomoConfig.
-func (mr *MockmihomoSaverMockRecorder) SaveMihomoConfig(ctx, configID, rules, groups, rps, baseYAML, profile any) *gomock.Call {
+func (mr *MockmihomoSaverMockRecorder) SaveMihomoConfig(ctx, configID, draft any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMihomoConfig", reflect.TypeOf((*MockmihomoSaver)(nil).SaveMihomoConfig), ctx, configID, rules, groups, rps, baseYAML, profile)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMihomoConfig", reflect.TypeOf((*MockmihomoSaver)(nil).SaveMihomoConfig), ctx, configID, draft)
 }

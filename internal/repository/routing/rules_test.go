@@ -35,21 +35,21 @@ func TestRepository_Rules(t *testing.T) {
 		repo := routing.New(db)
 		cfg := dbtest.SeedConfig(t, db)
 
-		groups := []mihomo.ProxyGroup{
-			{Name: "g", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyDirect}}},
+		groups := []mihomo.GroupDraft{
+			{Name: "g", Type: mihomo.GroupSelect, Members: []mihomo.RefDraft{{Kind: mihomo.PolicyDirect}}},
 		}
 		// Saved in this slice order; positions 0..3 must come back in the same order.
-		rules := []mihomo.RoutingRule{
-			{Type: mihomo.RuleIPCIDR, Value: "10.0.0.0/8", NoResolve: true,
-				Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleDomainSuffix, Value: "ex.com",
-				Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)}},
-			{Type: mihomo.RuleGeoIP, Value: "CN", NoResolve: false,
-				Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}},
+		rules := []mihomo.RuleDraft{
+			{Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: dbtest.Ptr(true),
+				Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("ex.com"),
+				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)}},
+			{Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"),
+				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
 			{Type: mihomo.RuleMatch,
-				Target: mihomo.PolicyRef{Kind: mihomo.PolicyReject}},
+				Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, rules, groups, nil, "", mihomo.Profile{}))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(rules, groups, nil, "", mihomo.Profile{})))
 
 		got, err := repo.Rules(t.Context(), cfg)
 		require.NoError(t, err)
@@ -63,13 +63,14 @@ func TestRepository_Rules(t *testing.T) {
 
 		// [0] built-in direct, no_resolve true.
 		assert.Equal(t, mihomo.RuleIPCIDR, got[0].Type)
-		assert.True(t, got[0].NoResolve)
+		require.NotNil(t, got[0].NoResolve)
+		assert.True(t, *got[0].NoResolve)
 		assert.Equal(t, mihomo.PolicyDirect, got[0].Target.Kind)
 		assert.Nil(t, got[0].Target.InboundID)
 		assert.Nil(t, got[0].Target.GroupID)
 
-		// [1] inbound target: InboundID set, GroupID nil, no_resolve default false.
-		assert.False(t, got[1].NoResolve)
+		// [1] inbound target: InboundID set, GroupID nil, no_resolve unset (nil).
+		assert.Nil(t, got[1].NoResolve)
 		assert.Equal(t, mihomo.PolicyInbound, got[1].Target.Kind)
 		require.NotNil(t, got[1].Target.InboundID)
 		assert.Equal(t, seed.Smart.ID, *got[1].Target.InboundID)
@@ -87,5 +88,37 @@ func TestRepository_Rules(t *testing.T) {
 		// [3] built-in reject MATCH.
 		assert.Equal(t, mihomo.RuleMatch, got[3].Type)
 		assert.Equal(t, mihomo.PolicyReject, got[3].Target.Kind)
+	})
+
+	t.Run("success.ruleset_provider_id", func(t *testing.T) {
+		t.Parallel()
+		db := dbtest.OpenDB(t)
+		repo := routing.New(db)
+		cfg := dbtest.SeedConfig(t, db)
+
+		// A RULE-SET rule references provider index 0 (no value); a MATCH has no provider.
+		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "http://ads"}}
+		rules := []mihomo.RuleDraft{
+			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
+		}
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(rules, nil, provs, "", mihomo.Profile{})))
+
+		gotProvs, err := repo.RuleProviders(t.Context(), cfg)
+		require.NoError(t, err)
+		require.Len(t, gotProvs, 1)
+
+		got, err := repo.Rules(t.Context(), cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+
+		// RULE-SET: empty value, ProviderID resolves to the saved provider's persisted id.
+		assert.Equal(t, mihomo.RuleRuleSet, got[0].Type)
+		assert.Nil(t, got[0].Value)
+		require.NotNil(t, got[0].ProviderID)
+		assert.Equal(t, gotProvs[0].ID, *got[0].ProviderID)
+
+		// MATCH carries no provider.
+		assert.Nil(t, got[1].ProviderID)
 	})
 }

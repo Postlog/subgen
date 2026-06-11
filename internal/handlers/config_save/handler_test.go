@@ -36,11 +36,14 @@ func TestHandler_ConfigSave(t *testing.T) {
 		return req
 	}
 
-	// The validated config as the saver receives it.
-	wantRules := []mihomo.RoutingRule{{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}}}
-	wantGroups := []mihomo.ProxyGroup{}
-	wantProvs := []mihomo.RuleProvider(nil)
-	wantProfile := mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6}
+	// The validated config as the saver receives it (a ConfigDraft: group/provider refs
+	// carried as array indices; empty groups/providers are empty non-nil slices).
+	wantDraft := mihomo.ConfigDraft{
+		Rules:     []mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
+		Groups:    []mihomo.GroupDraft{},
+		Providers: []mihomo.RuleProvider{},
+		Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
+	}
 
 	tt := []struct {
 		name string
@@ -60,7 +63,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			},
 			buildRoutingMock: func(m *MockmihomoSaver) {
 				m.EXPECT().
-					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "", wantProfile).
+					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgSaved},
@@ -71,7 +74,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 				// MATCH not last → validation fails before any scope is resolved.
 				Rules: []oas.MihomoRule{
 					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
-					{Type: "DOMAIN", Value: "example.com", Target: oas.PolicyRef{Kind: "direct"}},
+					{Type: "DOMAIN", Value: oas.NewOptString("example.com"), Target: oas.PolicyRef{Kind: "direct"}},
 				},
 				Groups:    []oas.MihomoGroup{},
 				Providers: []oas.MihomoProvider{},
@@ -115,7 +118,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			},
 			buildRoutingMock: func(m *MockmihomoSaver) {
 				m.EXPECT().
-					SaveMihomoConfig(gomock.Any(), int64(3), wantRules, wantGroups, wantProvs, "", wantProfile).
+					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(entity.ErrRuleProviderNameTaken)
 			},
 			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProviderNameTaken},

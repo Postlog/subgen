@@ -52,7 +52,6 @@ const app = createApp({
       }
       return out;
     },
-    providerNames() { return this.cfg.providers.map((p) => p.name).filter(Boolean); },
     // Total pages for the users table (at least 1, so the pager always shows "1 из 1").
     userPageCount() { return Math.max(1, Math.ceil(this.userTotal / this.userPerPage)); },
     // Windowed page list for the pager. Always a CONSTANT 7 slots when there are >7
@@ -79,9 +78,9 @@ const app = createApp({
       const matches = this.cfg.rules.filter((r) => r.type === "MATCH");
       if (!matches.length) w.push("Нет правила MATCH — добавьте catch-all в конце.");
       else if (this.cfg.rules[this.cfg.rules.length - 1].type !== "MATCH") w.push("Правило MATCH должно быть последним.");
-      const provs = new Set(this.providerNames);
+      const pUids = new Set(this.cfg.providers.map((p) => p._uid));
       for (const r of this.cfg.rules) {
-        if (r.type === "RULE-SET" && r.value && !provs.has(r.value)) w.push("RULE-SET ссылается на несуществующего провайдера: " + r.value);
+        if (r.type === "RULE-SET" && (r.providerUid == null || !pUids.has(r.providerUid))) w.push("RULE-SET: не выбран провайдер или он удалён.");
       }
       const uids = new Set(this.cfg.groups.map((g) => g._uid));
       const dangling = (pref) => pref.startsWith("group:") && !uids.has(+pref.slice(6));
@@ -218,10 +217,13 @@ const app = createApp({
         groups[gi].members = (g.members || []).map((m) => ({ _uid: this.uid(), pref: this.refToPref(m, gUid) }));
       });
       this.cfg.groups = groups;
+      this.cfg.providers = (c.providers || []).map((p) => ({ ...p, _uid: this.uid() }));
+      const pUid = this.cfg.providers.map((p) => p._uid); // providerIdx -> uid
       this.cfg.rules = (c.rules || []).map((r) => ({
-        _uid: this.uid(), type: r.type, value: r.value || "", noResolve: !!r.noResolve, pref: this.refToPref(r.target, gUid),
+        _uid: this.uid(), type: r.type, value: r.value || "",
+        providerUid: (r.providerIdx === undefined || r.providerIdx === null) ? null : pUid[r.providerIdx],
+        noResolve: !!r.noResolve, pref: this.refToPref(r.target, gUid),
       }));
-      this.cfg.providers = c.providers || [];
       this.cfg.baseYAML = c.baseYAML || "";
       this.cfg.profileTitle = c.profileTitle || "";
       this.cfg.filename = c.filename || "";
@@ -248,9 +250,9 @@ const app = createApp({
     delGroup(i) { this.cfg.groups.splice(i, 1); },
     addMember(g) { g.members.push({ _uid: this.uid(), pref: "direct" }); },
     delMember(g, i) { g.members.splice(i, 1); },
-    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", noResolve: false, pref: "direct" }); },
+    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, noResolve: false, pref: "direct" }); },
     delRule(i) { this.cfg.rules.splice(i, 1); },
-    addProvider() { this.cfg.providers.push({ name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
+    addProvider() { this.cfg.providers.push({ _uid: this.uid(), name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
     openProvider(i) { this.provForm = { open: true, idx: i }; },
     // checkProvider probes the provider URL via the backend (reachable / file present /
     // right format) and toasts the outcome. Saves nothing; a per-row _checking flag
@@ -287,19 +289,45 @@ const app = createApp({
     async saveConfig() {
       const uidToIdx = {};
       this.cfg.groups.forEach((g, i) => { uidToIdx[g._uid] = i; });
+      const provUidToIdx = {};
+      this.cfg.providers.forEach((p, i) => { provUidToIdx[p._uid] = i; });
 
-      const groups = this.cfg.groups.map((g) => ({
-        name: g.name, type: g.type, url: g.url || "",
-        interval: g.interval || 0, tolerance: g.tolerance || 0, lazy: !!g.lazy,
-        members: g.members.map((m) => this.prefToRef(m.pref, uidToIdx)),
-      }));
+      const groups = this.cfg.groups.map((g) => {
+        const grp = {
+          name: g.name, type: g.type, url: g.url || "",
+          members: g.members.map((m) => this.prefToRef(m.pref, uidToIdx)),
+        };
+        // interval/lazy only for health-check types; tolerance only for url-test —
+        // omit otherwise so the backend stores NULL (not an inapplicable zero).
+        if (this.groupHealthCheck(g.type)) {
+          grp.interval = g.interval || 0;
+          grp.lazy = !!g.lazy;
+        }
+        if (this.groupTolerance(g.type)) {
+          grp.tolerance = g.tolerance || 0;
+        }
+        return grp;
+      });
 
-      const rules = this.cfg.rules.map((r) => ({
-        type: r.type,
-        value: this.isMatch(r.type) ? "" : (r.value || ""),
-        noResolve: !this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve,
-        target: this.prefToRef(r.pref, uidToIdx),
-      }));
+      const rules = this.cfg.rules.map((r) => {
+        const rule = {
+          type: r.type,
+          target: this.prefToRef(r.pref, uidToIdx),
+        };
+        // value only for value-taking types (omitted for MATCH and RULE-SET).
+        if (!this.isMatch(r.type) && !this.isRuleSet(r.type)) {
+          rule.value = r.value || "";
+        }
+        // no-resolve only sent for supporting types when actually on (omitted = off).
+        if (!this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve) {
+          rule.noResolve = true;
+        }
+        if (this.isRuleSet(r.type)) {
+          const idx = provUidToIdx[r.providerUid];
+          rule.providerIdx = idx === undefined ? null : idx;
+        }
+        return rule;
+      });
 
       const providers = this.cfg.providers.map((p) => ({
         name: p.name, behavior: p.behavior || "", format: p.format || "",

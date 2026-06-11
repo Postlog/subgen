@@ -17,7 +17,7 @@ type policyRefDTO struct {
 
 type ruleDTO struct {
 	Type        string       `json:"type"`
-	Value       string       `json:"value"`
+	Value       *string      `json:"value"`
 	ProviderIdx *int         `json:"providerIdx"`
 	NoResolve   bool         `json:"noResolve"`
 	Target      policyRefDTO `json:"target"`
@@ -27,9 +27,9 @@ type groupDTO struct {
 	Name      string         `json:"name"`
 	Type      string         `json:"type"`
 	URL       string         `json:"url"`
-	Interval  int            `json:"interval"`
-	Tolerance int            `json:"tolerance"`
-	Lazy      bool           `json:"lazy"`
+	Interval  *int           `json:"interval"`
+	Tolerance *int           `json:"tolerance"`
+	Lazy      *bool          `json:"lazy"`
 	Members   []policyRefDTO `json:"members"`
 }
 
@@ -87,7 +87,7 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 	for _, ru := range dto.Rules {
 		rules = append(rules, RuleDraft{
 			Type:        RuleType(strings.TrimSpace(ru.Type)),
-			Value:       strings.TrimSpace(ru.Value),
+			Value:       trimPtr(ru.Value),
 			ProviderIdx: ru.ProviderIdx,
 			NoResolve:   ru.NoResolve,
 			Target:      refFromDTO(ru.Target),
@@ -116,6 +116,21 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 			UpdateInterval: dto.ProfileUpdateInterval,
 		},
 	}, nil
+}
+
+// trimPtr trims a wire string pointer; an absent or whitespace-only value becomes nil
+// (a value-taking rule with no value then trips ErrRuleValueRequired in validation).
+func trimPtr(s *string) *string {
+	if s == nil {
+		return nil
+	}
+
+	v := strings.TrimSpace(*s)
+	if v == "" {
+		return nil
+	}
+
+	return &v
 }
 
 // refFromDTO maps a JSON policy ref to a RefDraft. A group ref carries the array index

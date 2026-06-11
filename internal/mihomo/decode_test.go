@@ -48,7 +48,7 @@ func TestDecodeConfig(t *testing.T) {
 					}},
 				},
 				Rules: []RuleDraft{
-					{Type: RuleDomainSuffix, Value: "example.com", Target: RefDraft{Kind: PolicyInbound, InboundID: i64(5)}},
+					{Type: RuleDomainSuffix, Value: sp("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: i64(5)}},
 					{Type: RuleRuleSet, ProviderIdx: ip(0), Target: RefDraft{Kind: PolicyDirect}},
 					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: ip(1)}},
 				},

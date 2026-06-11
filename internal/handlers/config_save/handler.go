@@ -22,11 +22,14 @@ const (
 	msgGroupUnknownType = "Неизвестный тип proxy-группы"
 	msgGroupNoMembers   = "Пустая proxy-группа"
 	msgGroupCycle       = "Proxy-группы образуют циклическую ссылку"
+	msgGroupFieldNA     = "Параметр неприменим к этому типу proxy-группы"
 	msgBadRef           = "Некорректная цель правила/элемента группы"
 	msgGroupRefRange    = "Ссылка на несуществующую группу"
 	msgUnknownRuleType  = "Неизвестный тип правила"
 	msgMatchNotLast     = "Правило MATCH должно быть последним"
 	msgRuleValueReq     = "У правила не указано значение"
+	msgRulePayloadNA    = "Тип правила не принимает это значение"
+	msgNoResolveNA      = "no-resolve неприменим к этому типу правила"
 	msgBaseYAMLInvalid  = "YAML невалиден — проверьте синтаксис"
 	msgGeneratedKey     = "Уберите из YAML генерируемые разделы"
 
@@ -142,6 +145,8 @@ func validationMessage(err error) (string, bool) {
 		return msgGroupNoMembers, true
 	case errors.Is(err, mihomo.ErrGroupCycle):
 		return msgGroupCycle, true
+	case errors.Is(err, mihomo.ErrGroupFieldNotAllowed):
+		return msgGroupFieldNA, true
 	case errors.Is(err, mihomo.ErrBadRef):
 		return msgBadRef, true
 	case errors.Is(err, mihomo.ErrGroupRefRange):
@@ -152,6 +157,10 @@ func validationMessage(err error) (string, bool) {
 		return msgMatchNotLast, true
 	case errors.Is(err, mihomo.ErrRuleValueRequired):
 		return msgRuleValueReq, true
+	case errors.Is(err, mihomo.ErrRulePayloadNotAllowed):
+		return msgRulePayloadNA, true
+	case errors.Is(err, mihomo.ErrNoResolveUnsupported):
+		return msgNoResolveNA, true
 	case errors.Is(err, mihomo.ErrBaseYAMLInvalid):
 		return msgBaseYAMLInvalid, true
 	case errors.Is(err, mihomo.ErrGeneratedKeyPresent):

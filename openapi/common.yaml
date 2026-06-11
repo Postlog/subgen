@@ -63,12 +63,12 @@ components:
         mirrorInterval:
           type: integer
 
-    # A routing rule. value is the plain matcher payload (empty for MATCH and RULE-SET).
-    # For RULE-SET the rule-provider is referenced by providerIdx (index into the
-    # providers array — real ids never cross the wire), not by name in value.
+    # A routing rule. value is the plain matcher payload — optional, omitted for MATCH
+    # and RULE-SET. For RULE-SET the rule-provider is referenced by providerIdx (index
+    # into the providers array — real ids never cross the wire), not by name in value.
     MihomoRule:
       type: object
-      required: [type, value, noResolve, target]
+      required: [type, noResolve, target]
       properties:
         type:
           type: string
@@ -81,9 +81,11 @@ components:
         target:
           $ref: './common.yaml#/components/schemas/PolicyRef'
 
+    # A proxy-group. interval/tolerance/lazy are optional — sent only for the types that
+    # use them (interval/lazy for the health-check types, tolerance for url-test).
     MihomoGroup:
       type: object
-      required: [name, type, url, interval, tolerance, lazy, members]
+      required: [name, type, url, members]
       properties:
         name:
           type: string

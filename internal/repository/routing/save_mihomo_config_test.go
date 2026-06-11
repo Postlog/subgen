@@ -43,7 +43,7 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 			}},
 		}
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleDomainSuffix, Value: "example.com",
+			{Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("example.com"),
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Force.ID)}},
 			{Type: mihomo.RuleMatch,
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}}, // index of "top"
@@ -81,7 +81,8 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		require.Len(t, gotRules, 2)
 
 		assert.Equal(t, mihomo.RuleDomainSuffix, gotRules[0].Type)
-		assert.Equal(t, "example.com", gotRules[0].Value)
+		require.NotNil(t, gotRules[0].Value)
+		assert.Equal(t, "example.com", *gotRules[0].Value)
 		require.NotNil(t, gotRules[0].Target.InboundID)
 		assert.Equal(t, seed.Force.ID, *gotRules[0].Target.InboundID)
 

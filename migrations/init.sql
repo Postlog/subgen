@@ -91,9 +91,9 @@ CREATE TABLE IF NOT EXISTS mihomo_proxy_groups (
   name      TEXT NOT NULL,               -- unique within a config (see index below)
   type      TEXT NOT NULL,               -- select|url-test|fallback|load-balance|relay
   url       TEXT NOT NULL DEFAULT '',
-  interval  INTEGER NOT NULL DEFAULT 0,
-  tolerance INTEGER NOT NULL DEFAULT 0,
-  lazy      INTEGER NOT NULL DEFAULT 0,
+  interval  INTEGER,                     -- nullable: NULL = not set / not applicable to the type
+  tolerance INTEGER,                     -- nullable (url-test only)
+  lazy      INTEGER,                     -- nullable (health-check types only)
   UNIQUE(config_id, name)
 );
 
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
   config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
   position        INTEGER NOT NULL,
   type            TEXT NOT NULL,         -- mihomo rule type (DOMAIN-SUFFIX, IP-CIDR, RULE-SET, MATCH, …)
-  value           TEXT NOT NULL DEFAULT '',  -- plain payload; '' for RULE-SET (uses provider_id) and MATCH
+  value           TEXT,                  -- nullable plain payload; NULL for RULE-SET (uses provider_id) and MATCH
   provider_id     INTEGER REFERENCES mihomo_rule_providers(id),  -- set iff type=RULE-SET (the rule-provider)
   no_resolve      INTEGER NOT NULL DEFAULT 0,
   target_kind     TEXT NOT NULL,         -- PolicyKind

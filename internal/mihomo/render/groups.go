@@ -32,15 +32,15 @@ func buildGroups(groups []mihomo.ProxyGroup, res resolver) []map[string]any {
 				gm["url"] = g.URL
 			}
 
-			if g.Interval > 0 {
-				gm["interval"] = g.Interval
+			if g.Interval != nil && *g.Interval > 0 {
+				gm["interval"] = *g.Interval
 			}
 
-			if g.Type == mihomo.GroupURLTest && g.Tolerance > 0 {
-				gm["tolerance"] = g.Tolerance
+			if g.Type == mihomo.GroupURLTest && g.Tolerance != nil && *g.Tolerance > 0 {
+				gm["tolerance"] = *g.Tolerance
 			}
 
-			if g.Lazy {
+			if g.Lazy != nil && *g.Lazy {
 				gm["lazy"] = true
 			}
 		}

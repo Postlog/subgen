@@ -47,6 +47,7 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 			}},
 		}
 		rules := []mihomo.RuleDraft{
+			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
 			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}},
 		}
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
@@ -73,16 +74,20 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		require.NotNil(t, gotGroups[1].Members[0].GroupID)
 		assert.Equal(t, gotGroups[0].ID, *gotGroups[1].Members[0].GroupID) // remapped to the clone
 
-		gotRules, err := rt.Rules(t.Context(), newID)
-		require.NoError(t, err)
-		require.Len(t, gotRules, 1)
-		require.NotNil(t, gotRules[0].Target.GroupID)
-		assert.Equal(t, gotGroups[1].ID, *gotRules[0].Target.GroupID) // remapped to the clone's "top"
-
 		gotProvs, err := rt.RuleProviders(t.Context(), newID)
 		require.NoError(t, err)
 		require.Len(t, gotProvs, 1)
 		assert.Equal(t, "ads", gotProvs[0].Name)
+
+		gotRules, err := rt.Rules(t.Context(), newID)
+		require.NoError(t, err)
+		require.Len(t, gotRules, 2)
+		// RULE-SET cloned: provider_id remapped to the clone's provider (ids change on clone).
+		require.NotNil(t, gotRules[0].ProviderID)
+		assert.Equal(t, gotProvs[0].ID, *gotRules[0].ProviderID)
+		// MATCH cloned: group target remapped to the clone's "top".
+		require.NotNil(t, gotRules[1].Target.GroupID)
+		assert.Equal(t, gotGroups[1].ID, *gotRules[1].Target.GroupID)
 
 		base, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)

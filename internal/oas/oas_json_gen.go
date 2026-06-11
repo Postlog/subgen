@@ -2643,16 +2643,22 @@ func (s *MihomoGroup) encodeFields(e *jx.Encoder) {
 		e.Str(s.URL)
 	}
 	{
-		e.FieldStart("interval")
-		e.Int(s.Interval)
+		if s.Interval.Set {
+			e.FieldStart("interval")
+			s.Interval.Encode(e)
+		}
 	}
 	{
-		e.FieldStart("tolerance")
-		e.Int(s.Tolerance)
+		if s.Tolerance.Set {
+			e.FieldStart("tolerance")
+			s.Tolerance.Encode(e)
+		}
 	}
 	{
-		e.FieldStart("lazy")
-		e.Bool(s.Lazy)
+		if s.Lazy.Set {
+			e.FieldStart("lazy")
+			s.Lazy.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("members")
@@ -2720,11 +2726,9 @@ func (s *MihomoGroup) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"url\"")
 			}
 		case "interval":
-			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				v, err := d.Int()
-				s.Interval = int(v)
-				if err != nil {
+				s.Interval.Reset()
+				if err := s.Interval.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -2732,11 +2736,9 @@ func (s *MihomoGroup) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval\"")
 			}
 		case "tolerance":
-			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
-				v, err := d.Int()
-				s.Tolerance = int(v)
-				if err != nil {
+				s.Tolerance.Reset()
+				if err := s.Tolerance.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -2744,11 +2746,9 @@ func (s *MihomoGroup) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tolerance\"")
 			}
 		case "lazy":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Bool()
-				s.Lazy = bool(v)
-				if err != nil {
+				s.Lazy.Reset()
+				if err := s.Lazy.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -2783,7 +2783,7 @@ func (s *MihomoGroup) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b01000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -3041,8 +3041,10 @@ func (s *MihomoRule) encodeFields(e *jx.Encoder) {
 		e.Str(s.Type)
 	}
 	{
-		e.FieldStart("value")
-		e.Str(s.Value)
+		if s.Value.Set {
+			e.FieldStart("value")
+			s.Value.Encode(e)
+		}
 	}
 	{
 		if s.ProviderIdx.Set {
@@ -3090,11 +3092,9 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"type\"")
 			}
 		case "value":
-			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				v, err := d.Str()
-				s.Value = string(v)
-				if err != nil {
+				s.Value.Reset()
+				if err := s.Value.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -3143,7 +3143,7 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011011,
+		0b00011001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -4236,6 +4236,41 @@ func (s *NodesGetOKNodesItemInboundsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NodesGetOKNodesItemInboundsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes bool as json.
+func (o OptBool) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Bool(bool(o.Value))
+}
+
+// Decode decodes bool from json.
+func (o *OptBool) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBool to nil")
+	}
+	o.Set = true
+	v, err := d.Bool()
+	if err != nil {
+		return err
+	}
+	o.Value = bool(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBool) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBool) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

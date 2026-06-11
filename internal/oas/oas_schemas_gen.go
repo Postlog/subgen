@@ -820,9 +820,9 @@ type MihomoGroup struct {
 	Name      string      `json:"name"`
 	Type      string      `json:"type"`
 	URL       string      `json:"url"`
-	Interval  int         `json:"interval"`
-	Tolerance int         `json:"tolerance"`
-	Lazy      bool        `json:"lazy"`
+	Interval  OptInt      `json:"interval"`
+	Tolerance OptInt      `json:"tolerance"`
+	Lazy      OptBool     `json:"lazy"`
 	Members   []PolicyRef `json:"members"`
 }
 
@@ -842,17 +842,17 @@ func (s *MihomoGroup) GetURL() string {
 }
 
 // GetInterval returns the value of Interval.
-func (s *MihomoGroup) GetInterval() int {
+func (s *MihomoGroup) GetInterval() OptInt {
 	return s.Interval
 }
 
 // GetTolerance returns the value of Tolerance.
-func (s *MihomoGroup) GetTolerance() int {
+func (s *MihomoGroup) GetTolerance() OptInt {
 	return s.Tolerance
 }
 
 // GetLazy returns the value of Lazy.
-func (s *MihomoGroup) GetLazy() bool {
+func (s *MihomoGroup) GetLazy() OptBool {
 	return s.Lazy
 }
 
@@ -877,17 +877,17 @@ func (s *MihomoGroup) SetURL(val string) {
 }
 
 // SetInterval sets the value of Interval.
-func (s *MihomoGroup) SetInterval(val int) {
+func (s *MihomoGroup) SetInterval(val OptInt) {
 	s.Interval = val
 }
 
 // SetTolerance sets the value of Tolerance.
-func (s *MihomoGroup) SetTolerance(val int) {
+func (s *MihomoGroup) SetTolerance(val OptInt) {
 	s.Tolerance = val
 }
 
 // SetLazy sets the value of Lazy.
-func (s *MihomoGroup) SetLazy(val bool) {
+func (s *MihomoGroup) SetLazy(val OptBool) {
 	s.Lazy = val
 }
 
@@ -980,7 +980,7 @@ func (s *MihomoProvider) SetMirrorInterval(val int) {
 // Ref: #/components/schemas/MihomoRule
 type MihomoRule struct {
 	Type        string    `json:"type"`
-	Value       string    `json:"value"`
+	Value       OptString `json:"value"`
 	ProviderIdx OptInt    `json:"providerIdx"`
 	NoResolve   bool      `json:"noResolve"`
 	Target      PolicyRef `json:"target"`
@@ -992,7 +992,7 @@ func (s *MihomoRule) GetType() string {
 }
 
 // GetValue returns the value of Value.
-func (s *MihomoRule) GetValue() string {
+func (s *MihomoRule) GetValue() OptString {
 	return s.Value
 }
 
@@ -1017,7 +1017,7 @@ func (s *MihomoRule) SetType(val string) {
 }
 
 // SetValue sets the value of Value.
-func (s *MihomoRule) SetValue(val string) {
+func (s *MihomoRule) SetValue(val OptString) {
 	s.Value = val
 }
 
@@ -1308,6 +1308,52 @@ func (s *NodesGetOKNodesItemInboundsItem) SetName(val string) {
 // SetPort sets the value of Port.
 func (s *NodesGetOKNodesItemInboundsItem) SetPort(val int) {
 	s.Port = val
+}
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptInt returns new OptInt with value set to v.

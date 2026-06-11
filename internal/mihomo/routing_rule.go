@@ -93,16 +93,17 @@ func (t RuleType) SupportsNoResolve() bool { return ruleTypes[t].SupportsNoResol
 // String returns the wire value (used as the rule line's first field).
 func (t RuleType) String() string { return string(t) }
 
-// RoutingRule is one ordered mihomo rule with a typed target (PolicyRef). Value is
-// the plain matcher payload ("" for RULE-SET and MATCH). NoResolve adds the no-resolve
-// option. ProviderID is the rule-provider this rule points at by id (RULE-SET only);
-// nil for every other type. The provider name is resolved from the id at render — the
-// rule never carries the name as a string (that was the old dirty Value overload).
+// RoutingRule is one ordered mihomo rule with a typed target (PolicyRef). Value is the
+// plain matcher payload — optional (pointer): nil for RULE-SET and MATCH, set for every
+// other type. NoResolve adds the no-resolve option. ProviderID is the rule-provider this
+// rule points at by id (RULE-SET only); nil for every other type. The provider name is
+// resolved from the id at render — the rule never carries the name as a string (that was
+// the old dirty Value overload).
 type RoutingRule struct {
 	ID         int64
 	Position   int
 	Type       RuleType
-	Value      string
+	Value      *string
 	ProviderID *int64
 	NoResolve  bool
 	Target     PolicyRef

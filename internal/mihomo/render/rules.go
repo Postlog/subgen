@@ -33,8 +33,8 @@ func buildRules(rules []mihomo.RoutingRule, res resolver) []string {
 			}
 
 			fields = append(fields, name)
-		case rule.Value != "":
-			fields = append(fields, rule.Value)
+		case rule.Value != nil:
+			fields = append(fields, *rule.Value)
 		}
 
 		fields = append(fields, target)

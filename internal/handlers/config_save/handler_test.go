@@ -74,7 +74,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 				// MATCH not last → validation fails before any scope is resolved.
 				Rules: []oas.MihomoRule{
 					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
-					{Type: "DOMAIN", Value: "example.com", Target: oas.PolicyRef{Kind: "direct"}},
+					{Type: "DOMAIN", Value: oas.NewOptString("example.com"), Target: oas.PolicyRef{Kind: "direct"}},
 				},
 				Groups:    []oas.MihomoGroup{},
 				Providers: []oas.MihomoProvider{},

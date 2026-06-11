@@ -24,15 +24,16 @@ func ValidateBaseYAML(base string) error {
 	return nil
 }
 
-// ValidateProxyGroups checks names (non-empty, unique), types, that each group has
-// at least one member, that every member ref is well-formed and in range, and that
-// the group→group reference graph is acyclic. Group refs use array indices.
+// ValidateProxyGroups validates each group's intra-group invariant (GroupDraft.Valid:
+// name, type, members, field applicability), then the cross-group checks: name
+// uniqueness, every member ref well-formed and in range, and an acyclic group→group
+// graph. Group refs use array indices.
 func ValidateProxyGroups(groups []GroupDraft) error {
 	seen := map[string]bool{}
 
 	for _, g := range groups {
-		if g.Name == "" {
-			return ErrGroupNameEmpty
+		if err := g.Valid(); err != nil {
+			return err
 		}
 
 		if seen[g.Name] {
@@ -40,14 +41,6 @@ func ValidateProxyGroups(groups []GroupDraft) error {
 		}
 
 		seen[g.Name] = true
-
-		if !g.Type.Valid() {
-			return ErrGroupUnknownType
-		}
-
-		if len(g.Members) == 0 {
-			return ErrGroupNoMembers
-		}
 
 		for _, m := range g.Members {
 			if err := validateRef(m, len(groups)); err != nil {
@@ -63,26 +56,22 @@ func ValidateProxyGroups(groups []GroupDraft) error {
 	return nil
 }
 
-// ValidateRoutingRules checks rule types, that every target ref is well-formed, that
-// MATCH (if present) is the last rule, that a RULE-SET points at a provider index in
-// range, and that every other non-MATCH rule carries a value.
+// ValidateRoutingRules validates each rule's per-type invariant (RuleDraft.Valid: value/
+// provider/no-resolve by type), then the cross-rule checks: MATCH (if present) is last,
+// a RULE-SET's provider index is in range, and the target ref is well-formed/in range.
 func ValidateRoutingRules(rules []RuleDraft, numGroups, numProviders int) error {
 	for i, rule := range rules {
-		if !rule.Type.Valid() {
-			return ErrUnknownRuleType
+		if err := rule.Valid(); err != nil {
+			return err
 		}
 
-		switch {
-		case rule.Type.IsMatch():
-			if i != len(rules)-1 {
-				return ErrMatchNotLast
-			}
-		case rule.Type.TakesProvider(): // RULE-SET: payload is a provider ref, not a value
-			if rule.ProviderIdx == nil || *rule.ProviderIdx < 0 || *rule.ProviderIdx >= numProviders {
-				return ErrProviderRefRange
-			}
-		case rule.Value == "":
-			return ErrRuleValueRequired
+		if rule.Type.IsMatch() && i != len(rules)-1 {
+			return ErrMatchNotLast
+		}
+
+		// Valid() ensured a RULE-SET carries a provider index; check it is in range.
+		if rule.Type.TakesProvider() && (*rule.ProviderIdx < 0 || *rule.ProviderIdx >= numProviders) {
+			return ErrProviderRefRange
 		}
 
 		if err := validateRef(rule.Target, numGroups); err != nil {

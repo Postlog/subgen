@@ -34,24 +34,29 @@ func ProxyGroupTypeCatalog() map[ProxyGroupType]ProxyGroupTypeOptions { return p
 // Valid reports whether g is a known group type.
 func (g ProxyGroupType) Valid() bool { _, ok := proxyGroupTypes[g]; return ok }
 
-// UsesHealthCheck reports whether the type takes url/interval health-check options
+// UsesHealthCheck reports whether the type takes url/interval/lazy health-check options
 // (url-test / fallback / load-balance).
 func (g ProxyGroupType) UsesHealthCheck() bool { return proxyGroupTypes[g].UsesHealthCheck }
+
+// UsesTolerance reports whether the type takes the url-test tolerance option.
+func (g ProxyGroupType) UsesTolerance() bool { return proxyGroupTypes[g].UsesTolerance }
 
 // String returns the wire value.
 func (g ProxyGroupType) String() string { return string(g) }
 
 // ProxyGroup is an operator-defined mihomo proxy-group. Its members are typed
 // PolicyRefs resolved per-subscriber at render — the connection selector and any
-// routing groups are ordinary ProxyGroup rows.
+// routing groups are ordinary ProxyGroup rows. Interval/Tolerance/Lazy are optional
+// (pointers): nil means "not set / not applicable to this type", distinct from an
+// explicit zero. They are meaningful only for the health-check types.
 type ProxyGroup struct {
 	ID        int64
 	Position  int
 	Name      string
 	Type      ProxyGroupType
 	URL       string // health-check url (url-test/fallback/load-balance)
-	Interval  int    // health-check interval, seconds
-	Tolerance int    // url-test tolerance, ms
-	Lazy      bool
+	Interval  *int   // health-check interval, seconds
+	Tolerance *int   // url-test tolerance, ms
+	Lazy      *bool
 	Members   []PolicyRef
 }

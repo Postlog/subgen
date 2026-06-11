@@ -48,7 +48,7 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 		res, err := tx.ExecContext(ctx,
 			`INSERT INTO mihomo_proxy_groups(config_id,position,name,type,url,interval,tolerance,lazy)
 			 VALUES(?,?,?,?,?,?,?,?)`,
-			configID, i, g.Name, g.Type, g.URL, g.Interval, g.Tolerance, boolInt(g.Lazy))
+			configID, i, g.Name, g.Type, g.URL, g.Interval, g.Tolerance, boolIntPtr(g.Lazy))
 		if err != nil {
 			return err
 		}
@@ -172,4 +172,13 @@ func boolInt(b bool) int {
 	}
 
 	return 0
+}
+
+// boolIntPtr maps an optional bool to a nullable integer column: nil → NULL, else 0/1.
+func boolIntPtr(b *bool) any {
+	if b == nil {
+		return nil
+	}
+
+	return boolInt(*b)
 }

@@ -6,8 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func i64(v int64) *int64 { return &v }
-func ip(v int) *int      { return &v }
+func i64(v int64) *int64  { return &v }
+func ip(v int) *int       { return &v }
+func sp(v string) *string { return &v }
 
 func TestValidateBaseYAML(t *testing.T) {
 	tt := []struct {
@@ -41,7 +42,7 @@ func TestValidateRoutingRules(t *testing.T) {
 		{
 			name: "success.valid",
 			rules: []RuleDraft{
-				{Type: RuleDomainSuffix, Value: "x.com", Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleDomainSuffix, Value: sp("x.com"), Target: RefDraft{Kind: PolicyDirect}},
 				{Type: RuleRuleSet, ProviderIdx: ip(0), Target: RefDraft{Kind: PolicyDirect}},
 				{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: ip(0)}},
 			},
@@ -62,7 +63,7 @@ func TestValidateRoutingRules(t *testing.T) {
 			name: "error.match_not_last",
 			rules: []RuleDraft{
 				{Type: RuleMatch, Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleDomain, Value: "x", Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleDomain, Value: sp("x"), Target: RefDraft{Kind: PolicyDirect}},
 			},
 			err: ErrMatchNotLast,
 		},
@@ -87,6 +88,16 @@ func TestValidateRoutingRules(t *testing.T) {
 			name:  "error.ruleset_no_provider",
 			rules: []RuleDraft{{Type: RuleRuleSet, Target: RefDraft{Kind: PolicyDirect}}}, // ProviderIdx nil
 			err:   ErrProviderRefRange,
+		},
+		{
+			name:  "error.value_on_match",
+			rules: []RuleDraft{{Type: RuleMatch, Value: sp("x"), Target: RefDraft{Kind: PolicyDirect}}},
+			err:   ErrRulePayloadNotAllowed,
+		},
+		{
+			name:  "error.no_resolve_unsupported",
+			rules: []RuleDraft{{Type: RuleDomain, Value: sp("x.com"), NoResolve: true, Target: RefDraft{Kind: PolicyDirect}}},
+			err:   ErrNoResolveUnsupported,
 		},
 	}
 
@@ -143,6 +154,11 @@ func TestValidateProxyGroups(t *testing.T) {
 				{Name: "b", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: ip(0)}}},
 			},
 			err: ErrGroupCycle,
+		},
+		{
+			name:   "error.field_on_select",
+			groups: []GroupDraft{{Name: "g", Type: GroupSelect, Interval: ip(300), Members: []RefDraft{{Kind: PolicyDirect}}}},
+			err:    ErrGroupFieldNotAllowed,
 		},
 	}
 

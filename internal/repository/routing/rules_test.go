@@ -40,11 +40,11 @@ func TestRepository_Rules(t *testing.T) {
 		}
 		// Saved in this slice order; positions 0..3 must come back in the same order.
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleIPCIDR, Value: "10.0.0.0/8", NoResolve: true,
+			{Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: true,
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleDomainSuffix, Value: "ex.com",
+			{Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("ex.com"),
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)}},
-			{Type: mihomo.RuleGeoIP, Value: "CN", NoResolve: false,
+			{Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"), NoResolve: false,
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
 			{Type: mihomo.RuleMatch,
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
@@ -113,7 +113,7 @@ func TestRepository_Rules(t *testing.T) {
 
 		// RULE-SET: empty value, ProviderID resolves to the saved provider's persisted id.
 		assert.Equal(t, mihomo.RuleRuleSet, got[0].Type)
-		assert.Empty(t, got[0].Value)
+		assert.Nil(t, got[0].Value)
 		require.NotNil(t, got[0].ProviderID)
 		assert.Equal(t, gotProvs[0].ID, *got[0].ProviderID)
 

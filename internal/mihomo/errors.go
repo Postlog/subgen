@@ -8,21 +8,24 @@ import "errors"
 // name/value into the error text.
 var (
 	// Proxy-groups.
-	ErrGroupNameEmpty   = errors.New("proxy-group name is empty")
-	ErrGroupNameTaken   = errors.New("proxy-group name is duplicated")
-	ErrGroupUnknownType = errors.New("unknown proxy-group type")
-	ErrGroupNoMembers   = errors.New("proxy-group has no members")
-	ErrGroupCycle       = errors.New("proxy-groups form a reference cycle")
+	ErrGroupNameEmpty       = errors.New("proxy-group name is empty")
+	ErrGroupNameTaken       = errors.New("proxy-group name is duplicated")
+	ErrGroupUnknownType     = errors.New("unknown proxy-group type")
+	ErrGroupNoMembers       = errors.New("proxy-group has no members")
+	ErrGroupCycle           = errors.New("proxy-groups form a reference cycle")
+	ErrGroupFieldNotAllowed = errors.New("proxy-group sets a field its type does not use")
 
 	// Policy refs (a rule target / group member).
 	ErrBadRef        = errors.New("malformed policy ref")
 	ErrGroupRefRange = errors.New("policy ref points at a non-existent group")
 
 	// Routing rules.
-	ErrUnknownRuleType   = errors.New("unknown rule type")
-	ErrMatchNotLast      = errors.New("MATCH rule must be last")
-	ErrRuleValueRequired = errors.New("rule needs a value")
-	ErrProviderRefRange  = errors.New("RULE-SET references a non-existent provider")
+	ErrUnknownRuleType       = errors.New("unknown rule type")
+	ErrMatchNotLast          = errors.New("MATCH rule must be last")
+	ErrRuleValueRequired     = errors.New("rule needs a value")
+	ErrRulePayloadNotAllowed = errors.New("rule type does not take this payload")
+	ErrNoResolveUnsupported  = errors.New("rule type does not support no-resolve")
+	ErrProviderRefRange      = errors.New("RULE-SET references a non-existent provider")
 
 	// Rule-providers. (Name uniqueness is enforced by the DB UNIQUE(config_id,name),
 	// translated to entity.ErrRuleProviderNameTaken in the repository — not here.)

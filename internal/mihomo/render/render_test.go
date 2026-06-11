@@ -12,7 +12,8 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-func i64(v int64) *int64 { return &v }
+func i64(v int64) *int64  { return &v }
+func sp(v string) *string { return &v }
 
 // fixed UUIDs so the rendered proxies block is deterministic and can be asserted whole.
 var (
@@ -37,7 +38,7 @@ func fullOptions() Options {
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleGeoIP, Value: "private", NoResolve: true, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleGeoIP, Value: sp("private"), NoResolve: true, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
 			// inbound 999: the subscriber lacks it → the rule is dropped (target unresolved).
 			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(999)}},
@@ -161,8 +162,8 @@ func partialOptions() Options {
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleDomainSuffix, Value: "skip.example", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
-			{Type: mihomo.RuleDomain, Value: "x.com", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(20)}},
+			{Type: mihomo.RuleDomainSuffix, Value: sp("skip.example"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
+			{Type: mihomo.RuleDomain, Value: sp("x.com"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(20)}},
 			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: i64(2)}},
 		},
 	}

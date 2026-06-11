@@ -292,20 +292,33 @@ const app = createApp({
       const provUidToIdx = {};
       this.cfg.providers.forEach((p, i) => { provUidToIdx[p._uid] = i; });
 
-      const groups = this.cfg.groups.map((g) => ({
-        name: g.name, type: g.type, url: g.url || "",
-        interval: g.interval || 0, tolerance: g.tolerance || 0, lazy: !!g.lazy,
-        members: g.members.map((m) => this.prefToRef(m.pref, uidToIdx)),
-      }));
+      const groups = this.cfg.groups.map((g) => {
+        const grp = {
+          name: g.name, type: g.type, url: g.url || "",
+          members: g.members.map((m) => this.prefToRef(m.pref, uidToIdx)),
+        };
+        // interval/lazy only for health-check types; tolerance only for url-test —
+        // omit otherwise so the backend stores NULL (not an inapplicable zero).
+        if (this.groupHealthCheck(g.type)) {
+          grp.interval = g.interval || 0;
+          grp.lazy = !!g.lazy;
+        }
+        if (this.groupTolerance(g.type)) {
+          grp.tolerance = g.tolerance || 0;
+        }
+        return grp;
+      });
 
       const rules = this.cfg.rules.map((r) => {
         const rule = {
           type: r.type,
-          // MATCH and RULE-SET carry no value; RULE-SET points at its provider by index.
-          value: (this.isMatch(r.type) || this.isRuleSet(r.type)) ? "" : (r.value || ""),
           noResolve: !this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve,
           target: this.prefToRef(r.pref, uidToIdx),
         };
+        // value only for value-taking types (omitted for MATCH and RULE-SET).
+        if (!this.isMatch(r.type) && !this.isRuleSet(r.type)) {
+          rule.value = r.value || "";
+        }
         if (this.isRuleSet(r.type)) {
           const idx = provUidToIdx[r.providerUid];
           rule.providerIdx = idx === undefined ? null : idx;

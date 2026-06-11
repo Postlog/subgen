@@ -24,6 +24,7 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 	for rows.Next() {
 		var (
 			rule       mihomo.RoutingRule
+			value      sql.NullString
 			noResolve  int
 			kind       string
 			providerID sql.NullInt64
@@ -31,9 +32,14 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 			groupID    sql.NullInt64
 		)
 
-		if err := rows.Scan(&rule.ID, &rule.Position, &rule.Type, &rule.Value,
+		if err := rows.Scan(&rule.ID, &rule.Position, &rule.Type, &value,
 			&providerID, &noResolve, &kind, &inboundID, &groupID); err != nil {
 			return nil, err
+		}
+
+		if value.Valid {
+			v := value.String
+			rule.Value = &v
 		}
 
 		if providerID.Valid {

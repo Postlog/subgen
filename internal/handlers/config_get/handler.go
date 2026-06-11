@@ -98,16 +98,29 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 			members = append(members, refToView(m, idx))
 		}
 
-		out.Groups = append(out.Groups, oas.MihomoGroup{
-			Name: g.Name, Type: g.Type.String(), URL: g.URL,
-			Interval: g.Interval, Tolerance: g.Tolerance, Lazy: g.Lazy, Members: members,
-		})
+		mg := oas.MihomoGroup{Name: g.Name, Type: g.Type.String(), URL: g.URL, Members: members}
+
+		if g.Interval != nil {
+			mg.Interval = oas.NewOptInt(*g.Interval)
+		}
+
+		if g.Tolerance != nil {
+			mg.Tolerance = oas.NewOptInt(*g.Tolerance)
+		}
+
+		if g.Lazy != nil {
+			mg.Lazy = oas.NewOptBool(*g.Lazy)
+		}
+
+		out.Groups = append(out.Groups, mg)
 	}
 
 	out.Rules = make([]oas.MihomoRule, 0, len(rules))
 	for _, r := range rules {
-		mr := oas.MihomoRule{
-			Type: r.Type.String(), Value: r.Value, NoResolve: r.NoResolve, Target: refToView(r.Target, idx),
+		mr := oas.MihomoRule{Type: r.Type.String(), NoResolve: r.NoResolve, Target: refToView(r.Target, idx)}
+
+		if r.Value != nil {
+			mr.Value = oas.NewOptString(*r.Value)
 		}
 
 		// RULE-SET: surface the provider as its array index (real id never leaves).

@@ -26,14 +26,15 @@ type ConfigRule struct {
 	Target      ConfigRef `json:"target"`
 }
 
-// ConfigGroup is one proxy-group for read/save.
+// ConfigGroup is one proxy-group for read/save. interval/tolerance/lazy are optional
+// (sent only for the types that use them; omitted → the server stores NULL).
 type ConfigGroup struct {
 	Name      string      `json:"name"`
 	Type      string      `json:"type"`
 	URL       string      `json:"url"`
-	Interval  int         `json:"interval"`
-	Tolerance int         `json:"tolerance"`
-	Lazy      bool        `json:"lazy"`
+	Interval  *int        `json:"interval,omitempty"`
+	Tolerance *int        `json:"tolerance,omitempty"`
+	Lazy      *bool       `json:"lazy,omitempty"`
 	Members   []ConfigRef `json:"members"`
 }
 

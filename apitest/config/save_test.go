@@ -2,7 +2,10 @@
 
 package config_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"github.com/postlog/subgen/apitest/api"
+	configSaveHandler "github.com/postlog/subgen/internal/handlers/config_save"
+)
 
 // Corner cases considered for POST /admin/api/config/mihomo/save. Validation is ordered
 // (base YAML → groups → rules → providers → RULE-SET refs) and short-circuits, so each
@@ -41,7 +44,7 @@ func (s *ConfigSuite) TestSaveRoundTrip() {
 	res, err := s.api.SaveConfig(want)
 	s.Require().NoError(err)
 	s.Require().True(res.OK, "valid config must save: %s", res.Message())
-	s.Equal(msgSaved, res.Msg)
+	s.Equal(configSaveHandler.MsgSaved, res.Msg)
 
 	got, err := s.api.ReadConfig()
 	s.Require().NoError(err)
@@ -70,27 +73,27 @@ func (s *ConfigSuite) TestSaveValidation() {
 		s.saveRejected(api.Config{Rules: []api.ConfigRule{
 			{Type: "MATCH", Target: api.ConfigRef{Kind: "direct"}},
 			{Type: "DOMAIN-SUFFIX", Value: "example.com", Target: api.ConfigRef{Kind: "reject"}},
-		}}, msgMatchNotLast)
+		}}, configSaveHandler.MsgMatchNotLast)
 	})
 
 	s.Run("rule_value_required", func() {
 		// A non-MATCH rule with an empty value.
 		s.saveRejected(api.Config{Rules: []api.ConfigRule{
 			{Type: "DOMAIN-SUFFIX", Value: "", Target: api.ConfigRef{Kind: "direct"}},
-		}}, msgRuleValueReq)
+		}}, configSaveHandler.MsgRuleValueReq)
 	})
 
 	s.Run("group_no_members", func() {
 		s.saveRejected(api.Config{Groups: []api.ConfigGroup{
 			{Name: "G", Type: "select"}, // no members
-		}}, msgGroupNoMembers)
+		}}, configSaveHandler.MsgGroupNoMembers)
 	})
 
 	s.Run("group_name_taken", func() {
 		s.saveRejected(api.Config{Groups: []api.ConfigGroup{
 			{Name: "DUP", Type: "select", Members: []api.ConfigRef{{Kind: "direct"}}},
 			{Name: "DUP", Type: "select", Members: []api.ConfigRef{{Kind: "reject"}}},
-		}}, msgGroupNameTaken)
+		}}, configSaveHandler.MsgGroupNameTaken)
 	})
 
 	s.Run("group_cycle", func() {
@@ -98,20 +101,20 @@ func (s *ConfigSuite) TestSaveValidation() {
 		s.saveRejected(api.Config{Groups: []api.ConfigGroup{
 			{Name: "A", Type: "select", Members: []api.ConfigRef{groupRef(1)}},
 			{Name: "B", Type: "select", Members: []api.ConfigRef{groupRef(0)}},
-		}}, msgGroupCycle)
+		}}, configSaveHandler.MsgGroupCycle)
 	})
 
 	s.Run("group_ref_range", func() {
 		// A rule whose target points at group index 5, but there are no groups.
 		s.saveRejected(api.Config{Rules: []api.ConfigRule{
 			{Type: "DOMAIN-SUFFIX", Value: "x.com", Target: groupRef(5)},
-		}}, msgGroupRefRange)
+		}}, configSaveHandler.MsgGroupRefRange)
 	})
 
 	s.Run("provider_nameless", func() {
 		s.saveRejected(api.Config{Providers: []api.ConfigProvider{
 			{Name: "", Behavior: "domain", Format: "yaml", URL: "https://example.com/x.yaml"},
-		}}, msgProviderNameReq)
+		}}, configSaveHandler.MsgProviderNameEmpty)
 	})
 
 	s.Run("provider_dup_name", func() {
@@ -119,7 +122,7 @@ func (s *ConfigSuite) TestSaveValidation() {
 		s.saveRejected(api.Config{Providers: []api.ConfigProvider{
 			{Name: "same", Behavior: "domain", Format: "yaml", URL: "https://example.com/a.yaml"},
 			{Name: "same", Behavior: "domain", Format: "yaml", URL: "https://example.com/b.yaml"},
-		}}, msgProviderNameDup)
+		}}, configSaveHandler.MsgProviderNameTaken)
 	})
 
 	s.Run("ruleset_unknown_provider", func() {
@@ -127,16 +130,16 @@ func (s *ConfigSuite) TestSaveValidation() {
 		zero := 0
 		s.saveRejected(api.Config{Rules: []api.ConfigRule{
 			{Type: "RULE-SET", ProviderIdx: &zero, Target: api.ConfigRef{Kind: "direct"}},
-		}}, msgRuleSetUnknown)
+		}}, configSaveHandler.MsgRuleSetUnknownProv)
 	})
 
 	s.Run("generated_key_in_base", func() {
-		s.saveRejected(api.Config{BaseYAML: "proxies:\n  - {name: x}\n"}, msgGeneratedKey)
+		s.saveRejected(api.Config{BaseYAML: "proxies:\n  - {name: x}\n"}, configSaveHandler.MsgGeneratedKey)
 	})
 
 	s.Run("base_yaml_invalid", func() {
 		// Unparseable YAML (a bare unterminated flow mapping).
-		s.saveRejected(api.Config{BaseYAML: "mode: [rule\n"}, msgBaseYAMLInvalid)
+		s.saveRejected(api.Config{BaseYAML: "mode: [rule\n"}, configSaveHandler.MsgBaseYAMLInvalid)
 	})
 
 	s.Run("malformed_json", func() {

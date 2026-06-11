@@ -30,8 +30,9 @@ func NewChecker() *Checker {
 }
 
 // Check fetches url and reports whether it is reachable, the file is present, and the
-// content matches the declared format (mrs / yaml / text). A network failure is an
-// outcome (CheckUnreachable), not a Go error — the call never returns one.
+// content matches the declared format (mrs / yaml / text). A URL that can't be probed —
+// unreachable, malformed, or blank (they're the same category: nothing to talk to) — is an
+// outcome (RulesetCheckUnreachable), not a Go error: the call never returns one.
 func (c *Checker) Check(ctx context.Context, url, format string) entity.RulesetCheckResult {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

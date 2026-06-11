@@ -2,15 +2,17 @@
 
 package nodes_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"github.com/postlog/subgen/apitest/api"
+	nodeDeleteHandler "github.com/postlog/subgen/internal/handlers/node_delete"
+)
 
 // Corner cases considered for POST /admin/api/nodes/delete:
 //   - success            — an unreferenced node is removed from the registry.
-//   - err.blocked_by_user — an inbound bound to a user → "сначала отвяжите..."; node stays.
-//   - err.blocked_by_rule — an inbound referenced by a mihomo routing rule → blocked.
-//   - err.unknown_id     — deleting a non-existent node id → {ok:false}: the FK pre-check
-//                          (web.InboundsBlocking) calls nodes.Get, which returns
-//                          sql.ErrNoRows for a missing node, surfaced as a failure.
+//   - err.blocked_by_user — an inbound bound to a user → the DB FK refuses the delete; node stays.
+//   - err.blocked_by_rule — an inbound referenced by a mihomo routing rule → blocked by the FK.
+//   - err.unknown_id     — deleting a non-existent node id → {ok:false}: the repo deletes no
+//                          row and reports entity.ErrNodeNotFound (rows-affected, not a pre-check).
 
 // TestDeleteSuccess covers removing an unreferenced node.
 func (s *NodeSuite) TestDeleteSuccess() {
@@ -29,8 +31,8 @@ func (s *NodeSuite) TestDeleteSuccess() {
 	s.Nil(gone, "deleted node must be gone from the registry")
 }
 
-// TestDeleteBlockedByUser covers the FK pre-check: a node whose inbound a user is bound
-// to cannot be deleted; the friendly message lists the blocking inbound and the node
+// TestDeleteBlockedByUser covers the DB FK: a node whose inbound a user is bound to cannot
+// be deleted (the FK RESTRICTs the cascade); the friendly message is returned and the node
 // survives.
 func (s *NodeSuite) TestDeleteBlockedByUser() {
 	node := s.nodeName()
@@ -53,7 +55,7 @@ func (s *NodeSuite) TestDeleteBlockedByUser() {
 	del, err := s.API().DeleteNode(n.ID)
 	s.Require().NoError(err)
 	s.False(del.OK, "deleting a node with a bound user must be refused")
-	s.Contains(del.Err, fragBlocked)
+	s.Equal(nodeDeleteHandler.MsgInboundReferenced, del.Err)
 
 	still, err := s.API().FindNode(node)
 	s.Require().NoError(err)
@@ -87,13 +89,13 @@ func (s *NodeSuite) TestDeleteBlockedByRule() {
 	del, err := s.API().DeleteNode(n.ID)
 	s.Require().NoError(err)
 	s.False(del.OK, "deleting a node referenced by a routing rule must be refused")
-	s.Contains(del.Err, fragBlocked)
+	s.Equal(nodeDeleteHandler.MsgInboundReferenced, del.Err)
 }
 
 // TestDeleteUnknownID covers deleting a never-existed node id.
 func (s *NodeSuite) TestDeleteUnknownID() {
 	res, err := s.API().DeleteNode(99999999)
 	s.Require().NoError(err)
-	s.False(res.OK, "deleting a non-existent node must report failure (Get → no rows)")
-	s.NotEmpty(res.Err)
+	s.False(res.OK, "deleting a non-existent node must report failure (no row to delete)")
+	s.Equal(nodeDeleteHandler.MsgNotFound, res.Err)
 }

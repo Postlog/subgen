@@ -42,15 +42,15 @@ func (m *Mockeditor) EXPECT() *MockeditorMockRecorder {
 }
 
 // EditUser mocks base method.
-func (m *Mockeditor) EditUser(ctx context.Context, id int64, sel entity.ConnectionSelection) error {
+func (m *Mockeditor) EditUser(ctx context.Context, p entity.UserEditParams) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EditUser", ctx, id, sel)
+	ret := m.ctrl.Call(m, "EditUser", ctx, p)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EditUser indicates an expected call of EditUser.
-func (mr *MockeditorMockRecorder) EditUser(ctx, id, sel any) *gomock.Call {
+func (mr *MockeditorMockRecorder) EditUser(ctx, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditUser", reflect.TypeOf((*Mockeditor)(nil).EditUser), ctx, id, sel)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditUser", reflect.TypeOf((*Mockeditor)(nil).EditUser), ctx, p)
 }

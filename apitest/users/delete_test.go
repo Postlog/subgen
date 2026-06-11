@@ -2,7 +2,10 @@
 
 package users_test
 
-import "github.com/postlog/subgen/apitest/api"
+import (
+	"github.com/postlog/subgen/apitest/api"
+	userDeleteHandler "github.com/postlog/subgen/internal/handlers/user_delete"
+)
 
 // Corner cases considered for POST /admin/api/users/delete:
 //   - happy.multi_panel       — removes the user's clients from every panel it's on,
@@ -24,7 +27,7 @@ func (s *UserSuite) TestDeleteMultiPanel() {
 	res, err := s.API().DeleteUser(u.ID)
 	s.Require().NoError(err)
 	s.Require().True(res.OK, "delete: %s", res.Message())
-	s.Equal(msgDeleted, res.Msg)
+	s.Equal(userDeleteHandler.MsgDeleted, res.Msg)
 
 	s.RequireNoClient(s.Pan1(), api.N1Smart, u.Name)
 	s.RequireNoClient(s.Pan1(), api.N1Force, u.Name)

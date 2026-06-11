@@ -28,19 +28,19 @@ func (r *Repository) ListPage(ctx context.Context, p entity.UserListParams) (ent
 	switch {
 	case hasName && hasInbound:
 		countQuery = `SELECT COUNT(*) FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' AND id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?)))`
-		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' AND id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
+		pageQuery = `SELECT id,name,sub_id,description,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' AND id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
 		filterArgs = []any{escapeLike(name), idsJSON(p.InboundIDs)}
 	case hasName:
 		countQuery = `SELECT COUNT(*) FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\'`
-		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' ORDER BY name LIMIT ? OFFSET ?`
+		pageQuery = `SELECT id,name,sub_id,description,created_at FROM users WHERE name LIKE '%' || ? || '%' ESCAPE '\' ORDER BY name LIMIT ? OFFSET ?`
 		filterArgs = []any{escapeLike(name)}
 	case hasInbound:
 		countQuery = `SELECT COUNT(*) FROM users WHERE id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?)))`
-		pageQuery = `SELECT id,name,sub_id,created_at FROM users WHERE id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
+		pageQuery = `SELECT id,name,sub_id,description,created_at FROM users WHERE id IN (SELECT user_id FROM user_connections WHERE inbound_id IN (SELECT value FROM json_each(?))) ORDER BY name LIMIT ? OFFSET ?`
 		filterArgs = []any{idsJSON(p.InboundIDs)}
 	default:
 		countQuery = `SELECT COUNT(*) FROM users`
-		pageQuery = `SELECT id,name,sub_id,created_at FROM users ORDER BY name LIMIT ? OFFSET ?`
+		pageQuery = `SELECT id,name,sub_id,description,created_at FROM users ORDER BY name LIMIT ? OFFSET ?`
 		filterArgs = nil
 	}
 
@@ -64,7 +64,9 @@ func (r *Repository) ListPage(ctx context.Context, p entity.UserListParams) (ent
 
 	for rows.Next() {
 		var u entity.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.SubID, &u.CreatedAt); err != nil {
+
+		// description is nullable; scanned straight into the *string (nil for NULL).
+		if err := rows.Scan(&u.ID, &u.Name, &u.SubID, &u.Description, &u.CreatedAt); err != nil {
 			return entity.UserPage{}, err
 		}
 

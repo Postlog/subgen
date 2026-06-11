@@ -23,6 +23,7 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/repository"
 	"github.com/postlog/subgen/internal/repository/nodes"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 // OpenDB opens a brand-new SQLite database in the test's own temp dir (schema
@@ -115,9 +116,10 @@ func SeedConfig(t *testing.T, db *sql.DB) int64 {
 	return id
 }
 
-// Ptr returns a pointer to v — for the *int64 inbound ids and the *int group/provider
-// indices inside the save-time draft refs, nil for built-in policies.
-func Ptr[T any](v T) *T { return &v }
+// Ptr is the shared utils.Ptr, re-exported for the integration tests' ergonomics (the
+// *int64 ids / *int indices inside the save-time draft refs, etc.). One universal pointer
+// helper lives in utils.
+func Ptr[T any](v T) *T { return utils.Ptr(v) }
 
 // Draft wraps save-time pieces into a mihomo.ConfigDraft (the SaveMihomoConfig input),
 // so call sites pass rules/groups/providers without repeating the struct literal.

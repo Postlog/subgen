@@ -7,17 +7,15 @@ import (
 	"strings"
 
 	"github.com/postlog/subgen/apitest/api"
+	"github.com/postlog/subgen/internal/handlers/login"
 )
-
-// msgBadCreds is the exact rejection text the login handler returns for wrong creds.
-const msgBadCreds = "Неверный логин или пароль"
 
 // Corner cases considered for POST /admin/api/login (idiomatic contract: 200 {message}
 // on success, 4xx {errMessage} otherwise):
 //   - ok             — right user+password → 200 "ok" + a Secure session cookie.
 //   - wrong_user     — bad user, right password → 401 + the friendly creds text.
 //   - wrong_password — right user, bad password → 401 + the friendly creds text.
-//   - empty_fields   — "" / "" → 400 generic (schema minLength:1 trips before the handler).
+//   - empty_fields   — "" / "" → 401 (reaches the handler; empty creds are wrong creds).
 //   - missing_fields — {} (no keys at all) → 400 generic (required fields missing).
 //   - malformed_json — non-JSON body → 400 generic (request decode failure).
 //
@@ -42,7 +40,7 @@ func (s *AuthSuite) TestLoginPost() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status, "wrong creds are 401")
 		s.False(res.OK)
-		s.Equal(msgBadCreds, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("wrong_password", func() {
@@ -50,16 +48,17 @@ func (s *AuthSuite) TestLoginPost() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status)
 		s.False(res.OK)
-		s.Equal(msgBadCreds, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("empty_fields", func() {
-		// "" / "" trips the schema's minLength:1 before the handler runs → generic 400.
+		// Schema no longer carries minLength; empty creds reach the handler and just fail
+		// the constant-time compare like any wrong creds → 401 (ADR-0003: validation in code).
 		res, err := s.fresh().Login("", "")
 		s.Require().NoError(err)
-		s.Equal(http.StatusBadRequest, res.Status, "empty creds fail schema validation")
+		s.Equal(http.StatusUnauthorized, res.Status, "empty creds are wrong creds → 401")
 		s.False(res.OK)
-		s.Equal(api.MsgBadRequest, res.Err)
+		s.Equal(login.MsgBadCredentials, res.Err)
 	})
 
 	s.Run("missing_fields", func() {

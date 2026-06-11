@@ -15,14 +15,14 @@ post:
           properties:
             name:
               type: string
-              minLength: 1
+            description:
+              type: string
+              description: Optional free-text note, shown only in the admin UI (length validated server-side).
             inboundIDs:
               type: array
-              minItems: 1
               items:
                 type: integer
                 format: int64
-                minimum: 1
   responses:
     '200':
       description: created

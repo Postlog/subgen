@@ -9,9 +9,42 @@
 
 `RoutingRule` больше не хранит имя провайдера строкой в `value` — `RULE-SET` ссылается на
 rule-provider по суррогатному id (`provider_id` FK); save-вход и domain/read разведены на
-отдельные типы (draft с индексами vs domain с id), что убирает двойной смысл
-`PolicyRef.GroupID`. Прод-БД мигрируется руками: `migrations/rule_provider_id.manual.sql`.
-См. [ADR-0002](docs/decisions/0002-strict-mihomo-refs.md).
+отдельные типы (draft с индексами vs domain с реальными id), что убирает двойной смысл
+`PolicyRef.GroupID`. Опциональные поля (`value`/`interval`/`tolerance`/`lazy`/`noResolve`) —
+указатели. Схема мигрируется раннером (`migrations/0003-strict-mihomo-refs.notx.sql` —
+rebuild с FK off вне транзакции). См. [ADR-0005](docs/decisions/0005-strict-mihomo-refs.md).
+
+## 2026-06-11 — Пользователь: опциональное описание для админки (#15)
+
+У пользователя появилось опциональное свободнотекстовое описание (`*string`, nillable;
+видно только в админ-UI): задаётся при создании/редактировании, показывается иконкой с
+тултипом в таблице. Колонка `users.description` (nullable) добавляется миграцией
+`migrations/0002-users-description.sql` через раннер. Сервисные входы вынесены в структуры
+`entity.UserCreateParams` / `entity.UserEditParams` (убрал `entity.ConnectionSelection`).
+См. [ADR-0004](docs/decisions/0004-optional-user-description.md).
+
+## 2026-06-11 — Валидация запросов — в сервисном слое, не в OpenAPI (#19)
+
+Из `openapi/*.yaml` убраны все value-constraints (`minLength`/`minItems`/`minimum`) —
+ogen больше не генерит серверные валидаторы значений (общий невнятный 400). Валидация —
+в сервисном слое sentinel-ошибками (`entity.ErrValidation*`), хендлеры тонкие. Заведён
+`internal/service/nodes` (валидация узла + save/delete); node-валидация и `web.ValidateNode`
+переехали туда. Ссылочную целостность инбаунда **не предчекаем** — её держит FK БД
+(RESTRICT), репозиторий переводит нарушение в `entity.ErrInboundReferenced`. Пустой URL
+provider-check — не спец-кейс (как и кривой URL → `RulesetCheckUnreachable`). Суррогатные id
+(PK) **не** валидируем (несуществующий id → not-found). Тексты сообщений хендлеров сделаны
+публичными и импортируются в apitest (без дублирования). В тестах `gomock.Any()` оставлен
+только для контекста — остальные аргументы проверяются точно (матчеры для random uuid/subId).
+`required`/`type`/`format` оставлены (форма контракта). См.
+[ADR-0003](docs/decisions/0003-validation-in-code.md).
+
+## 2026-06-11 — Упорядоченный раннер миграций (#18)
+
+Ручные `*.manual.sql` заменены раннером `migrations.Apply` (`repository.Open` зовёт его
+вместо `ExecContext(Schema)`): `0001-init.sql` — иммутабельный базлайн, далее `NNNN-*.sql`
+по имени, факт применения — в `schema_migrations`, каждая миграция в транзакции,
+fail-fast + лог. Connection-PRAGMA (вкл. `journal_mode=WAL`) переехали в DSN. Раздел про
+миграции в `AGENTS.md` переписан. См. [ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
 
 ## 2026-06-11 — Конвенция документирования: CHANGELOG + ADR (#16)
 

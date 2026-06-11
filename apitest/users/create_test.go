@@ -9,6 +9,7 @@ import (
 
 	"github.com/postlog/subgen/apitest/api"
 	"github.com/postlog/subgen/internal/entity"
+	userCreateHandler "github.com/postlog/subgen/internal/handlers/user_create"
 )
 
 // Corner cases considered for POST /admin/api/users/create:
@@ -17,10 +18,10 @@ import (
 //   - happy.smart_plus_force_same_node — smart+force on N1 → ONE client (one uuid) on
 //                                  both inbounds (the multi-inbound model / the old bug).
 //   - happy.cross_node           — inbounds on N1 and N2 → one client per panel, shared subId.
-//   - err.empty_name             — "" → generic 400 (schema minLength:1), nothing provisioned.
+//   - err.empty_name             — "" → handler's validateName → friendly 400, nothing provisioned.
 //   - err.name_bad_chars         — spaces / "!" → friendly charset message (reaches the handler).
 //   - err.name_too_long          — >32 chars → friendly charset message (no maxLength in schema).
-//   - err.no_connections         — empty inbound-id list → generic 400 (schema minItems:1).
+//   - err.no_connections         — absent inbound-id list (null) → generic 400 (kept `required`).
 //   - err.unknown_inbound_id     — id with no node_inbounds row → "инбаунд не найден".
 //   - err.duplicate_name         — second create with same nickname → "имя занято" (store PK).
 //   - err.email_exists_on_panel  — a foreign client already owns the email on a target
@@ -70,12 +71,13 @@ func (s *UserSuite) TestCreateValidation() {
 	smartN1 := s.InboundID("N1", "smart")
 
 	s.Run("empty_name", func() {
-		// An empty name trips the schema's minLength:1 before the handler runs → 400 generic.
+		// Schema no longer carries minLength; the empty name reaches validateName → friendly
+		// charset message (ADR-0003: validation in code).
 		res, err := s.API().CreateUser("", []int64{smartN1})
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(api.MsgBadRequest, res.Err)
+		s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 	})
 
 	s.Run("name_bad_chars", func() {
@@ -83,7 +85,7 @@ func (s *UserSuite) TestCreateValidation() {
 			res, err := s.API().CreateUser(bad, []int64{smartN1})
 			s.Require().NoError(err)
 			s.False(res.OK, "nickname %q must be rejected", bad)
-			s.Equal(msgInvalidUserName, res.Err)
+			s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 		}
 	})
 
@@ -92,7 +94,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", []int64{smartN1})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInvalidUserName, res.Err)
+		s.Equal(userCreateHandler.MsgInvalidName, res.Err)
 	})
 
 	s.Run("no_connections", func() {
@@ -114,7 +116,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser(s.userName(), []int64{999999})
 		s.Require().NoError(err)
 		s.False(res.OK)
-		s.Equal(msgInboundNotFound, res.Err)
+		s.Equal(userCreateHandler.MsgInboundNotFound, res.Err)
 	})
 
 	s.Run("duplicate_name", func() {
@@ -127,7 +129,7 @@ func (s *UserSuite) TestCreateValidation() {
 		res, err := s.API().CreateUser(u.Name, []int64{s.InboundID("N2", "force")})
 		s.Require().NoError(err)
 		s.False(res.OK, "duplicate nickname must be rejected")
-		s.Equal(msgNameTaken, res.Err)
+		s.Equal(userCreateHandler.MsgNameTaken, res.Err)
 		s.RequireNoClient(s.Pan2(), api.N2Force, u.Name)
 	})
 

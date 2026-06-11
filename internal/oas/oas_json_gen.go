@@ -4789,6 +4789,12 @@ func (s *UserCreateReq) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("inboundIDs")
 		e.ArrStart()
 		for _, elem := range s.InboundIDs {
@@ -4798,9 +4804,10 @@ func (s *UserCreateReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfUserCreateReq = [2]string{
+var jsonFieldsNameOfUserCreateReq = [3]string{
 	0: "name",
-	1: "inboundIDs",
+	1: "description",
+	2: "inboundIDs",
 }
 
 // Decode decodes UserCreateReq from json.
@@ -4824,8 +4831,18 @@ func (s *UserCreateReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
 		case "inboundIDs":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.InboundIDs = make([]int64, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -4854,7 +4871,7 @@ func (s *UserCreateReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5162,6 +5179,12 @@ func (s *UserEditReq) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ID)
 	}
 	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("inboundIDs")
 		e.ArrStart()
 		for _, elem := range s.InboundIDs {
@@ -5171,9 +5194,10 @@ func (s *UserEditReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfUserEditReq = [2]string{
+var jsonFieldsNameOfUserEditReq = [3]string{
 	0: "id",
-	1: "inboundIDs",
+	1: "description",
+	2: "inboundIDs",
 }
 
 // Decode decodes UserEditReq from json.
@@ -5197,8 +5221,18 @@ func (s *UserEditReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
 		case "inboundIDs":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.InboundIDs = make([]int64, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5227,7 +5261,7 @@ func (s *UserEditReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5658,6 +5692,12 @@ func (s *UsersGetOKUsersItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("sub")
 		s.Sub.Encode(e)
 	}
@@ -5675,12 +5715,13 @@ func (s *UsersGetOKUsersItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfUsersGetOKUsersItem = [5]string{
+var jsonFieldsNameOfUsersGetOKUsersItem = [6]string{
 	0: "id",
 	1: "name",
-	2: "sub",
-	3: "inbounds",
-	4: "stats",
+	2: "description",
+	3: "sub",
+	4: "inbounds",
+	5: "stats",
 }
 
 // Decode decodes UsersGetOKUsersItem from json.
@@ -5716,8 +5757,18 @@ func (s *UsersGetOKUsersItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
 		case "sub":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Sub.Decode(d); err != nil {
 					return err
@@ -5727,7 +5778,7 @@ func (s *UsersGetOKUsersItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sub\"")
 			}
 		case "inbounds":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Inbounds = make([]UsersGetOKUsersItemInboundsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5745,7 +5796,7 @@ func (s *UsersGetOKUsersItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"inbounds\"")
 			}
 		case "stats":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Stats.Decode(d); err != nil {
 					return err
@@ -5764,7 +5815,7 @@ func (s *UsersGetOKUsersItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

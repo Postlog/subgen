@@ -9,5 +9,5 @@ import (
 
 // creator provisions a new user (the provisioning service satisfies it).
 type creator interface {
-	CreateUser(ctx context.Context, name string, sel entity.ConnectionSelection) (*entity.User, error)
+	CreateUser(ctx context.Context, p entity.UserCreateParams) (*entity.User, error)
 }

@@ -6,6 +6,8 @@
 # Secrets — .env lives here; .env.example stays tracked
 *.env
 
+.claude
+
 # Rendered per-client configs contain real UUIDs/keys — never commit
 examples/*.local.yaml
 

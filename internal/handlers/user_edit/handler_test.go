@@ -11,7 +11,13 @@ import (
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/oas"
+	"github.com/postlog/subgen/internal/utils"
 )
+
+// editParams is the entity.UserEditParams the handler builds from a request (no description).
+func editParams(id int64, ids ...int64) entity.UserEditParams {
+	return entity.UserEditParams{ID: id, InboundIDs: ids}
+}
 
 func TestHandler_UserEdit(t *testing.T) {
 	internalErr := errors.New("db down")
@@ -27,35 +33,43 @@ func TestHandler_UserEdit(t *testing.T) {
 	}{
 		{
 			name: "success",
-			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{1, 2}},
+			req:  &oas.UserEditReq{ID: 7, Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
 			buildEditorMock: func(m *Mockeditor) {
-				m.EXPECT().
-					EditUser(gomock.Any(), int64(7), entity.ConnectionSelection{InboundIDs: []int64{1, 2}}).
-					Return(nil)
+				m.EXPECT().EditUser(gomock.Any(), entity.UserEditParams{
+					ID: 7, Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
+				}).Return(nil)
 			},
-			result: &oas.MessageResponse{Message: "Подключения обновлены"},
+			result: &oas.MessageResponse{Message: MsgUpdated},
 		},
 		{
 			name: "error.no_connection",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{}},
 			buildEditorMock: func(m *Mockeditor) {
-				m.EXPECT().EditUser(gomock.Any(), int64(7), gomock.Any()).Return(entity.ErrNoConnectionSelected)
+				m.EXPECT().EditUser(gomock.Any(), entity.UserEditParams{ID: 7, InboundIDs: []int64{}}).Return(entity.ErrNoConnectionSelected)
 			},
-			result: &oas.UserEditBadRequest{ErrMessage: msgNoConnection},
+			result: &oas.UserEditBadRequest{ErrMessage: MsgNoConnection},
 		},
 		{
 			name: "error.inbound_not_found",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{99}},
 			buildEditorMock: func(m *Mockeditor) {
-				m.EXPECT().EditUser(gomock.Any(), int64(7), gomock.Any()).Return(entity.ErrInboundNotFound)
+				m.EXPECT().EditUser(gomock.Any(), editParams(7, 99)).Return(entity.ErrInboundNotFound)
 			},
-			result: &oas.UserEditBadRequest{ErrMessage: msgInboundNotFound},
+			result: &oas.UserEditBadRequest{ErrMessage: MsgInboundNotFound},
+		},
+		{
+			name: "error.description_too_long",
+			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{1}},
+			buildEditorMock: func(m *Mockeditor) {
+				m.EXPECT().EditUser(gomock.Any(), editParams(7, 1)).Return(entity.ErrDescriptionTooLong)
+			},
+			result: &oas.UserEditBadRequest{ErrMessage: MsgDescTooLong},
 		},
 		{
 			name: "error.internal",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{1}},
 			buildEditorMock: func(m *Mockeditor) {
-				m.EXPECT().EditUser(gomock.Any(), int64(7), gomock.Any()).Return(internalErr)
+				m.EXPECT().EditUser(gomock.Any(), editParams(7, 1)).Return(internalErr)
 			},
 			err: internalErr,
 		},

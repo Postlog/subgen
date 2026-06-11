@@ -66,7 +66,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(nil)
 			},
-			result: &oas.MessageResponse{Message: "Конфиг сохранён"},
+			result: &oas.MessageResponse{Message: MsgSaved},
 		},
 		{
 			name: "error.invalid_config",
@@ -79,28 +79,28 @@ func TestHandler_ConfigSave(t *testing.T) {
 				Groups:    []oas.MihomoGroup{},
 				Providers: []oas.MihomoProvider{},
 			},
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgMatchNotLast},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgMatchNotLast},
 		},
 		{
 			// Profile is validated last: a valid config with an empty title is rejected.
 			name:   "error.profile_title_empty",
 			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.ProfileTitle = ""; return r }(),
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileTitleEmpty},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProfileTitleEmpty},
 		},
 		{
 			name:   "error.profile_filename_empty",
 			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.Filename = ""; return r }(),
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileFilenameEmpty},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProfileFilenameEmpty},
 		},
 		{
 			name:   "error.profile_filename_invalid",
 			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.Filename = "sub/dir.yaml"; return r }(),
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileFilenameInvalid},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProfileFilenameInvalid},
 		},
 		{
 			name:   "error.profile_interval_invalid",
 			req:    func() *oas.ConfigSaveReq { r := validReq(0); r.ProfileUpdateInterval = 0; return r }(),
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProfileIntervalInvalid},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProfileIntervalInvalid},
 		},
 		{
 			name: "error.user_config_not_found",
@@ -108,7 +108,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			buildConfigsMock: func(m *MockconfigResolver) {
 				m.EXPECT().UserConfigID(gomock.Any(), int64(5), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgUserConfigMissing},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgUserConfigMissing},
 		},
 		{
 			name: "error.save_provider_taken",
@@ -121,7 +121,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(entity.ErrRuleProviderNameTaken)
 			},
-			result: &oas.ConfigSaveBadRequest{ErrMessage: msgProviderNameTaken},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgProviderNameTaken},
 		},
 		{
 			name: "error.internal_resolve",

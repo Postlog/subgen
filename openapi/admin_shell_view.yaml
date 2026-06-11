@@ -12,7 +12,6 @@ get:
       description: The client-side view segment (rendered entirely by the SPA).
       schema:
         type: string
-        minLength: 1
     - name: subgen_admin
       in: cookie
       required: false

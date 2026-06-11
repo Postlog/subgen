@@ -4,10 +4,27 @@ package entity
 // Connection per inbound it is provisioned on.
 type User struct {
 	ID          int64
-	Name        string // admin nickname (unique)
-	SubID       string // subscription id (shared across all the user's clients)
+	Name        string  // admin nickname (unique)
+	SubID       string  // subscription id (shared across all the user's clients)
+	Description *string // optional free-text note, shown only in the admin UI; nil = unset
 	CreatedAt   int64
 	Connections []Connection
+}
+
+// UserCreateParams is the input to provisioning.CreateUser: the chosen nickname, the
+// inbound ids to bind and an optional free-text description (nil = none).
+type UserCreateParams struct {
+	Name        string
+	Description *string
+	InboundIDs  []int64
+}
+
+// UserEditParams is the input to provisioning.EditUser: the target user id, the new
+// inbound ids and the optional description (nil = cleared).
+type UserEditParams struct {
+	ID          int64
+	Description *string
+	InboundIDs  []int64
 }
 
 // UserListParams selects and pages the users list at the repository level (so the

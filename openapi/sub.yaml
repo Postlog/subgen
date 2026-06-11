@@ -14,14 +14,12 @@ get:
       description: Engine/config kind (e.g. mihomo).
       schema:
         type: string
-        minLength: 1
     - name: token
       in: path
       required: true
       description: HMAC subscription token.
       schema:
         type: string
-        minLength: 1
   responses:
     '200':
       description: the subscription document

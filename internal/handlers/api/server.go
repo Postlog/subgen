@@ -19,27 +19,27 @@ import (
 
 	"github.com/ogen-go/ogen/ogenerrors"
 
-	"github.com/postlog/subgen/internal/handlers/admin_shell"
-	"github.com/postlog/subgen/internal/handlers/config_customs"
-	"github.com/postlog/subgen/internal/handlers/config_get"
-	"github.com/postlog/subgen/internal/handlers/config_save"
-	"github.com/postlog/subgen/internal/handlers/config_schema"
-	"github.com/postlog/subgen/internal/handlers/custom_create"
-	"github.com/postlog/subgen/internal/handlers/custom_delete"
+	adminShellHandler "github.com/postlog/subgen/internal/handlers/admin_shell"
+	configCustomsHandler "github.com/postlog/subgen/internal/handlers/config_customs"
+	configGetHandler "github.com/postlog/subgen/internal/handlers/config_get"
+	configSaveHandler "github.com/postlog/subgen/internal/handlers/config_save"
+	configSchemaHandler "github.com/postlog/subgen/internal/handlers/config_schema"
+	customCreateHandler "github.com/postlog/subgen/internal/handlers/custom_create"
+	customDeleteHandler "github.com/postlog/subgen/internal/handlers/custom_delete"
 	"github.com/postlog/subgen/internal/handlers/healthz"
 	"github.com/postlog/subgen/internal/handlers/login"
 	"github.com/postlog/subgen/internal/handlers/logout"
-	"github.com/postlog/subgen/internal/handlers/node_delete"
-	"github.com/postlog/subgen/internal/handlers/node_save"
-	"github.com/postlog/subgen/internal/handlers/nodes_get"
-	"github.com/postlog/subgen/internal/handlers/provider_check"
+	nodeDeleteHandler "github.com/postlog/subgen/internal/handlers/node_delete"
+	nodeSaveHandler "github.com/postlog/subgen/internal/handlers/node_save"
+	nodesGetHandler "github.com/postlog/subgen/internal/handlers/nodes_get"
+	providerCheckHandler "github.com/postlog/subgen/internal/handlers/provider_check"
 	"github.com/postlog/subgen/internal/handlers/rules"
 	"github.com/postlog/subgen/internal/handlers/sub"
-	"github.com/postlog/subgen/internal/handlers/user_create"
-	"github.com/postlog/subgen/internal/handlers/user_delete"
-	"github.com/postlog/subgen/internal/handlers/user_edit"
-	"github.com/postlog/subgen/internal/handlers/user_recreate"
-	"github.com/postlog/subgen/internal/handlers/users_get"
+	userCreateHandler "github.com/postlog/subgen/internal/handlers/user_create"
+	userDeleteHandler "github.com/postlog/subgen/internal/handlers/user_delete"
+	userEditHandler "github.com/postlog/subgen/internal/handlers/user_edit"
+	userRecreateHandler "github.com/postlog/subgen/internal/handlers/user_recreate"
+	usersGetHandler "github.com/postlog/subgen/internal/handlers/users_get"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
 )
@@ -58,25 +58,25 @@ type Handlers struct {
 
 	Login      *login.Handler // also serves the login PAGE (GET /admin/login)
 	Logout     *logout.Handler
-	AdminShell *admin_shell.Handler // GET /admin and /admin/{view}
+	AdminShell *adminShellHandler.Handler // GET /admin and /admin/{view}
 
-	UsersGet     *users_get.Handler
-	UserCreate   *user_create.Handler
-	UserEdit     *user_edit.Handler
-	UserDelete   *user_delete.Handler
-	UserRecreate *user_recreate.Handler
+	UsersGet     *usersGetHandler.Handler
+	UserCreate   *userCreateHandler.Handler
+	UserEdit     *userEditHandler.Handler
+	UserDelete   *userDeleteHandler.Handler
+	UserRecreate *userRecreateHandler.Handler
 
-	NodesGet   *nodes_get.Handler
-	NodeSave   *node_save.Handler
-	NodeDelete *node_delete.Handler
+	NodesGet   *nodesGetHandler.Handler
+	NodeSave   *nodeSaveHandler.Handler
+	NodeDelete *nodeDeleteHandler.Handler
 
-	ConfigGet     *config_get.Handler
-	ConfigSchema  *config_schema.Handler
-	ConfigCustoms *config_customs.Handler
-	ConfigSave    *config_save.Handler
-	CustomCreate  *custom_create.Handler
-	CustomDelete  *custom_delete.Handler
-	ProviderCheck *provider_check.Handler
+	ConfigGet     *configGetHandler.Handler
+	ConfigSchema  *configSchemaHandler.Handler
+	ConfigCustoms *configCustomsHandler.Handler
+	ConfigSave    *configSaveHandler.Handler
+	CustomCreate  *customCreateHandler.Handler
+	CustomDelete  *customDeleteHandler.Handler
+	ProviderCheck *providerCheckHandler.Handler
 }
 
 // Server implements oas.Handler (by forwarding to the per-action handlers) and

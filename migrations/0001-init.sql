@@ -1,5 +1,8 @@
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
+-- 0001-init.sql — the baseline: the first migration, run by migrations/run.go in
+-- filename order. Connection PRAGMAs (journal_mode=WAL, foreign_keys=ON) live in the DSN
+-- now (internal/repository/open.go), NOT here: the runner wraps each migration in a
+-- transaction and `PRAGMA journal_mode=WAL` cannot run inside one — so this file stays
+-- pure DDL. Subsequent schema changes are later 0002-*.sql, … files alongside this one.
 
 -- Logical split inside one SQLite file (SQLite has no in-file schemas, and FKs can't
 -- cross attached databases — so a single file keeps inbound↔rule/member FKs intact):
@@ -91,9 +94,9 @@ CREATE TABLE IF NOT EXISTS mihomo_proxy_groups (
   name      TEXT NOT NULL,               -- unique within a config (see index below)
   type      TEXT NOT NULL,               -- select|url-test|fallback|load-balance|relay
   url       TEXT NOT NULL DEFAULT '',
-  interval  INTEGER,                     -- nullable: NULL = not set / not applicable to the type
-  tolerance INTEGER,                     -- nullable (url-test only)
-  lazy      INTEGER,                     -- nullable (health-check types only)
+  interval  INTEGER NOT NULL DEFAULT 0,
+  tolerance INTEGER NOT NULL DEFAULT 0,
+  lazy      INTEGER NOT NULL DEFAULT 0,
   UNIQUE(config_id, name)
 );
 
@@ -118,8 +121,7 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
   config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
   position        INTEGER NOT NULL,
   type            TEXT NOT NULL,         -- mihomo rule type (DOMAIN-SUFFIX, IP-CIDR, RULE-SET, MATCH, …)
-  value           TEXT,                  -- nullable plain payload; NULL for RULE-SET (uses provider_id) and MATCH
-  provider_id     INTEGER REFERENCES mihomo_rule_providers(id),  -- set iff type=RULE-SET (the rule-provider)
+  value           TEXT NOT NULL DEFAULT '',
   no_resolve      INTEGER NOT NULL DEFAULT 0,
   target_kind     TEXT NOT NULL,         -- PolicyKind
   inbound_id      INTEGER REFERENCES node_inbounds(id),
@@ -130,16 +132,15 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
 -- interval: mihomo client ruleset auto-update TTL (seconds), always rendered.
 -- mirror_interval: subgen mirror refresh period (seconds), used only when mirror=1.
 CREATE TABLE IF NOT EXISTS mihomo_rule_providers (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
   config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
-  name            TEXT NOT NULL,         -- the mihomo YAML key; a RULE-SET rule references the surrogate id
+  name            TEXT NOT NULL,
   behavior        TEXT NOT NULL,
   format          TEXT NOT NULL,
   mirror          INTEGER NOT NULL,
   url             TEXT NOT NULL,
   interval        INTEGER NOT NULL,
   mirror_interval INTEGER NOT NULL DEFAULT 0,
-  UNIQUE(config_id, name)
+  PRIMARY KEY(config_id, name)
 );
 
 -- mihomo base config + free-form settings (currently just base_yaml), per config.

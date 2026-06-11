@@ -27,28 +27,28 @@ import (
 	"github.com/postlog/subgen/internal/clients/xui"
 	"github.com/postlog/subgen/internal/config"
 	"github.com/postlog/subgen/internal/entity"
-	"github.com/postlog/subgen/internal/handlers/admin_shell"
+	adminShellHandler "github.com/postlog/subgen/internal/handlers/admin_shell"
 	"github.com/postlog/subgen/internal/handlers/api"
-	"github.com/postlog/subgen/internal/handlers/config_customs"
-	"github.com/postlog/subgen/internal/handlers/config_get"
-	"github.com/postlog/subgen/internal/handlers/config_save"
-	"github.com/postlog/subgen/internal/handlers/config_schema"
-	"github.com/postlog/subgen/internal/handlers/custom_create"
-	"github.com/postlog/subgen/internal/handlers/custom_delete"
+	configCustomsHandler "github.com/postlog/subgen/internal/handlers/config_customs"
+	configGetHandler "github.com/postlog/subgen/internal/handlers/config_get"
+	configSaveHandler "github.com/postlog/subgen/internal/handlers/config_save"
+	configSchemaHandler "github.com/postlog/subgen/internal/handlers/config_schema"
+	customCreateHandler "github.com/postlog/subgen/internal/handlers/custom_create"
+	customDeleteHandler "github.com/postlog/subgen/internal/handlers/custom_delete"
 	"github.com/postlog/subgen/internal/handlers/healthz"
 	"github.com/postlog/subgen/internal/handlers/login"
 	"github.com/postlog/subgen/internal/handlers/logout"
-	"github.com/postlog/subgen/internal/handlers/node_delete"
-	"github.com/postlog/subgen/internal/handlers/node_save"
-	"github.com/postlog/subgen/internal/handlers/nodes_get"
-	"github.com/postlog/subgen/internal/handlers/provider_check"
+	nodeDeleteHandler "github.com/postlog/subgen/internal/handlers/node_delete"
+	nodeSaveHandler "github.com/postlog/subgen/internal/handlers/node_save"
+	nodesGetHandler "github.com/postlog/subgen/internal/handlers/nodes_get"
+	providerCheckHandler "github.com/postlog/subgen/internal/handlers/provider_check"
 	"github.com/postlog/subgen/internal/handlers/rules"
 	"github.com/postlog/subgen/internal/handlers/sub"
-	"github.com/postlog/subgen/internal/handlers/user_create"
-	"github.com/postlog/subgen/internal/handlers/user_delete"
-	"github.com/postlog/subgen/internal/handlers/user_edit"
-	"github.com/postlog/subgen/internal/handlers/user_recreate"
-	"github.com/postlog/subgen/internal/handlers/users_get"
+	userCreateHandler "github.com/postlog/subgen/internal/handlers/user_create"
+	userDeleteHandler "github.com/postlog/subgen/internal/handlers/user_delete"
+	userEditHandler "github.com/postlog/subgen/internal/handlers/user_edit"
+	userRecreateHandler "github.com/postlog/subgen/internal/handlers/user_recreate"
+	usersGetHandler "github.com/postlog/subgen/internal/handlers/users_get"
 	"github.com/postlog/subgen/internal/handlers/web"
 	"github.com/postlog/subgen/internal/oas"
 	"github.com/postlog/subgen/internal/repository"
@@ -57,6 +57,7 @@ import (
 	"github.com/postlog/subgen/internal/repository/routing"
 	"github.com/postlog/subgen/internal/repository/users"
 	"github.com/postlog/subgen/internal/service/fleet"
+	nodesService "github.com/postlog/subgen/internal/service/nodes"
 	"github.com/postlog/subgen/internal/service/provisioning"
 	"github.com/postlog/subgen/internal/service/ruleset"
 )
@@ -186,6 +187,8 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	sess := web.NewSession(cfg.Secret)
 
+	nodesSvc := nodesService.New(nodesRepo)
+
 	// The login handler serves both the sign-in action (POST /admin/api/login) and the
 	// login PAGE (GET /admin/login).
 	loginHandler := login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)
@@ -200,24 +203,24 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		Rules:      rules.New(mirror),
 		Login:      loginHandler,
 		Logout:     logout.New(sess),
-		AdminShell: admin_shell.New(sess, cfg.StaticDir),
+		AdminShell: adminShellHandler.New(sess, cfg.StaticDir),
 
-		UsersGet:     users_get.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
-		UserCreate:   user_create.New(prov),
-		UserEdit:     user_edit.New(prov),
-		UserDelete:   user_delete.New(prov),
-		UserRecreate: user_recreate.New(prov),
-		NodesGet:     nodes_get.New(nodesRepo),
-		NodeSave:     node_save.New(nodesRepo, routingRepo),
-		NodeDelete:   node_delete.New(nodesRepo, routingRepo),
+		UsersGet:     usersGetHandler.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
+		UserCreate:   userCreateHandler.New(prov),
+		UserEdit:     userEditHandler.New(prov),
+		UserDelete:   userDeleteHandler.New(prov),
+		UserRecreate: userRecreateHandler.New(prov),
+		NodesGet:     nodesGetHandler.New(nodesRepo),
+		NodeSave:     nodeSaveHandler.New(nodesSvc),
+		NodeDelete:   nodeDeleteHandler.New(nodesSvc),
 
-		ConfigGet:     config_get.New(configsRepo, routingRepo),
-		ConfigSchema:  config_schema.New(),
-		ConfigCustoms: config_customs.New(configsRepo, usersRepo),
-		ConfigSave:    config_save.New(configsRepo, routingRepo),
-		CustomCreate:  custom_create.New(configsRepo),
-		CustomDelete:  custom_delete.New(configsRepo),
-		ProviderCheck: provider_check.New(ruleset.NewChecker()),
+		ConfigGet:     configGetHandler.New(configsRepo, routingRepo),
+		ConfigSchema:  configSchemaHandler.New(),
+		ConfigCustoms: configCustomsHandler.New(configsRepo, usersRepo),
+		ConfigSave:    configSaveHandler.New(configsRepo, routingRepo),
+		CustomCreate:  customCreateHandler.New(configsRepo),
+		CustomDelete:  customDeleteHandler.New(configsRepo),
+		ProviderCheck: providerCheckHandler.New(ruleset.NewChecker()),
 	})
 
 	oasSrv, err := oas.NewServer(composite, composite, oas.WithErrorHandler(composite.ErrorHandler))

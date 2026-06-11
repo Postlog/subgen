@@ -1722,13 +1722,20 @@ type UserCreateConflict ErrorResponse
 func (*UserCreateConflict) userCreateRes() {}
 
 type UserCreateReq struct {
-	Name       string  `json:"name"`
-	InboundIDs []int64 `json:"inboundIDs"`
+	Name string `json:"name"`
+	// Optional free-text note, shown only in the admin UI (length validated server-side).
+	Description OptString `json:"description"`
+	InboundIDs  []int64   `json:"inboundIDs"`
 }
 
 // GetName returns the value of Name.
 func (s *UserCreateReq) GetName() string {
 	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *UserCreateReq) GetDescription() OptString {
+	return s.Description
 }
 
 // GetInboundIDs returns the value of InboundIDs.
@@ -1739,6 +1746,11 @@ func (s *UserCreateReq) GetInboundIDs() []int64 {
 // SetName sets the value of Name.
 func (s *UserCreateReq) SetName(val string) {
 	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *UserCreateReq) SetDescription(val OptString) {
+	s.Description = val
 }
 
 // SetInboundIDs sets the value of InboundIDs.
@@ -1777,13 +1789,20 @@ type UserEditBadRequest ErrorResponse
 func (*UserEditBadRequest) userEditRes() {}
 
 type UserEditReq struct {
-	ID         int64   `json:"id"`
-	InboundIDs []int64 `json:"inboundIDs"`
+	ID int64 `json:"id"`
+	// Optional free-text note, shown only in the admin UI (length validated server-side).
+	Description OptString `json:"description"`
+	InboundIDs  []int64   `json:"inboundIDs"`
 }
 
 // GetID returns the value of ID.
 func (s *UserEditReq) GetID() int64 {
 	return s.ID
+}
+
+// GetDescription returns the value of Description.
+func (s *UserEditReq) GetDescription() OptString {
+	return s.Description
 }
 
 // GetInboundIDs returns the value of InboundIDs.
@@ -1794,6 +1813,11 @@ func (s *UserEditReq) GetInboundIDs() []int64 {
 // SetID sets the value of ID.
 func (s *UserEditReq) SetID(val int64) {
 	s.ID = val
+}
+
+// SetDescription sets the value of Description.
+func (s *UserEditReq) SetDescription(val OptString) {
+	s.Description = val
 }
 
 // SetInboundIDs sets the value of InboundIDs.
@@ -1877,11 +1901,13 @@ func (s *UsersGetOK) SetPerPage(val int) {
 func (*UsersGetOK) usersGetRes() {}
 
 type UsersGetOKUsersItem struct {
-	ID       int64                             `json:"id"`
-	Name     string                            `json:"name"`
-	Sub      UsersGetOKUsersItemSub            `json:"sub"`
-	Inbounds []UsersGetOKUsersItemInboundsItem `json:"inbounds"`
-	Stats    UsersGetOKUsersItemStats          `json:"stats"`
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	// Optional free-text note, shown only in the admin UI; omitted when unset.
+	Description OptString                         `json:"description"`
+	Sub         UsersGetOKUsersItemSub            `json:"sub"`
+	Inbounds    []UsersGetOKUsersItemInboundsItem `json:"inbounds"`
+	Stats       UsersGetOKUsersItemStats          `json:"stats"`
 }
 
 // GetID returns the value of ID.
@@ -1892,6 +1918,11 @@ func (s *UsersGetOKUsersItem) GetID() int64 {
 // GetName returns the value of Name.
 func (s *UsersGetOKUsersItem) GetName() string {
 	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *UsersGetOKUsersItem) GetDescription() OptString {
+	return s.Description
 }
 
 // GetSub returns the value of Sub.
@@ -1917,6 +1948,11 @@ func (s *UsersGetOKUsersItem) SetID(val int64) {
 // SetName sets the value of Name.
 func (s *UsersGetOKUsersItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *UsersGetOKUsersItem) SetDescription(val OptString) {
+	s.Description = val
 }
 
 // SetSub sets the value of Sub.

@@ -10,10 +10,8 @@ import (
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
+	"github.com/postlog/subgen/internal/utils"
 )
-
-func i64(v int64) *int64  { return &v }
-func sp(v string) *string { return &v }
 
 // fixed UUIDs so the rendered proxies block is deterministic and can be asserted whole.
 var (
@@ -32,17 +30,17 @@ func fullOptions() Options {
 		Groups: []mihomo.ProxyGroup{
 			{ID: 1, Name: "smart", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyDirect}}},
 			{ID: 2, Name: "Connection", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
-				{Kind: mihomo.PolicyGroup, GroupID: i64(1)},
-				{Kind: mihomo.PolicyInbound, InboundID: i64(10)},
-				{Kind: mihomo.PolicyInbound, InboundID: i64(20)},
+				{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](1)},
+				{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](10)},
+				{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)},
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleGeoIP, Value: sp("private"), NoResolve: true, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
+			{Type: mihomo.RuleGeoIP, Value: utils.Ptr("private"), NoResolve: utils.Ptr(true), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
 			// inbound 999: the subscriber lacks it → the rule is dropped (target unresolved).
-			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(999)}},
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: i64(2)}},
+			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](999)}},
+			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
 		Providers: []mihomo.RuleProvider{
 			{ID: 7, Name: "allow", Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
@@ -156,15 +154,15 @@ func partialOptions() Options {
 		Groups: []mihomo.ProxyGroup{
 			{ID: 1, Name: "smart", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyDirect}}},
 			{ID: 2, Name: "Conn", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
-				{Kind: mihomo.PolicyGroup, GroupID: i64(1)},
-				{Kind: mihomo.PolicyInbound, InboundID: i64(10)},
-				{Kind: mihomo.PolicyInbound, InboundID: i64(20)},
+				{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](1)},
+				{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](10)},
+				{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)},
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleDomainSuffix, Value: sp("skip.example"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
-			{Type: mihomo.RuleDomain, Value: sp("x.com"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(20)}},
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: i64(2)}},
+			{Type: mihomo.RuleDomainSuffix, Value: utils.Ptr("skip.example"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
+			{Type: mihomo.RuleDomain, Value: utils.Ptr("x.com"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)}},
+			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
 	}
 }
@@ -251,7 +249,7 @@ rules:
 			opts: Options{
 				BaseYAML: "mode: rule",
 				Rules: []mihomo.RoutingRule{
-					{Type: mihomo.RuleRuleSet, ProviderID: i64(99), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+					{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](99), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 				},
 			},

@@ -146,8 +146,8 @@ func sliceSet(ss []string) map[string]bool {
 // validateRef checks a save-time ref's internal consistency and that a group ref's
 // index is in range.
 func validateRef(ref RefDraft, numGroups int) error {
-	if !ref.Valid() {
-		return ErrBadRef
+	if err := ref.Valid(); err != nil {
+		return err
 	}
 
 	if ref.Kind == PolicyGroup {

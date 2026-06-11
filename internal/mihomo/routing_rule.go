@@ -95,16 +95,16 @@ func (t RuleType) String() string { return string(t) }
 
 // RoutingRule is one ordered mihomo rule with a typed target (PolicyRef). Value is the
 // plain matcher payload — optional (pointer): nil for RULE-SET and MATCH, set for every
-// other type. NoResolve adds the no-resolve option. ProviderID is the rule-provider this
-// rule points at by id (RULE-SET only); nil for every other type. The provider name is
-// resolved from the id at render — the rule never carries the name as a string (that was
-// the old dirty Value overload).
+// other type. NoResolve is the optional no-resolve option (pointer; nil/false = off).
+// ProviderID is the rule-provider this rule points at by id (RULE-SET only); nil for
+// every other type. The provider name is resolved from the id at render — the rule never
+// carries the name as a string (that was the old dirty Value overload).
 type RoutingRule struct {
 	ID         int64
 	Position   int
 	Type       RuleType
 	Value      *string
 	ProviderID *int64
-	NoResolve  bool
+	NoResolve  *bool
 	Target     PolicyRef
 }

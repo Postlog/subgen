@@ -24,12 +24,12 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 	for rows.Next() {
 		var (
 			rule       mihomo.RoutingRule
-			value      sql.NullString
+			value      sql.Null[string]
 			noResolve  int
 			kind       string
-			providerID sql.NullInt64
-			inboundID  sql.NullInt64
-			groupID    sql.NullInt64
+			providerID sql.Null[int64]
+			inboundID  sql.Null[int64]
+			groupID    sql.Null[int64]
 		)
 
 		if err := rows.Scan(&rule.ID, &rule.Position, &rule.Type, &value,
@@ -38,16 +38,20 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 		}
 
 		if value.Valid {
-			v := value.String
+			v := value.V
 			rule.Value = &v
 		}
 
 		if providerID.Valid {
-			id := providerID.Int64
+			id := providerID.V
 			rule.ProviderID = &id
 		}
 
-		rule.NoResolve = noResolve != 0
+		if noResolve != 0 {
+			t := true
+			rule.NoResolve = &t
+		}
+
 		rule.Target = policyRef(kind, inboundID, groupID)
 		out = append(out, rule)
 	}
@@ -57,16 +61,16 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 
 // policyRef assembles a PolicyRef from its persisted columns: the kind plus a
 // nullable inbound_id (inbound) / group id (group). Shared by rules and group members.
-func policyRef(kind string, inboundID, groupID sql.NullInt64) mihomo.PolicyRef {
+func policyRef(kind string, inboundID, groupID sql.Null[int64]) mihomo.PolicyRef {
 	ref := mihomo.PolicyRef{Kind: mihomo.PolicyKind(kind)}
 
 	if inboundID.Valid {
-		id := inboundID.Int64
+		id := inboundID.V
 		ref.InboundID = &id
 	}
 
 	if groupID.Valid {
-		id := groupID.Int64
+		id := groupID.V
 		ref.GroupID = &id
 	}
 

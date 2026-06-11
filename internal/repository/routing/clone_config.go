@@ -49,9 +49,9 @@ func cloneGroups(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]int
 		name      string
 		typ       string
 		url       string
-		interval  sql.NullInt64
-		tolerance sql.NullInt64
-		lazy      sql.NullInt64
+		interval  sql.Null[int64]
+		tolerance sql.Null[int64]
+		lazy      sql.Null[int64]
 	}
 
 	rows, err := tx.QueryContext(ctx,
@@ -108,8 +108,8 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 		groupID   int64
 		position  int
 		kind      string
-		inboundID sql.NullInt64
-		refGroup  sql.NullInt64
+		inboundID sql.Null[int64]
+		refGroup  sql.Null[int64]
 	}
 
 	rows, err := tx.QueryContext(ctx,
@@ -148,14 +148,14 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 
 		var refGroup any
 		if m.refGroup.Valid {
-			if mapped, ok := idMap[m.refGroup.Int64]; ok {
+			if mapped, ok := idMap[m.refGroup.V]; ok {
 				refGroup = mapped
 			}
 		}
 
 		var inbound any
 		if m.inboundID.Valid {
-			inbound = m.inboundID.Int64
+			inbound = m.inboundID.V
 		}
 
 		if _, err := tx.ExecContext(ctx,
@@ -176,12 +176,12 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 	type rule struct {
 		position   int
 		typ        string
-		value      sql.NullString
-		providerID sql.NullInt64
+		value      sql.Null[string]
+		providerID sql.Null[int64]
 		noResolve  int
 		kind       string
-		inboundID  sql.NullInt64
-		groupID    sql.NullInt64
+		inboundID  sql.Null[int64]
+		groupID    sql.Null[int64]
 	}
 
 	rows, err := tx.QueryContext(ctx,
@@ -213,17 +213,17 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 	for _, ru := range rules {
 		var inbound, group, provider any
 		if ru.inboundID.Valid {
-			inbound = ru.inboundID.Int64
+			inbound = ru.inboundID.V
 		}
 
 		if ru.groupID.Valid {
-			if mapped, ok := groupMap[ru.groupID.Int64]; ok {
+			if mapped, ok := groupMap[ru.groupID.V]; ok {
 				group = mapped
 			}
 		}
 
 		if ru.providerID.Valid {
-			if mapped, ok := provMap[ru.providerID.Int64]; ok {
+			if mapped, ok := provMap[ru.providerID.V]; ok {
 				provider = mapped
 			}
 		}

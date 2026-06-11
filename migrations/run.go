@@ -123,7 +123,7 @@ func applyNoTx(ctx context.Context, db *sql.DB, body string) error {
 		return err
 	}
 
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_, err = conn.ExecContext(ctx, body)
 

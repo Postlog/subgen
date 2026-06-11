@@ -312,12 +312,15 @@ const app = createApp({
       const rules = this.cfg.rules.map((r) => {
         const rule = {
           type: r.type,
-          noResolve: !this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve,
           target: this.prefToRef(r.pref, uidToIdx),
         };
         // value only for value-taking types (omitted for MATCH and RULE-SET).
         if (!this.isMatch(r.type) && !this.isRuleSet(r.type)) {
           rule.value = r.value || "";
+        }
+        // no-resolve only sent for supporting types when actually on (omitted = off).
+        if (!this.isMatch(r.type) && this.supportsNoResolve(r.type) && r.noResolve) {
+          rule.noResolve = true;
         }
         if (this.isRuleSet(r.type)) {
           const idx = provUidToIdx[r.providerUid];

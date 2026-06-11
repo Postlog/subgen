@@ -27,9 +27,9 @@ func (r *Repository) ProxyGroups(ctx context.Context, configID int64) ([]mihomo.
 	for rows.Next() {
 		var (
 			g         mihomo.ProxyGroup
-			interval  sql.NullInt64
-			tolerance sql.NullInt64
-			lazy      sql.NullInt64
+			interval  sql.Null[int64]
+			tolerance sql.Null[int64]
+			lazy      sql.Null[int64]
 		)
 
 		if err := rows.Scan(&g.ID, &g.Position, &g.Name, &g.Type, &g.URL, &interval, &tolerance, &lazy); err != nil {
@@ -37,17 +37,17 @@ func (r *Repository) ProxyGroups(ctx context.Context, configID int64) ([]mihomo.
 		}
 
 		if interval.Valid {
-			v := int(interval.Int64)
+			v := int(interval.V)
 			g.Interval = &v
 		}
 
 		if tolerance.Valid {
-			v := int(tolerance.Int64)
+			v := int(tolerance.V)
 			g.Tolerance = &v
 		}
 
 		if lazy.Valid {
-			b := lazy.Int64 != 0
+			b := lazy.V != 0
 			g.Lazy = &b
 		}
 
@@ -81,8 +81,8 @@ func (r *Repository) loadMembers(ctx context.Context, groups []mihomo.ProxyGroup
 		var (
 			groupID   int64
 			kind      string
-			inboundID sql.NullInt64
-			refGroup  sql.NullInt64
+			inboundID sql.Null[int64]
+			refGroup  sql.Null[int64]
 		)
 
 		if err := rows.Scan(&groupID, &kind, &inboundID, &refGroup); err != nil {

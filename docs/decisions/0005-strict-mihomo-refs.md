@@ -54,10 +54,13 @@ domain/read**, чтобы убрать двойной смысл поля:
   несёт индексы — его производит `DecodeConfig` и потребляет `SaveMihomoConfig`. Индекс→
   id резолвится внутри save (в локальных слайсах), не в типе.
 - БД: `mihomo_rule_providers` получает `id INTEGER PRIMARY KEY AUTOINCREMENT` +
-  `UNIQUE(config_id,name)`; `mihomo_routing_rules` += `provider_id INTEGER REFERENCES
-  mihomo_rule_providers(id)`. Свежие БД — через `init.sql`; существующая прод-БД —
-  ручной миграцией `migrations/rule_provider_id.manual.sql` (rebuild провайдеров под id
-  + backfill `provider_id` из имён, очистка `value`).
+  `UNIQUE(config_id,name)`; `mihomo_routing_rules` += `provider_id`; опциональные колонки
+  (`value`/`interval`/`tolerance`/`lazy`) становятся nullable. Схема едет раннером
+  миграций — `migrations/0003-strict-mihomo-refs.notx.sql`: rebuild трёх таблиц +
+  backfill `provider_id` из имён + очистка `value`. Так как rebuild требует
+  `PRAGMA foreign_keys=OFF` (no-op внутри транзакции), раннер расширен **`.notx`-режимом**
+  (миграция выполняется вне транзакции, сама пишет себя в `schema_migrations`) — отступление
+  от ADR-0002 «каждая в транзакции», осознанное и задокументированное.
 - Wire не раздваивается (он уже индексный в обе стороны) — в `MihomoRule` добавлен
   только `providerIdx`. Имя провайдера на проводе как ссылка не используется.
 

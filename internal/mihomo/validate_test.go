@@ -4,11 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-)
 
-func i64(v int64) *int64  { return &v }
-func ip(v int) *int       { return &v }
-func sp(v string) *string { return &v }
+	"github.com/postlog/subgen/internal/utils"
+)
 
 func TestValidateBaseYAML(t *testing.T) {
 	tt := []struct {
@@ -42,9 +40,9 @@ func TestValidateRoutingRules(t *testing.T) {
 		{
 			name: "success.valid",
 			rules: []RuleDraft{
-				{Type: RuleDomainSuffix, Value: sp("x.com"), Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleRuleSet, ProviderIdx: ip(0), Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: ip(0)}},
+				{Type: RuleDomainSuffix, Value: utils.Ptr("x.com"), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}},
 			},
 			numGroups:    1,
 			numProviders: 1,
@@ -63,13 +61,13 @@ func TestValidateRoutingRules(t *testing.T) {
 			name: "error.match_not_last",
 			rules: []RuleDraft{
 				{Type: RuleMatch, Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleDomain, Value: sp("x"), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleDomain, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}},
 			},
 			err: ErrMatchNotLast,
 		},
 		{
 			name:      "error.group_oob",
-			rules:     []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: ip(3)}}},
+			rules:     []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(3)}}},
 			numGroups: 1,
 			err:       ErrGroupRefRange,
 		},
@@ -80,7 +78,7 @@ func TestValidateRoutingRules(t *testing.T) {
 		},
 		{
 			name:         "error.ruleset_provider_oob",
-			rules:        []RuleDraft{{Type: RuleRuleSet, ProviderIdx: ip(2), Target: RefDraft{Kind: PolicyDirect}}},
+			rules:        []RuleDraft{{Type: RuleRuleSet, ProviderIdx: utils.Ptr(2), Target: RefDraft{Kind: PolicyDirect}}},
 			numProviders: 1,
 			err:          ErrProviderRefRange,
 		},
@@ -91,12 +89,12 @@ func TestValidateRoutingRules(t *testing.T) {
 		},
 		{
 			name:  "error.value_on_match",
-			rules: []RuleDraft{{Type: RuleMatch, Value: sp("x"), Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleMatch, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}}},
 			err:   ErrRulePayloadNotAllowed,
 		},
 		{
 			name:  "error.no_resolve_unsupported",
-			rules: []RuleDraft{{Type: RuleDomain, Value: sp("x.com"), NoResolve: true, Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com"), NoResolve: utils.Ptr(true), Target: RefDraft{Kind: PolicyDirect}}},
 			err:   ErrNoResolveUnsupported,
 		},
 	}
@@ -121,7 +119,7 @@ func TestValidateProxyGroups(t *testing.T) {
 			name: "success.valid",
 			groups: []GroupDraft{
 				{Name: "smart", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
-				{Name: "Conn", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: ip(0)}}},
+				{Name: "Conn", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}}},
 			},
 		},
 		{
@@ -150,14 +148,14 @@ func TestValidateProxyGroups(t *testing.T) {
 		{
 			name: "error.cycle",
 			groups: []GroupDraft{
-				{Name: "a", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: ip(1)}}},
-				{Name: "b", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: ip(0)}}},
+				{Name: "a", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}}},
+				{Name: "b", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}}},
 			},
 			err: ErrGroupCycle,
 		},
 		{
 			name:   "error.field_on_select",
-			groups: []GroupDraft{{Name: "g", Type: GroupSelect, Interval: ip(300), Members: []RefDraft{{Kind: PolicyDirect}}}},
+			groups: []GroupDraft{{Name: "g", Type: GroupSelect, Interval: utils.Ptr(300), Members: []RefDraft{{Kind: PolicyDirect}}}},
 			err:    ErrGroupFieldNotAllowed,
 		},
 	}

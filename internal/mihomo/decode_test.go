@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/postlog/subgen/internal/utils"
 )
 
 func TestDecodeConfig(t *testing.T) {
@@ -43,14 +45,14 @@ func TestDecodeConfig(t *testing.T) {
 				Groups: []GroupDraft{
 					{Name: "smart", Type: GroupSelect, Members: []RefDraft{{Kind: PolicyDirect}}},
 					{Name: "Conn", Type: GroupSelect, Members: []RefDraft{
-						{Kind: PolicyGroup, GroupIdx: ip(0)},
-						{Kind: PolicyInbound, InboundID: i64(5)},
+						{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)},
+						{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)},
 					}},
 				},
 				Rules: []RuleDraft{
-					{Type: RuleDomainSuffix, Value: sp("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: i64(5)}},
-					{Type: RuleRuleSet, ProviderIdx: ip(0), Target: RefDraft{Kind: PolicyDirect}},
-					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: ip(1)}},
+					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
+					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
 				},
 				Providers: []RuleProvider{{Name: "allow", Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},

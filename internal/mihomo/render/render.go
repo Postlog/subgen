@@ -50,7 +50,7 @@ func Render(sub *entity.Subscriber, o Options) ([]byte, error) {
 		proxies = append(proxies, proxyToMap(p))
 	}
 
-	res := newResolver(sub, o.Groups, o.Providers)
+	res := newEntityNameResolver(sub, o.Groups, o.Providers)
 
 	base["proxies"] = proxies
 	base["proxy-groups"] = buildGroups(o.Groups, res)

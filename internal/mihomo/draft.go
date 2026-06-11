@@ -21,21 +21,23 @@ type RefDraft struct {
 	GroupIdx  *int   // index into ConfigDraft.Groups when Kind==group
 }
 
-// Valid reports whether the ref is internally consistent (mirrors PolicyRef.Valid).
-func (r RefDraft) Valid() bool {
+// Valid checks the ref is internally consistent (mirrors PolicyRef.Valid): a known kind,
+// with InboundID iff inbound and GroupIdx iff group. Returns ErrBadRef when malformed —
+// an error, like the other draft Valid() methods, so callers handle them uniformly.
+func (r RefDraft) Valid() error {
 	if !r.Kind.Valid() {
-		return false
+		return ErrBadRef
 	}
 
 	if (r.Kind == PolicyInbound) != (r.InboundID != nil) {
-		return false
+		return ErrBadRef
 	}
 
 	if (r.Kind == PolicyGroup) != (r.GroupIdx != nil) {
-		return false
+		return ErrBadRef
 	}
 
-	return true
+	return nil
 }
 
 // RuleDraft is a routing rule at save time. ProviderIdx is the index into
@@ -45,7 +47,7 @@ type RuleDraft struct {
 	Type        RuleType
 	Value       *string
 	ProviderIdx *int
-	NoResolve   bool
+	NoResolve   *bool
 	Target      RefDraft
 }
 
@@ -81,7 +83,7 @@ func (r RuleDraft) Valid() error {
 		}
 	}
 
-	if r.NoResolve && !r.Type.SupportsNoResolve() {
+	if r.NoResolve != nil && *r.NoResolve && !r.Type.SupportsNoResolve() {
 		return ErrNoResolveUnsupported
 	}
 

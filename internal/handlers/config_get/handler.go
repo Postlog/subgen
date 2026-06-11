@@ -117,10 +117,14 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 
 	out.Rules = make([]oas.MihomoRule, 0, len(rules))
 	for _, r := range rules {
-		mr := oas.MihomoRule{Type: r.Type.String(), NoResolve: r.NoResolve, Target: refToView(r.Target, idx)}
+		mr := oas.MihomoRule{Type: r.Type.String(), Target: refToView(r.Target, idx)}
 
 		if r.Value != nil {
 			mr.Value = oas.NewOptString(*r.Value)
+		}
+
+		if r.NoResolve != nil {
+			mr.NoResolve = oas.NewOptBool(*r.NoResolve)
 		}
 
 		// RULE-SET: surface the provider as its array index (real id never leaves).

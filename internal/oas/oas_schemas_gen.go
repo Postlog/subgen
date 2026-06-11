@@ -982,7 +982,7 @@ type MihomoRule struct {
 	Type        string    `json:"type"`
 	Value       OptString `json:"value"`
 	ProviderIdx OptInt    `json:"providerIdx"`
-	NoResolve   bool      `json:"noResolve"`
+	NoResolve   OptBool   `json:"noResolve"`
 	Target      PolicyRef `json:"target"`
 }
 
@@ -1002,7 +1002,7 @@ func (s *MihomoRule) GetProviderIdx() OptInt {
 }
 
 // GetNoResolve returns the value of NoResolve.
-func (s *MihomoRule) GetNoResolve() bool {
+func (s *MihomoRule) GetNoResolve() OptBool {
 	return s.NoResolve
 }
 
@@ -1027,7 +1027,7 @@ func (s *MihomoRule) SetProviderIdx(val OptInt) {
 }
 
 // SetNoResolve sets the value of NoResolve.
-func (s *MihomoRule) SetNoResolve(val bool) {
+func (s *MihomoRule) SetNoResolve(val OptBool) {
 	s.NoResolve = val
 }
 

@@ -40,11 +40,11 @@ func TestRepository_Rules(t *testing.T) {
 		}
 		// Saved in this slice order; positions 0..3 must come back in the same order.
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: true,
+			{Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: dbtest.Ptr(true),
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
 			{Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("ex.com"),
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)}},
-			{Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"), NoResolve: false,
+			{Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"),
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
 			{Type: mihomo.RuleMatch,
 				Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
@@ -63,13 +63,14 @@ func TestRepository_Rules(t *testing.T) {
 
 		// [0] built-in direct, no_resolve true.
 		assert.Equal(t, mihomo.RuleIPCIDR, got[0].Type)
-		assert.True(t, got[0].NoResolve)
+		require.NotNil(t, got[0].NoResolve)
+		assert.True(t, *got[0].NoResolve)
 		assert.Equal(t, mihomo.PolicyDirect, got[0].Target.Kind)
 		assert.Nil(t, got[0].Target.InboundID)
 		assert.Nil(t, got[0].Target.GroupID)
 
-		// [1] inbound target: InboundID set, GroupID nil, no_resolve default false.
-		assert.False(t, got[1].NoResolve)
+		// [1] inbound target: InboundID set, GroupID nil, no_resolve unset (nil).
+		assert.Nil(t, got[1].NoResolve)
 		assert.Equal(t, mihomo.PolicyInbound, got[1].Target.Kind)
 		require.NotNil(t, got[1].Target.InboundID)
 		assert.Equal(t, seed.Smart.ID, *got[1].Target.InboundID)

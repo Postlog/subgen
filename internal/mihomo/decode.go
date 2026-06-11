@@ -19,7 +19,7 @@ type ruleDTO struct {
 	Type        string       `json:"type"`
 	Value       *string      `json:"value"`
 	ProviderIdx *int         `json:"providerIdx"`
-	NoResolve   bool         `json:"noResolve"`
+	NoResolve   *bool        `json:"noResolve"`
 	Target      policyRefDTO `json:"target"`
 }
 

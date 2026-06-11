@@ -5,21 +5,28 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// resolver turns a typed PolicyRef into a mihomo policy name for one subscriber.
-// Built-in policies and group references are always resolvable; an inbound reference
-// is per-client and resolves only when the subscriber actually has that proxy
-// (otherwise the member/rule is dropped).
-type resolver struct {
+// entityNameResolver turns a typed PolicyRef into a mihomo policy name for one
+// subscriber, and a RULE-SET's provider id into the provider name. Built-in policies,
+// group references and rule-providers are always resolvable (config-global); an inbound
+// reference is per-client and resolves only when the subscriber actually has that proxy
+// (otherwise the member/rule is dropped — the one expected, non-error miss). subID is
+// kept for log context when a non-inbound ref fails to resolve (that should never happen).
+type entityNameResolver struct {
+	subID        string
 	inboundName  map[int64]string // node_inbounds.id -> proxy name (label)
 	groupName    map[int64]string // proxy_groups.id -> group name
 	providerName map[int64]string // rule_providers.id -> provider name (RULE-SET payload)
 }
 
-// newResolver indexes a subscriber's proxies (by inbound id), the operator's groups
-// (id -> name) and rule-providers (id -> name). Providers are config-global, so unlike
-// inbounds they always resolve.
-func newResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup, providers []mihomo.RuleProvider) resolver {
-	r := resolver{inboundName: map[int64]string{}, groupName: map[int64]string{}, providerName: map[int64]string{}}
+// newEntityNameResolver indexes a subscriber's proxies (by inbound id), the operator's
+// groups (id -> name) and rule-providers (id -> name).
+func newEntityNameResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup, providers []mihomo.RuleProvider) entityNameResolver {
+	r := entityNameResolver{
+		subID:        sub.SubID,
+		inboundName:  map[int64]string{},
+		groupName:    map[int64]string{},
+		providerName: map[int64]string{},
+	}
 
 	for _, p := range sub.Proxies {
 		if p.InboundID != 0 {
@@ -40,7 +47,7 @@ func newResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup, providers [
 
 // resolve returns the mihomo policy name for a ref and whether it is available for
 // this subscriber.
-func (r resolver) resolve(ref mihomo.PolicyRef) (string, bool) {
+func (r entityNameResolver) resolve(ref mihomo.PolicyRef) (string, bool) {
 	switch ref.Kind {
 	case mihomo.PolicyDirect:
 		return "DIRECT", true

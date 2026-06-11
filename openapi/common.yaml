@@ -67,7 +67,7 @@ components:
     # into the providers array — real ids never cross the wire), not by name in value.
     MihomoRule:
       type: object
-      required: [type, noResolve, target]
+      required: [type, target]
       properties:
         type:
           type: string

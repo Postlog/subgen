@@ -31,6 +31,11 @@ func TestHandler_ProviderCheck(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Доступен:  формат «yaml», 1.0 KB"},
 		},
 		{
+			name:   "empty_url",
+			req:    &oas.ProviderCheckReq{URL: "   ", Format: "yaml"},
+			result: &oas.ProviderCheckBadRequest{ErrMessage: msgURLRequired}, // guard, no checker call
+		},
+		{
 			name: "http_error",
 			req:  &oas.ProviderCheckReq{URL: "http://host/file", Format: "yaml"},
 			buildCheckerMock: func(m *MockproviderChecker) {

@@ -14,10 +14,8 @@ post:
           properties:
             user:
               type: string
-              minLength: 1
             password:
               type: string
-              minLength: 1
   responses:
     '200':
       description: signed in; session cookie set

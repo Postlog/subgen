@@ -90,6 +90,15 @@ func TestService_CreateUser(t *testing.T) {
 			},
 		},
 		{
+			// A non-positive inbound id (the moved-from-schema minimum:1 guard) has no
+			// match — same as any unknown id → ErrInboundNotFound (no longer silently skipped).
+			name: "error.zero_inbound", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{0}},
+			err: entity.ErrInboundNotFound,
+			buildMocks: func(m *mocks) {
+				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
+			},
+		},
+		{
 			name: "error.create_repo", inName: "postlog", sel: entity.ConnectionSelection{InboundIDs: []int64{10}},
 			err: targetErr,
 			buildMocks: func(m *mocks) {

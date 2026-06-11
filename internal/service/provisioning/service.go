@@ -84,15 +84,17 @@ func (s *Service) nodeIndex(ctx context.Context) (byID map[int64]entity.Node, in
 	return byID, inboundByID, nil
 }
 
-// desiredTargets resolves a selection of inbound ids into connection targets. Each
-// id must exist; any number may be selected. Duplicate ids are ignored.
+// desiredTargets resolves a selection of inbound ids into connection targets. Each id
+// must be a real (positive, existing) inbound; any number may be selected. Duplicate ids
+// are ignored. A non-positive id (the moved-from-schema minimum:1 guard) has no match and
+// so yields ErrInboundNotFound, same as any unknown id.
 func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, sel entity.ConnectionSelection) ([]connTarget, error) {
 	var ts []connTarget
 
 	seen := map[int64]bool{}
 
 	for _, id := range sel.InboundIDs {
-		if id == 0 || seen[id] {
+		if seen[id] {
 			continue
 		}
 

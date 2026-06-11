@@ -141,26 +141,6 @@ func decodeAdminShellViewParams(args [1]string, argsEscaped bool, r *http.Reques
 			}(); err != nil {
 				return err
 			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     0,
-					MaxLengthSet:  false,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.View)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
 		} else {
 			return validate.ErrFieldRequired
 		}
@@ -394,26 +374,6 @@ func decodeRulesParams(args [1]string, argsEscaped bool, r *http.Request) (param
 			}(); err != nil {
 				return err
 			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     0,
-					MaxLengthSet:  false,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.File)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
 		} else {
 			return validate.ErrFieldRequired
 		}
@@ -489,26 +449,6 @@ func decodeSubParams(args [2]string, argsEscaped bool, r *http.Request) (params 
 			}(); err != nil {
 				return err
 			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     0,
-					MaxLengthSet:  false,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.Kind)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
 		} else {
 			return validate.ErrFieldRequired
 		}
@@ -550,26 +490,6 @@ func decodeSubParams(args [2]string, argsEscaped bool, r *http.Request) (params 
 				}
 
 				params.Token = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     0,
-					MaxLengthSet:  false,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.Token)); err != nil {
-					return errors.Wrap(err, "string")
-				}
 				return nil
 			}(); err != nil {
 				return err

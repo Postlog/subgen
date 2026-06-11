@@ -33,6 +33,11 @@ func TestHandler_UserDelete(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Пользователь удалён"},
 		},
 		{
+			name:   "error.invalid_id",
+			req:    &oas.UserDeleteReq{ID: 0},
+			result: &oas.UserDeleteBadRequest{ErrMessage: msgInvalidID}, // guard, no service call
+		},
+		{
 			name: "error.internal",
 			req:  &oas.UserDeleteReq{ID: 7},
 			buildDeleterMock: func(m *Mockdeleter) {

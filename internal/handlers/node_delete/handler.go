@@ -9,7 +9,10 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgDeleted = "Узел удалён"
+const (
+	msgDeleted   = "Узел удалён"
+	msgInvalidID = "Неверный идентификатор" // moved-from-schema minimum:1 guard
+)
 
 // Handler deletes a node, refusing if any inbound is still referenced (by a user
 // connection or a mihomo rule / proxy-group member).
@@ -26,6 +29,11 @@ func New(nodes nodeRepo, routing routingRepo) *Handler {
 // NodeDelete implements oas.Handler: it deletes the node, returning 400 when a removed
 // inbound is still referenced.
 func (h *Handler) NodeDelete(ctx context.Context, req *oas.NodeDeleteReq) (oas.NodeDeleteRes, error) {
+	if req.ID < 1 {
+		slog.Warn("handler node_delete: invalid id", "id", req.ID)
+		return &oas.NodeDeleteBadRequest{ErrMessage: msgInvalidID}, nil
+	}
+
 	msg, err := web.InboundsBlocking(ctx, h.nodes, h.routing, req.ID, nil)
 	if err != nil {
 		slog.Error("handler node_delete: inbound-block check failed", "id", req.ID, "err", err)

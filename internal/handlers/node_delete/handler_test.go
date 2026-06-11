@@ -31,12 +31,19 @@ func TestHandler_NodeDelete(t *testing.T) {
 
 	tt := []struct {
 		name       string
+		reqID      int64
 		buildMocks func(m *mocks)
 		wantBad    bool  // expect a 400 (NodeDeleteBadRequest)
 		wantErr    error // expect a propagated error (-> 500)
 	}{
 		{
+			name:    "error.invalid_id",
+			reqID:   0,
+			wantBad: true, // guard returns before any repo call
+		},
+		{
 			name:    "error.users_blocking",
+			reqID:   7,
 			wantBad: true,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
@@ -46,6 +53,7 @@ func TestHandler_NodeDelete(t *testing.T) {
 		},
 		{
 			name:    "error.delete",
+			reqID:   7,
 			wantErr: targetErr,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
@@ -55,7 +63,8 @@ func TestHandler_NodeDelete(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name:  "success",
+			reqID: 7,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
 				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
@@ -77,7 +86,7 @@ func TestHandler_NodeDelete(t *testing.T) {
 				tc.buildMocks(m)
 			}
 
-			res, err := New(m.nodes, m.routing).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: 7})
+			res, err := New(m.nodes, m.routing).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: tc.reqID})
 
 			require.ErrorIs(t, err, tc.wantErr)
 

@@ -10,8 +10,8 @@ import "net/http"
 //   - unknown_subid   — a well-formed-looking but unmatched token → 404 (no user owns it).
 //   - unknown_kind    — a valid token shape but an unregistered engine → 404.
 //   - legacy_path     — the old /sub/{token} (no engine) is gone → 404 (one segment, unrouted).
-//   - empty_token_path — /sub/mihomo/ with an empty {token} → 400 (the spec marks token
-//                        minLength:1, so the ogen router rejects it as malformed).
+//   - empty_token_path — /sub/mihomo/ with an empty {token} segment → 400 (the ogen router
+//                        rejects an empty path segment as a malformed request, before any handler).
 //
 // The handler resolves the engine against the renderer registry and the token against
 // service-owned users only, returning http.NotFound for anything it can't match, so all
@@ -47,8 +47,8 @@ func (s *SubSuite) TestSubUnknownToken() {
 	})
 
 	s.Run("empty_token_path", func() {
-		// "/sub/mihomo/" has an empty {token} path param; the spec marks it minLength:1,
-		// so the ogen router answers 400 (malformed request), not 404.
+		// "/sub/mihomo/" has an empty {token} path segment; the ogen router rejects it as a
+		// malformed request → 400 (not 404), independent of any field validation.
 		resp, err := s.api.Get("/sub/mihomo/")
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, resp.Status)

@@ -18,13 +18,10 @@ post:
               description: 0/absent = create; >0 = update.
             name:
               type: string
-              minLength: 1
             vpnHost:
               type: string
-              minLength: 1
             panelBaseURL:
               type: string
-              minLength: 1
             panelBasePath:
               type: string
             token:

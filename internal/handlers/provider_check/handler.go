@@ -6,6 +6,7 @@ package provider_check
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/oas"
@@ -15,6 +16,7 @@ const (
 	msgUnreachable  = "Не удалось подключиться к URL"
 	msgEmpty        = "Ответ пустой — по URL нет файла"
 	msgUnreachableP = "Не удалось подключиться: " // + technical detail
+	msgURLRequired  = "Укажите URL"               // moved-from-schema minLength:1 guard
 )
 
 // Handler probes a rule-provider URL via the checker service.
@@ -28,6 +30,10 @@ func New(checker providerChecker) *Handler { return &Handler{checker: checker} }
 // ProviderCheck implements oas.Handler: a reachable, right-format file is a 200 with a
 // message; any other outcome is a 400.
 func (h *Handler) ProviderCheck(ctx context.Context, req *oas.ProviderCheckReq) (oas.ProviderCheckRes, error) {
+	if strings.TrimSpace(req.URL) == "" {
+		return &oas.ProviderCheckBadRequest{ErrMessage: msgURLRequired}, nil
+	}
+
 	res := h.checker.Check(ctx, req.URL, req.Format)
 
 	ok, msg := describe(res, req.Format)

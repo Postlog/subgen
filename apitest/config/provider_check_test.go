@@ -19,7 +19,7 @@ import (
 //   - http_404                    — server returns 404 → {ok:false} "Сервер вернул HTTP 404".
 //   - empty_body                  — 200 with an empty body → {ok:false} (no file).
 //   - unreachable                 — connection refused on a closed port → {ok:false}.
-//   - empty_url                   — "" → generic 400 (schema minLength:1, before the handler).
+//   - empty_url                   — "" → handler guard → friendly 400 ("Укажите URL").
 //   - malformed_json              — non-JSON body → generic 400.
 
 // providerServer starts an in-test HTTP file server with a fixed set of sample
@@ -102,12 +102,13 @@ func (s *ConfigSuite) TestProviderCheck() {
 	})
 
 	s.Run("empty_url", func() {
-		// An empty URL trips the schema's minLength:1 before the handler runs → 400 generic.
+		// Schema no longer carries minLength; the empty URL reaches the handler's own guard
+		// → friendly 400 (ADR-0003: validation in code).
 		res, err := s.api.CheckProvider("", "yaml")
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(api.MsgBadRequest, res.Err)
+		s.Equal("Укажите URL", res.Err)
 	})
 
 	s.Run("malformed_json", func() {

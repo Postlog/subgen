@@ -16,7 +16,6 @@ post:
             userId:
               type: integer
               format: int64
-              minimum: 1
   responses:
     '200':
       description: created

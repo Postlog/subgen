@@ -17,10 +17,10 @@ import (
 //   - happy.smart_plus_force_same_node — smart+force on N1 → ONE client (one uuid) on
 //                                  both inbounds (the multi-inbound model / the old bug).
 //   - happy.cross_node           — inbounds on N1 and N2 → one client per panel, shared subId.
-//   - err.empty_name             — "" → generic 400 (schema minLength:1), nothing provisioned.
+//   - err.empty_name             — "" → handler's validateName → friendly 400, nothing provisioned.
 //   - err.name_bad_chars         — spaces / "!" → friendly charset message (reaches the handler).
 //   - err.name_too_long          — >32 chars → friendly charset message (no maxLength in schema).
-//   - err.no_connections         — empty inbound-id list → generic 400 (schema minItems:1).
+//   - err.no_connections         — absent inbound-id list (null) → generic 400 (kept `required`).
 //   - err.unknown_inbound_id     — id with no node_inbounds row → "инбаунд не найден".
 //   - err.duplicate_name         — second create with same nickname → "имя занято" (store PK).
 //   - err.email_exists_on_panel  — a foreign client already owns the email on a target
@@ -70,12 +70,13 @@ func (s *UserSuite) TestCreateValidation() {
 	smartN1 := s.InboundID("N1", "smart")
 
 	s.Run("empty_name", func() {
-		// An empty name trips the schema's minLength:1 before the handler runs → 400 generic.
+		// Schema no longer carries minLength; the empty name reaches validateName → friendly
+		// charset message (ADR-0003: validation in code).
 		res, err := s.API().CreateUser("", []int64{smartN1})
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)
 		s.False(res.OK)
-		s.Equal(api.MsgBadRequest, res.Err)
+		s.Equal(msgInvalidUserName, res.Err)
 	})
 
 	s.Run("name_bad_chars", func() {

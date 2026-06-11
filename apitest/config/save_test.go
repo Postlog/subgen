@@ -16,8 +16,8 @@ import "github.com/postlog/subgen/apitest/api"
 //   - err.group_cycle         — A→B and B→A by index → "циклическую ссылку".
 //   - err.group_ref_range     — a rule target group index out of range → "несуществующую группу".
 //   - err.provider_nameless   — a provider with an empty name → "Укажите название rule-provider".
-//   - err.provider_dup_name   — two valid providers sharing a name → "...уже существует" (DB PK).
-//   - err.ruleset_unknown     — a RULE-SET naming an undefined provider → "RULE-SET ссылается...".
+//   - err.provider_dup_name   — two valid providers sharing a name → "...уже существует" (DB UNIQUE).
+//   - err.ruleset_unknown     — a RULE-SET with an out-of-range provider index → "RULE-SET ссылается...".
 //   - err.generated_key       — base YAML carrying `proxies:` → "Уберите ... генерируемые разделы".
 //   - err.base_yaml_invalid   — unparseable base YAML → "YAML невалиден".
 //   - err.malformed_json      — a non-JSON body → MsgBadRequest.
@@ -25,9 +25,15 @@ import "github.com/postlog/subgen/apitest/api"
 // TestSaveRoundTrip covers the happy path: a fresh store accepts a valid config and
 // reads it back intact.
 func (s *ConfigSuite) TestSaveRoundTrip() {
+	idx := 0
 	want := api.Config{
 		BaseYAML: "mode: rule\n",
+		Providers: []api.ConfigProvider{
+			{Name: "ads", Behavior: "domain", Format: "yaml", URL: "https://example.com/ads.yaml", Interval: 86400},
+		},
 		Rules: []api.ConfigRule{
+			// RULE-SET references the provider by index 0 (no value).
+			{Type: "RULE-SET", ProviderIdx: &idx, Target: api.ConfigRef{Kind: "direct"}},
 			{Type: "MATCH", Target: api.ConfigRef{Kind: "direct"}},
 		},
 	}
@@ -40,9 +46,18 @@ func (s *ConfigSuite) TestSaveRoundTrip() {
 	got, err := s.api.ReadConfig()
 	s.Require().NoError(err)
 	s.Equal("mode: rule\n", got.BaseYAML)
-	s.Require().Len(got.Rules, 1)
-	s.Equal("MATCH", got.Rules[0].Type)
-	s.Equal("direct", got.Rules[0].Target.Kind)
+
+	s.Require().Len(got.Providers, 1)
+	s.Equal("ads", got.Providers[0].Name)
+
+	s.Require().Len(got.Rules, 2)
+	// RULE-SET round-trips with an empty value and providerIdx pointing back at "ads".
+	s.Equal("RULE-SET", got.Rules[0].Type)
+	s.Empty(got.Rules[0].Value)
+	s.Require().NotNil(got.Rules[0].ProviderIdx)
+	s.Equal(0, *got.Rules[0].ProviderIdx)
+	s.Equal("MATCH", got.Rules[1].Type)
+	s.Equal("direct", got.Rules[1].Target.Kind)
 
 	// Reset the store back to empty so the populated config doesn't leak into the
 	// read/empty test ordering (suite shares one store).
@@ -100,7 +115,7 @@ func (s *ConfigSuite) TestSaveValidation() {
 	})
 
 	s.Run("provider_dup_name", func() {
-		// Both fully valid → pass mihomo validation; the DB PK rejects the duplicate.
+		// Both fully valid → pass mihomo validation; the DB UNIQUE rejects the duplicate.
 		s.saveRejected(api.Config{Providers: []api.ConfigProvider{
 			{Name: "same", Behavior: "domain", Format: "yaml", URL: "https://example.com/a.yaml"},
 			{Name: "same", Behavior: "domain", Format: "yaml", URL: "https://example.com/b.yaml"},
@@ -108,9 +123,10 @@ func (s *ConfigSuite) TestSaveValidation() {
 	})
 
 	s.Run("ruleset_unknown_provider", func() {
-		// A RULE-SET naming a provider that isn't defined.
+		// A RULE-SET pointing at provider index 0 when no providers are defined.
+		zero := 0
 		s.saveRejected(api.Config{Rules: []api.ConfigRule{
-			{Type: "RULE-SET", Value: "nope", Target: api.ConfigRef{Kind: "direct"}},
+			{Type: "RULE-SET", ProviderIdx: &zero, Target: api.ConfigRef{Kind: "direct"}},
 		}}, msgRuleSetUnknown)
 	})
 

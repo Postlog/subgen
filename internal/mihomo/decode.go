@@ -5,9 +5,10 @@ import (
 	"strings"
 )
 
-// JSON request DTOs for the mihomo-config save (anti-corruption boundary: the domain
-// types stay free of json tags). A "group" PolicyRef carries the referenced group's
-// ARRAY INDEX (groupIdx), not a persisted id — the convention SaveMihomoConfig wants.
+// JSON request DTOs for the mihomo-config save (anti-corruption boundary: the draft
+// types stay free of json tags). A "group" ref carries the referenced group's ARRAY
+// INDEX (groupIdx); a RULE-SET rule carries the provider's array index (providerIdx) —
+// the persisted ids are assigned by SaveMihomoConfig, so the caller can't know them yet.
 type policyRefDTO struct {
 	Kind      string `json:"kind"`
 	InboundID *int64 `json:"inboundId"`
@@ -15,10 +16,11 @@ type policyRefDTO struct {
 }
 
 type ruleDTO struct {
-	Type      string       `json:"type"`
-	Value     string       `json:"value"`
-	NoResolve bool         `json:"noResolve"`
-	Target    policyRefDTO `json:"target"`
+	Type        string       `json:"type"`
+	Value       string       `json:"value"`
+	ProviderIdx *int         `json:"providerIdx"`
+	NoResolve   bool         `json:"noResolve"`
+	Target      policyRefDTO `json:"target"`
 }
 
 type groupDTO struct {
@@ -51,25 +53,26 @@ type configDTO struct {
 	ProfileUpdateInterval int           `json:"profileUpdateInterval"`
 }
 
-// DecodeConfig unmarshals the raw mihomo-config JSON (the admin form payload) into the
-// structured routing rules, proxy-groups, rule-providers, base YAML and profile knobs.
-// It only decodes/maps — the handler reads the request body and reports errors. The
-// profile fields are returned verbatim (trimmed); defaults are substituted by the
+// DecodeConfig unmarshals the raw mihomo-config JSON (the admin form payload) into a
+// ConfigDraft: routing rules, proxy-groups, rule-providers, base YAML and profile
+// knobs, with group/provider references carried as array indices (the save-time
+// convention). It only decodes/maps — the handler reads the body and reports errors.
+// The profile fields are returned verbatim (trimmed); defaults are substituted by the
 // consumer, not here.
-func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup, provs []RuleProvider, base string, profile Profile, err error) {
+func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 	var dto configDTO
 	if err := json.Unmarshal(raw, &dto); err != nil {
-		return nil, nil, nil, "", Profile{}, err
+		return ConfigDraft{}, err
 	}
 
-	groups = make([]ProxyGroup, 0, len(dto.Groups))
+	groups := make([]GroupDraft, 0, len(dto.Groups))
 	for _, g := range dto.Groups {
-		members := make([]PolicyRef, 0, len(g.Members))
+		members := make([]RefDraft, 0, len(g.Members))
 		for _, m := range g.Members {
 			members = append(members, refFromDTO(m))
 		}
 
-		groups = append(groups, ProxyGroup{
+		groups = append(groups, GroupDraft{
 			Name:      strings.TrimSpace(g.Name),
 			Type:      ProxyGroupType(strings.TrimSpace(g.Type)),
 			URL:       strings.TrimSpace(g.URL),
@@ -80,18 +83,20 @@ func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup
 		})
 	}
 
-	rules = make([]RoutingRule, 0, len(dto.Rules))
+	rules := make([]RuleDraft, 0, len(dto.Rules))
 	for _, ru := range dto.Rules {
-		rules = append(rules, RoutingRule{
-			Type:      RuleType(strings.TrimSpace(ru.Type)),
-			Value:     strings.TrimSpace(ru.Value),
-			NoResolve: ru.NoResolve,
-			Target:    refFromDTO(ru.Target),
+		rules = append(rules, RuleDraft{
+			Type:        RuleType(strings.TrimSpace(ru.Type)),
+			Value:       strings.TrimSpace(ru.Value),
+			ProviderIdx: ru.ProviderIdx,
+			NoResolve:   ru.NoResolve,
+			Target:      refFromDTO(ru.Target),
 		})
 	}
 
 	// Keep every provider (empty name included) so ValidateRuleProviders can reject a
 	// nameless one — silently dropping it would let a half-filled row "save" as a no-op.
+	provs := make([]RuleProvider, 0, len(dto.Providers))
 	for _, p := range dto.Providers {
 		provs = append(provs, RuleProvider{
 			Name: strings.TrimSpace(p.Name), Behavior: p.Behavior, Format: p.Format,
@@ -100,28 +105,29 @@ func DecodeConfig(raw json.RawMessage) (rules []RoutingRule, groups []ProxyGroup
 		})
 	}
 
-	profile = Profile{
-		Title:          strings.TrimSpace(dto.ProfileTitle),
-		Filename:       strings.TrimSpace(dto.Filename),
-		UpdateInterval: dto.ProfileUpdateInterval,
-	}
-
-	return rules, groups, provs, dto.BaseYAML, profile, nil
+	return ConfigDraft{
+		Groups:    groups,
+		Rules:     rules,
+		Providers: provs,
+		BaseYAML:  dto.BaseYAML,
+		Profile: Profile{
+			Title:          strings.TrimSpace(dto.ProfileTitle),
+			Filename:       strings.TrimSpace(dto.Filename),
+			UpdateInterval: dto.ProfileUpdateInterval,
+		},
+	}, nil
 }
 
-// refFromDTO maps a JSON policy ref to a PolicyRef. A group ref carries the array
-// index (the save convention); an inbound ref carries the real inbound id.
-func refFromDTO(d policyRefDTO) PolicyRef {
-	ref := PolicyRef{Kind: PolicyKind(strings.TrimSpace(d.Kind))}
+// refFromDTO maps a JSON policy ref to a RefDraft. A group ref carries the array index
+// (the save convention); an inbound ref carries the real inbound id.
+func refFromDTO(d policyRefDTO) RefDraft {
+	ref := RefDraft{Kind: PolicyKind(strings.TrimSpace(d.Kind))}
 
 	switch ref.Kind {
 	case PolicyInbound:
 		ref.InboundID = d.InboundID
 	case PolicyGroup:
-		if d.GroupIdx != nil {
-			idx := int64(*d.GroupIdx)
-			ref.GroupID = &idx
-		}
+		ref.GroupIdx = d.GroupIdx
 	}
 
 	return ref

@@ -29,8 +29,8 @@ func TestRepository_DeleteUserConfig(t *testing.T) {
 
 		id, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
 		require.NoError(t, err)
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), id, nil, nil,
-			[]mihomo.RuleProvider{{Name: "p", Behavior: "domain", Format: "yaml", URL: "http://p"}}, "x: 1", mihomo.Profile{}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), id, dbtest.Draft(nil, nil,
+			[]mihomo.RuleProvider{{Name: "p", Behavior: "domain", Format: "yaml", URL: "http://p"}}, "x: 1", mihomo.Profile{})))
 
 		require.NoError(t, repo.DeleteUserConfig(t.Context(), userID, entity.ConfigKindMihomo))
 

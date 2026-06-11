@@ -5,6 +5,14 @@
 в [`AGENTS.md`](AGENTS.md) (раздел «Документирование изменений»). Версий/тегов нет:
 сервис не релизится, деплой непрерывный.
 
+## 2026-06-11 — Строгие ссылки mihomo: RULE-SET → rule-provider по id (#17)
+
+`RoutingRule` больше не хранит имя провайдера строкой в `value` — `RULE-SET` ссылается на
+rule-provider по суррогатному id (`provider_id` FK); save-вход и domain/read разведены на
+отдельные типы (draft с индексами vs domain с id), что убирает двойной смысл
+`PolicyRef.GroupID`. Прод-БД мигрируется руками: `migrations/rule_provider_id.manual.sql`.
+См. [ADR-0002](docs/decisions/0002-strict-mihomo-refs.md).
+
 ## 2026-06-11 — Конвенция документирования: CHANGELOG + ADR (#16)
 
 Заведены `CHANGELOG.md` (этот файл) и каталог ADR `docs/decisions/`; правило записано в

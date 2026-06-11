@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
   config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
   position        INTEGER NOT NULL,
   type            TEXT NOT NULL,         -- mihomo rule type (DOMAIN-SUFFIX, IP-CIDR, RULE-SET, MATCH, …)
-  value           TEXT NOT NULL DEFAULT '',
+  value           TEXT NOT NULL DEFAULT '',  -- plain payload; '' for RULE-SET (uses provider_id) and MATCH
+  provider_id     INTEGER REFERENCES mihomo_rule_providers(id),  -- set iff type=RULE-SET (the rule-provider)
   no_resolve      INTEGER NOT NULL DEFAULT 0,
   target_kind     TEXT NOT NULL,         -- PolicyKind
   inbound_id      INTEGER REFERENCES node_inbounds(id),
@@ -129,15 +130,16 @@ CREATE TABLE IF NOT EXISTS mihomo_routing_rules (
 -- interval: mihomo client ruleset auto-update TTL (seconds), always rendered.
 -- mirror_interval: subgen mirror refresh period (seconds), used only when mirror=1.
 CREATE TABLE IF NOT EXISTS mihomo_rule_providers (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
   config_id       INTEGER NOT NULL REFERENCES subscription_configs(id) ON DELETE CASCADE,
-  name            TEXT NOT NULL,
+  name            TEXT NOT NULL,         -- the mihomo YAML key; a RULE-SET rule references the surrogate id
   behavior        TEXT NOT NULL,
   format          TEXT NOT NULL,
   mirror          INTEGER NOT NULL,
   url             TEXT NOT NULL,
   interval        INTEGER NOT NULL,
   mirror_interval INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY(config_id, name)
+  UNIQUE(config_id, name)
 );
 
 -- mihomo base config + free-form settings (currently just base_yaml), per config.

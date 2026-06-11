@@ -67,29 +67,25 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	rules, groups, provs, base, profile, err := mihomo.DecodeConfig(raw)
+	draft, err := mihomo.DecodeConfig(raw)
 	if err == nil {
-		err = mihomo.ValidateBaseYAML(base)
+		err = mihomo.ValidateBaseYAML(draft.BaseYAML)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateProxyGroups(groups)
+		err = mihomo.ValidateProxyGroups(draft.Groups)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRoutingRules(rules, len(groups))
+		err = mihomo.ValidateRoutingRules(draft.Rules, len(draft.Groups), len(draft.Providers))
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRuleProviders(provs)
+		err = mihomo.ValidateRuleProviders(draft.Providers)
 	}
 
 	if err == nil {
-		err = mihomo.ValidateRuleProviderRefs(rules, provs)
-	}
-
-	if err == nil {
-		err = mihomo.ValidateProfile(profile)
+		err = mihomo.ValidateProfile(draft.Profile)
 	}
 
 	if err != nil {
@@ -117,7 +113,7 @@ func (h *Handler) ConfigSave(ctx context.Context, req *oas.ConfigSaveReq) (oas.C
 		return nil, err
 	}
 
-	if err := h.routing.SaveMihomoConfig(ctx, configID, rules, groups, provs, base, profile); err != nil {
+	if err := h.routing.SaveMihomoConfig(ctx, configID, draft); err != nil {
 		if errors.Is(err, entity.ErrRuleProviderNameTaken) {
 			slog.Warn("handler config_save: rule-provider name taken", "configID", configID)
 			return &oas.ConfigSaveBadRequest{ErrMessage: msgProviderNameTaken}, nil
@@ -168,7 +164,7 @@ func validationMessage(err error) (string, bool) {
 		return msgProviderBadFormat, true
 	case errors.Is(err, mihomo.ErrProviderURLEmpty):
 		return msgProviderURLEmpty, true
-	case errors.Is(err, mihomo.ErrRuleSetUnknownProvider):
+	case errors.Is(err, mihomo.ErrProviderRefRange):
 		return msgRuleSetUnknownProv, true
 	case errors.Is(err, mihomo.ErrProfileTitleEmpty):
 		return msgProfileTitleEmpty, true

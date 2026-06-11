@@ -36,21 +36,21 @@ func TestRepository_ProxyGroups(t *testing.T) {
 		// group[0] "auto" is a url-test with health-check fields and lazy set; its members
 		// are (in order) an inbound and a built-in direct. group[1] "pick" references
 		// group[0] by index 0.
-		groups := []mihomo.ProxyGroup{
+		groups := []mihomo.GroupDraft{
 			{
 				Name: "auto", Type: mihomo.GroupURLTest,
 				URL: "http://gstatic/generate_204", Interval: 300, Tolerance: 50, Lazy: true,
-				Members: []mihomo.PolicyRef{
+				Members: []mihomo.RefDraft{
 					{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
 					{Kind: mihomo.PolicyDirect},
 				},
 			},
 			{
 				Name: "pick", Type: mihomo.GroupSelect,
-				Members: []mihomo.PolicyRef{{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}},
+				Members: []mihomo.RefDraft{{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
 			},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, groups, nil, "", mihomo.Profile{}))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(nil, groups, nil, "", mihomo.Profile{})))
 
 		got, err := repo.ProxyGroups(t.Context(), cfg)
 		require.NoError(t, err)

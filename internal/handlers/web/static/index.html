@@ -207,9 +207,9 @@
               <select class="form-select form-select-sm" style="max-width:170px" v-model="r.type">
                 <option v-for="rt in (schema?.rules?.types||[])" :key="rt.type" :value="rt.type">{{ rt.type }}</option>
               </select>
-              <select v-if="isRuleSet(r.type)" class="form-select form-select-sm grow" v-model="r.value">
-                <option value="" disabled>— провайдер —</option>
-                <option v-for="n in providerNames" :key="n" :value="n">{{ n }}</option>
+              <select v-if="isRuleSet(r.type)" class="form-select form-select-sm grow" v-model="r.providerUid">
+                <option :value="null" disabled>— провайдер —</option>
+                <option v-for="(p,pi) in cfg.providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
               </select>
               <input v-else-if="!isMatch(r.type)" class="form-control form-control-sm grow" v-model="r.value" placeholder="значение">
               <span v-else class="grow text-dim small">catch-all</span>
@@ -231,7 +231,7 @@
           <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addProvider()">Добавить провайдера</button>
         </div>
         <div class="card-body">
-          <div v-for="(p,i) in cfg.providers" :key="i" class="prov-item">
+          <div v-for="(p,i) in cfg.providers" :key="p._uid" class="prov-item">
             <span class="prov-name">{{ p.name }}</span>
             <span class="prov-meta">{{ p.behavior }} · {{ p.format }}</span>
             <span v-if="p.mirror" class="prov-meta" title="зеркалируется через subgen">· зеркало</span>

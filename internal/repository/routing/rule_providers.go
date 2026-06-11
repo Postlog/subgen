@@ -8,7 +8,7 @@ import (
 
 // RuleProviders returns the config's rule-providers ordered by name.
 func (r *Repository) RuleProviders(ctx context.Context, configID int64) ([]mihomo.RuleProvider, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name,behavior,format,mirror,url,interval,mirror_interval FROM mihomo_rule_providers WHERE config_id=? ORDER BY name`, configID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,name,behavior,format,mirror,url,interval,mirror_interval FROM mihomo_rule_providers WHERE config_id=? ORDER BY name`, configID)
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +21,7 @@ func (r *Repository) RuleProviders(ctx context.Context, configID int64) ([]mihom
 		var rp mihomo.RuleProvider
 
 		var mirror int
-		if err := rows.Scan(&rp.Name, &rp.Behavior, &rp.Format, &mirror, &rp.URL, &rp.Interval, &rp.MirrorInterval); err != nil {
+		if err := rows.Scan(&rp.ID, &rp.Name, &rp.Behavior, &rp.Format, &mirror, &rp.URL, &rp.Interval, &rp.MirrorInterval); err != nil {
 			return nil, err
 		}
 

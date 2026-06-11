@@ -27,7 +27,7 @@ func ValidateBaseYAML(base string) error {
 // ValidateProxyGroups checks names (non-empty, unique), types, that each group has
 // at least one member, that every member ref is well-formed and in range, and that
 // the group→group reference graph is acyclic. Group refs use array indices.
-func ValidateProxyGroups(groups []ProxyGroup) error {
+func ValidateProxyGroups(groups []GroupDraft) error {
 	seen := map[string]bool{}
 
 	for _, g := range groups {
@@ -63,19 +63,25 @@ func ValidateProxyGroups(groups []ProxyGroup) error {
 	return nil
 }
 
-// ValidateRoutingRules checks rule types, that non-MATCH rules carry a value, that
-// every target ref is well-formed, and that MATCH (if present) is the last rule.
-func ValidateRoutingRules(rules []RoutingRule, numGroups int) error {
+// ValidateRoutingRules checks rule types, that every target ref is well-formed, that
+// MATCH (if present) is the last rule, that a RULE-SET points at a provider index in
+// range, and that every other non-MATCH rule carries a value.
+func ValidateRoutingRules(rules []RuleDraft, numGroups, numProviders int) error {
 	for i, rule := range rules {
 		if !rule.Type.Valid() {
 			return ErrUnknownRuleType
 		}
 
-		if rule.Type.IsMatch() {
+		switch {
+		case rule.Type.IsMatch():
 			if i != len(rules)-1 {
 				return ErrMatchNotLast
 			}
-		} else if rule.Value == "" {
+		case rule.Type.TakesProvider(): // RULE-SET: payload is a provider ref, not a value
+			if rule.ProviderIdx == nil || *rule.ProviderIdx < 0 || *rule.ProviderIdx >= numProviders {
+				return ErrProviderRefRange
+			}
+		case rule.Value == "":
 			return ErrRuleValueRequired
 		}
 
@@ -139,22 +145,6 @@ func ValidateProfile(p Profile) error {
 // rest), which must not appear in a Content-Disposition filename.
 func isControl(r rune) bool { return r < 0x20 || r == 0x7f }
 
-// ValidateRuleProviderRefs checks every RULE-SET rule points at a defined provider.
-func ValidateRuleProviderRefs(rules []RoutingRule, provs []RuleProvider) error {
-	names := make(map[string]bool, len(provs))
-	for _, p := range provs {
-		names[p.Name] = true
-	}
-
-	for _, r := range rules {
-		if r.Type.TakesProvider() && !names[r.Value] {
-			return ErrRuleSetUnknownProvider
-		}
-	}
-
-	return nil
-}
-
 func sliceSet(ss []string) map[string]bool {
 	m := make(map[string]bool, len(ss))
 	for _, s := range ss {
@@ -164,15 +154,15 @@ func sliceSet(ss []string) map[string]bool {
 	return m
 }
 
-// validateRef checks a PolicyRef's internal consistency and that a group ref's index
-// is in range.
-func validateRef(ref PolicyRef, numGroups int) error {
+// validateRef checks a save-time ref's internal consistency and that a group ref's
+// index is in range.
+func validateRef(ref RefDraft, numGroups int) error {
 	if !ref.Valid() {
 		return ErrBadRef
 	}
 
 	if ref.Kind == PolicyGroup {
-		if ref.GroupID == nil || *ref.GroupID < 0 || int(*ref.GroupID) >= numGroups {
+		if ref.GroupIdx == nil || *ref.GroupIdx < 0 || *ref.GroupIdx >= numGroups {
 			return ErrGroupRefRange
 		}
 	}
@@ -182,7 +172,7 @@ func validateRef(ref PolicyRef, numGroups int) error {
 
 // cyclicGroups reports whether the group→group reference graph (members of kind
 // group, by index) contains a cycle.
-func cyclicGroups(groups []ProxyGroup) bool {
+func cyclicGroups(groups []GroupDraft) bool {
 	const (
 		white = 0
 		gray  = 1
@@ -197,11 +187,11 @@ func cyclicGroups(groups []ProxyGroup) bool {
 		color[i] = gray
 
 		for _, m := range groups[i].Members {
-			if m.Kind != PolicyGroup || m.GroupID == nil {
+			if m.Kind != PolicyGroup || m.GroupIdx == nil {
 				continue
 			}
 
-			j := int(*m.GroupID)
+			j := *m.GroupIdx
 			if j < 0 || j >= len(groups) {
 				continue
 			}

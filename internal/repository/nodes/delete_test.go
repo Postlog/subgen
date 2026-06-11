@@ -49,8 +49,8 @@ func TestRepository_Delete(t *testing.T) {
 			arrange: func(t *testing.T, db *sql.DB, seed dbtest.SeededNode) {
 				// A proxy-group member of kind inbound holds an FK to node_inbounds.
 				cfg := dbtest.SeedConfig(t, db)
-				require.NoError(t, routing.New(db).SaveMihomoConfig(t.Context(), cfg,
-					nil, []mihomo.ProxyGroup{dbtest.GroupWithInbound("sel", seed.Smart.ID)}, nil, "", mihomo.Profile{}))
+				require.NoError(t, routing.New(db).SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
+					nil, []mihomo.GroupDraft{dbtest.GroupWithInbound("sel", seed.Smart.ID)}, nil, "", mihomo.Profile{})))
 			},
 			wantErr: true, // FK from mihomo_proxy_group_members.inbound_id RESTRICTs it
 		},
@@ -59,8 +59,8 @@ func TestRepository_Delete(t *testing.T) {
 			arrange: func(t *testing.T, db *sql.DB, seed dbtest.SeededNode) {
 				// A routing rule targeting an inbound holds an FK to node_inbounds.
 				cfg := dbtest.SeedConfig(t, db)
-				require.NoError(t, routing.New(db).SaveMihomoConfig(t.Context(), cfg,
-					[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Smart.ID)}, nil, nil, "", mihomo.Profile{}))
+				require.NoError(t, routing.New(db).SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
+					[]mihomo.RuleDraft{dbtest.RuleToInbound(seed.Smart.ID)}, nil, nil, "", mihomo.Profile{})))
 			},
 			wantErr: true, // FK from mihomo_routing_rules.inbound_id RESTRICTs it
 		},

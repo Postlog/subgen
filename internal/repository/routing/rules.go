@@ -11,7 +11,7 @@ import (
 // (PolicyRef).
 func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.RoutingRule, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id,position,type,value,no_resolve,target_kind,inbound_id,target_group_id
+		`SELECT id,position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id
 		   FROM mihomo_routing_rules WHERE config_id=? ORDER BY position`, configID)
 	if err != nil {
 		return nil, err
@@ -23,16 +23,22 @@ func (r *Repository) Rules(ctx context.Context, configID int64) ([]mihomo.Routin
 
 	for rows.Next() {
 		var (
-			rule      mihomo.RoutingRule
-			noResolve int
-			kind      string
-			inboundID sql.NullInt64
-			groupID   sql.NullInt64
+			rule       mihomo.RoutingRule
+			noResolve  int
+			kind       string
+			providerID sql.NullInt64
+			inboundID  sql.NullInt64
+			groupID    sql.NullInt64
 		)
 
 		if err := rows.Scan(&rule.ID, &rule.Position, &rule.Type, &rule.Value,
-			&noResolve, &kind, &inboundID, &groupID); err != nil {
+			&providerID, &noResolve, &kind, &inboundID, &groupID); err != nil {
 			return nil, err
+		}
+
+		if providerID.Valid {
+			id := providerID.Int64
+			rule.ProviderID = &id
 		}
 
 		rule.NoResolve = noResolve != 0

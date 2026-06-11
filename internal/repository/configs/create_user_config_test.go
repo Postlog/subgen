@@ -38,20 +38,20 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
 		require.NoError(t, err)
 
-		groups := []mihomo.ProxyGroup{
-			{Name: "exit", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
+		groups := []mihomo.GroupDraft{
+			{Name: "exit", Type: mihomo.GroupSelect, Members: []mihomo.RefDraft{
 				{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
 			}},
-			{Name: "top", Type: mihomo.GroupSelect, Members: []mihomo.PolicyRef{
-				{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(0))}, // → "exit"
+			{Name: "top", Type: mihomo.GroupSelect, Members: []mihomo.RefDraft{
+				{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}, // → "exit"
 			}},
 		}
-		rules := []mihomo.RoutingRule{
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: dbtest.Ptr(int64(1))}},
+		rules := []mihomo.RuleDraft{
+			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}},
 		}
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, rules, groups, provs, "dns: {}",
-			mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(rules, groups, provs, "dns: {}",
+			mihomo.Profile{Title: "Base", Filename: "base.yaml", UpdateInterval: 4})))
 
 		// Create the custom config.
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
@@ -103,15 +103,15 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 
 		baseID, err := repo.EnsureBaseConfigID(t.Context(), entity.ConfigKindMihomo)
 		require.NoError(t, err)
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v1",
-			mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(nil, nil, nil, "base: v1",
+			mihomo.Profile{Title: "v1", Filename: "v1.yaml", UpdateInterval: 1})))
 
 		newID, err := repo.CreateUserConfig(t.Context(), userID, entity.ConfigKindMihomo)
 		require.NoError(t, err)
 
 		// Edit the base after cloning — the custom config must not change.
-		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, nil, nil, nil, "base: v2",
-			mihomo.Profile{Title: "v2", Filename: "v2.yaml", UpdateInterval: 2}))
+		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(nil, nil, nil, "base: v2",
+			mihomo.Profile{Title: "v2", Filename: "v2.yaml", UpdateInterval: 2})))
 
 		got, err := rt.Setting(t.Context(), newID, "base_yaml")
 		require.NoError(t, err)

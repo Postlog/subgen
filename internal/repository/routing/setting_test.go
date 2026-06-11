@@ -47,7 +47,7 @@ func TestRepository_Setting(t *testing.T) {
 			cfg := dbtest.SeedConfig(t, db)
 
 			if tc.set {
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, nil, tc.want, mihomo.Profile{}))
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(nil, nil, nil, tc.want, mihomo.Profile{})))
 			}
 
 			got, err := repo.Setting(t.Context(), cfg, tc.key)

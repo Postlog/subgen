@@ -15,12 +15,15 @@ type ConfigRef struct {
 	GroupIdx  *int   `json:"groupIdx,omitempty"`
 }
 
-// ConfigRule is one routing rule for read/save.
+// ConfigRule is one routing rule for read/save. For RULE-SET the rule-provider is
+// referenced by ProviderIdx (index into the providers array — ids never leave the
+// backend); Value stays empty. Other types carry their payload in Value.
 type ConfigRule struct {
-	Type      string    `json:"type"`
-	Value     string    `json:"value"`
-	NoResolve bool      `json:"noResolve"`
-	Target    ConfigRef `json:"target"`
+	Type        string    `json:"type"`
+	Value       string    `json:"value"`
+	ProviderIdx *int      `json:"providerIdx,omitempty"`
+	NoResolve   bool      `json:"noResolve"`
+	Target      ConfigRef `json:"target"`
 }
 
 // ConfigGroup is one proxy-group for read/save.

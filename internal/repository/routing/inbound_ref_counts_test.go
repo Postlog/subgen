@@ -37,10 +37,10 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 			name: "success.rule_plus_member_combined",
 			arrange: func(t *testing.T, repo *routing.Repository, cfg int64, seed dbtest.SeededNode) {
 				// "smart" referenced by one rule AND one group member → count 2.
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
-					[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Smart.ID)},
-					[]mihomo.ProxyGroup{dbtest.GroupWithInbound("sel", seed.Smart.ID)},
-					nil, "", mihomo.Profile{}))
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
+					[]mihomo.RuleDraft{dbtest.RuleToInbound(seed.Smart.ID)},
+					[]mihomo.GroupDraft{dbtest.GroupWithInbound("sel", seed.Smart.ID)},
+					nil, "", mihomo.Profile{})))
 			},
 			query: func(seed dbtest.SeededNode) []int64 { return []int64{seed.Smart.ID, seed.Force.ID} },
 			want:  func(seed dbtest.SeededNode) map[int64]int { return map[int64]int{seed.Smart.ID: 2} },
@@ -48,8 +48,8 @@ func TestRepository_InboundRefCounts(t *testing.T) {
 		{
 			name: "success.omits_zero_and_unknown",
 			arrange: func(t *testing.T, repo *routing.Repository, cfg int64, seed dbtest.SeededNode) {
-				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg,
-					[]mihomo.RoutingRule{dbtest.RuleToInbound(seed.Force.ID)}, nil, nil, "", mihomo.Profile{}))
+				require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
+					[]mihomo.RuleDraft{dbtest.RuleToInbound(seed.Force.ID)}, nil, nil, "", mihomo.Profile{})))
 			},
 			// smart has 0, id 99999 doesn't exist — both absent; only force counts.
 			query: func(seed dbtest.SeededNode) []int64 { return []int64{seed.Smart.ID, seed.Force.ID, 99999} },

@@ -38,13 +38,13 @@ func fullOptions() Options {
 		},
 		Rules: []mihomo.RoutingRule{
 			{Type: mihomo.RuleGeoIP, Value: "private", NoResolve: true, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleRuleSet, Value: "allow", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
-			// inbound 999: the subscriber lacks it → the rule is dropped.
-			{Type: mihomo.RuleRuleSet, Value: "x", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(999)}},
+			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
+			// inbound 999: the subscriber lacks it → the rule is dropped (target unresolved).
+			{Type: mihomo.RuleRuleSet, ProviderID: i64(7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(999)}},
 			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: i64(2)}},
 		},
 		Providers: []mihomo.RuleProvider{
-			{Name: "allow", Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
+			{ID: 7, Name: "allow", Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
 		},
 		PublicBase: "https://ru1.example:2097",
 	}
@@ -147,8 +147,8 @@ rule-providers:
 `
 
 // partialOptions: a "smart" wrapper (→DIRECT) and a "Conn" selector referencing that
-// group + two inbounds (10, 20). Rules: a RULE-SET to inbound 30, a rule to inbound 20,
-// and MATCH→Conn. No rule-providers.
+// group + two inbounds (10, 20). Rules: a rule to inbound 30, a rule to inbound 20, and
+// MATCH→Conn. No rule-providers.
 func partialOptions() Options {
 	return Options{
 		BaseYAML: "mode: rule",
@@ -161,7 +161,7 @@ func partialOptions() Options {
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleRuleSet, Value: "allow", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
+			{Type: mihomo.RuleDomainSuffix, Value: "skip.example", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(30)}},
 			{Type: mihomo.RuleDomain, Value: "x.com", Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: i64(20)}},
 			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: i64(2)}},
 		},
@@ -240,6 +240,26 @@ proxy-groups:
       - smart
 rules:
   - MATCH,Conn
+`,
+		},
+		{
+			// A RULE-SET whose provider id has no match (config-global providers make this
+			// unreachable in practice) is dropped, like an unresolvable target.
+			name: "ruleset_unknown_provider_dropped",
+			sub:  &entity.Subscriber{SubID: "x"},
+			opts: Options{
+				BaseYAML: "mode: rule",
+				Rules: []mihomo.RoutingRule{
+					{Type: mihomo.RuleRuleSet, ProviderID: i64(99), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+				},
+			},
+			wantYAML: `
+mode: rule
+proxies: []
+proxy-groups: []
+rules:
+  - MATCH,DIRECT
 `,
 		},
 		{

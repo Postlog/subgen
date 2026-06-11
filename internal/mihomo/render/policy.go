@@ -10,14 +10,16 @@ import (
 // is per-client and resolves only when the subscriber actually has that proxy
 // (otherwise the member/rule is dropped).
 type resolver struct {
-	inboundName map[int64]string // node_inbounds.id -> proxy name (label)
-	groupName   map[int64]string // proxy_groups.id -> group name
+	inboundName  map[int64]string // node_inbounds.id -> proxy name (label)
+	groupName    map[int64]string // proxy_groups.id -> group name
+	providerName map[int64]string // rule_providers.id -> provider name (RULE-SET payload)
 }
 
-// newResolver indexes a subscriber's proxies (by inbound id) and the operator's
-// groups (id -> name).
-func newResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup) resolver {
-	r := resolver{inboundName: map[int64]string{}, groupName: map[int64]string{}}
+// newResolver indexes a subscriber's proxies (by inbound id), the operator's groups
+// (id -> name) and rule-providers (id -> name). Providers are config-global, so unlike
+// inbounds they always resolve.
+func newResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup, providers []mihomo.RuleProvider) resolver {
+	r := resolver{inboundName: map[int64]string{}, groupName: map[int64]string{}, providerName: map[int64]string{}}
 
 	for _, p := range sub.Proxies {
 		if p.InboundID != 0 {
@@ -27,6 +29,10 @@ func newResolver(sub *entity.Subscriber, groups []mihomo.ProxyGroup) resolver {
 
 	for _, g := range groups {
 		r.groupName[g.ID] = g.Name
+	}
+
+	for _, p := range providers {
+		r.providerName[p.ID] = p.Name
 	}
 
 	return r

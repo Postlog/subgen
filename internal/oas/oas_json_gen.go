@@ -3045,6 +3045,12 @@ func (s *MihomoRule) encodeFields(e *jx.Encoder) {
 		e.Str(s.Value)
 	}
 	{
+		if s.ProviderIdx.Set {
+			e.FieldStart("providerIdx")
+			s.ProviderIdx.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("noResolve")
 		e.Bool(s.NoResolve)
 	}
@@ -3054,11 +3060,12 @@ func (s *MihomoRule) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfMihomoRule = [4]string{
+var jsonFieldsNameOfMihomoRule = [5]string{
 	0: "type",
 	1: "value",
-	2: "noResolve",
-	3: "target",
+	2: "providerIdx",
+	3: "noResolve",
+	4: "target",
 }
 
 // Decode decodes MihomoRule from json.
@@ -3094,8 +3101,18 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
+		case "providerIdx":
+			if err := func() error {
+				s.ProviderIdx.Reset()
+				if err := s.ProviderIdx.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"providerIdx\"")
+			}
 		case "noResolve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.NoResolve = bool(v)
@@ -3107,7 +3124,7 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"noResolve\"")
 			}
 		case "target":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Target.Decode(d); err != nil {
 					return err
@@ -3126,7 +3143,7 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

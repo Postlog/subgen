@@ -63,6 +63,9 @@ components:
         mirrorInterval:
           type: integer
 
+    # A routing rule. value is the plain matcher payload (empty for MATCH and RULE-SET).
+    # For RULE-SET the rule-provider is referenced by providerIdx (index into the
+    # providers array — real ids never cross the wire), not by name in value.
     MihomoRule:
       type: object
       required: [type, value, noResolve, target]
@@ -71,6 +74,8 @@ components:
           type: string
         value:
           type: string
+        providerIdx:
+          type: integer
         noResolve:
           type: boolean
         target:

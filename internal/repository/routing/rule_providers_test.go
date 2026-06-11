@@ -37,7 +37,7 @@ func TestRepository_RuleProviders(t *testing.T) {
 			{Name: "zeta", Behavior: "ipcidr", Format: "mrs", Mirror: false, URL: "http://z", Interval: 86400},
 			{Name: "alpha", Behavior: "domain", Format: "yaml", Mirror: true, URL: "http://a", Interval: 3600, MirrorInterval: 600},
 		}
-		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, nil, nil, want, "", mihomo.Profile{}))
+		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(nil, nil, want, "", mihomo.Profile{})))
 
 		got, err := repo.RuleProviders(t.Context(), cfg)
 		require.NoError(t, err)
@@ -47,8 +47,10 @@ func TestRepository_RuleProviders(t *testing.T) {
 		assert.Equal(t, "alpha", got[0].Name)
 		assert.Equal(t, "zeta", got[1].Name)
 
-		// alpha round-trips every field, mirror=true.
+		// alpha round-trips every field, mirror=true. ID is assigned by the DB.
+		require.NotZero(t, got[0].ID)
 		assert.Equal(t, mihomo.RuleProvider{
+			ID:   got[0].ID,
 			Name: "alpha", Behavior: "domain", Format: "yaml", Mirror: true,
 			URL: "http://a", Interval: 3600, MirrorInterval: 600,
 		}, got[0])

@@ -979,10 +979,11 @@ func (s *MihomoProvider) SetMirrorInterval(val int) {
 
 // Ref: #/components/schemas/MihomoRule
 type MihomoRule struct {
-	Type      string    `json:"type"`
-	Value     string    `json:"value"`
-	NoResolve bool      `json:"noResolve"`
-	Target    PolicyRef `json:"target"`
+	Type        string    `json:"type"`
+	Value       string    `json:"value"`
+	ProviderIdx OptInt    `json:"providerIdx"`
+	NoResolve   bool      `json:"noResolve"`
+	Target      PolicyRef `json:"target"`
 }
 
 // GetType returns the value of Type.
@@ -993,6 +994,11 @@ func (s *MihomoRule) GetType() string {
 // GetValue returns the value of Value.
 func (s *MihomoRule) GetValue() string {
 	return s.Value
+}
+
+// GetProviderIdx returns the value of ProviderIdx.
+func (s *MihomoRule) GetProviderIdx() OptInt {
+	return s.ProviderIdx
 }
 
 // GetNoResolve returns the value of NoResolve.
@@ -1013,6 +1019,11 @@ func (s *MihomoRule) SetType(val string) {
 // SetValue sets the value of Value.
 func (s *MihomoRule) SetValue(val string) {
 	s.Value = val
+}
+
+// SetProviderIdx sets the value of ProviderIdx.
+func (s *MihomoRule) SetProviderIdx(val OptInt) {
+	s.ProviderIdx = val
 }
 
 // SetNoResolve sets the value of NoResolve.

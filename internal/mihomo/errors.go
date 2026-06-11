@@ -22,14 +22,14 @@ var (
 	ErrUnknownRuleType   = errors.New("unknown rule type")
 	ErrMatchNotLast      = errors.New("MATCH rule must be last")
 	ErrRuleValueRequired = errors.New("rule needs a value")
+	ErrProviderRefRange  = errors.New("RULE-SET references a non-existent provider")
 
-	// Rule-providers. (Name uniqueness is enforced by the DB PK, translated to
-	// entity.ErrRuleProviderNameTaken in the repository — not validated here.)
-	ErrProviderNameEmpty      = errors.New("rule-provider name is empty")
-	ErrProviderBadBehavior    = errors.New("unknown rule-provider behavior")
-	ErrProviderBadFormat      = errors.New("unknown rule-provider format")
-	ErrProviderURLEmpty       = errors.New("rule-provider url is empty")
-	ErrRuleSetUnknownProvider = errors.New("RULE-SET references an unknown provider")
+	// Rule-providers. (Name uniqueness is enforced by the DB UNIQUE(config_id,name),
+	// translated to entity.ErrRuleProviderNameTaken in the repository — not here.)
+	ErrProviderNameEmpty   = errors.New("rule-provider name is empty")
+	ErrProviderBadBehavior = errors.New("unknown rule-provider behavior")
+	ErrProviderBadFormat   = errors.New("unknown rule-provider format")
+	ErrProviderURLEmpty    = errors.New("rule-provider url is empty")
 
 	// Base YAML.
 	ErrBaseYAMLInvalid     = errors.New("base YAML is invalid")

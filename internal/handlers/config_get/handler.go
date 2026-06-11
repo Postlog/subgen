@@ -79,6 +79,11 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 		idx[g.ID] = i
 	}
 
+	provIdx := map[int64]int{} // rule_provider id -> array index
+	for i, rp := range rps {
+		provIdx[rp.ID] = i
+	}
+
 	out := &oas.MihomoConfig{
 		BaseYAML:              baseYAML,
 		ProfileTitle:          profile.Title,
@@ -101,9 +106,18 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 
 	out.Rules = make([]oas.MihomoRule, 0, len(rules))
 	for _, r := range rules {
-		out.Rules = append(out.Rules, oas.MihomoRule{
+		mr := oas.MihomoRule{
 			Type: r.Type.String(), Value: r.Value, NoResolve: r.NoResolve, Target: refToView(r.Target, idx),
-		})
+		}
+
+		// RULE-SET: surface the provider as its array index (real id never leaves).
+		if r.ProviderID != nil {
+			if i, ok := provIdx[*r.ProviderID]; ok {
+				mr.ProviderIdx = oas.NewOptInt(i)
+			}
+		}
+
+		out.Rules = append(out.Rules, mr)
 	}
 
 	out.Providers = make([]oas.MihomoProvider, 0, len(rps))

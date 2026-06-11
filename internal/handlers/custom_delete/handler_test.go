@@ -36,11 +36,6 @@ func TestHandler_CustomDelete(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Кастомный конфиг удалён"},
 		},
 		{
-			name:   "error.invalid_id",
-			req:    &oas.CustomDeleteReq{UserId: 0},
-			result: &oas.CustomDeleteBadRequest{ErrMessage: msgInvalidID}, // guard, no service call
-		},
-		{
 			name: "error.missing",
 			req:  &oas.CustomDeleteReq{UserId: 7},
 			buildConfigsMock: func(m *MockconfigDeleter) {

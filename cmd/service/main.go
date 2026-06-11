@@ -57,6 +57,7 @@ import (
 	"github.com/postlog/subgen/internal/repository/routing"
 	"github.com/postlog/subgen/internal/repository/users"
 	"github.com/postlog/subgen/internal/service/fleet"
+	nodessvc "github.com/postlog/subgen/internal/service/nodes"
 	"github.com/postlog/subgen/internal/service/provisioning"
 	"github.com/postlog/subgen/internal/service/ruleset"
 )
@@ -186,6 +187,8 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	sess := web.NewSession(cfg.Secret)
 
+	nodesSvc := nodessvc.New(nodesRepo, routingRepo)
+
 	// The login handler serves both the sign-in action (POST /admin/api/login) and the
 	// login PAGE (GET /admin/login).
 	loginHandler := login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)
@@ -208,8 +211,8 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		UserDelete:   user_delete.New(prov),
 		UserRecreate: user_recreate.New(prov),
 		NodesGet:     nodes_get.New(nodesRepo),
-		NodeSave:     node_save.New(nodesRepo, routingRepo),
-		NodeDelete:   node_delete.New(nodesRepo, routingRepo),
+		NodeSave:     node_save.New(nodesSvc),
+		NodeDelete:   node_delete.New(nodesSvc),
 
 		ConfigGet:     config_get.New(configsRepo, routingRepo),
 		ConfigSchema:  config_schema.New(),

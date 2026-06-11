@@ -14,7 +14,6 @@ import (
 const (
 	msgNoConnection    = "Выберите хотя бы одно подключение"
 	msgInboundNotFound = "Указанный инбаунд не найден"
-	msgInvalidID       = "Неверный идентификатор" // moved-from-schema minimum:1 guard
 )
 
 // Handler re-binds a user to a new inbound set.
@@ -28,11 +27,6 @@ func New(svc editor) *Handler { return &Handler{svc: svc} }
 // UserEdit implements oas.Handler: invalid input is a 400, any unexpected (infra)
 // failure is a 500.
 func (h *Handler) UserEdit(ctx context.Context, req *oas.UserEditReq) (oas.UserEditRes, error) {
-	if req.ID < 1 {
-		slog.Warn("handler user_edit: invalid id", "id", req.ID)
-		return &oas.UserEditBadRequest{ErrMessage: msgInvalidID}, nil
-	}
-
 	err := h.svc.EditUser(ctx, req.ID, entity.ConnectionSelection{InboundIDs: req.InboundIDs})
 	if err == nil {
 		return &oas.MessageResponse{Message: "Подключения обновлены"}, nil

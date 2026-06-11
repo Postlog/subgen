@@ -33,11 +33,6 @@ func TestHandler_UserRecreate(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Клиенты пересозданы"},
 		},
 		{
-			name:   "error.invalid_id",
-			req:    &oas.UserRecreateReq{ID: 0},
-			result: &oas.UserRecreateBadRequest{ErrMessage: msgInvalidID}, // guard, no service call
-		},
-		{
 			name: "error.internal",
 			req:  &oas.UserRecreateReq{ID: 7},
 			buildRecreatorMock: func(m *Mockrecreator) {

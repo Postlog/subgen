@@ -17,124 +17,41 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MocknodeRepo is a mock of nodeRepo interface.
-type MocknodeRepo struct {
+// MocknodeSaver is a mock of nodeSaver interface.
+type MocknodeSaver struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeRepoMockRecorder
+	recorder *MocknodeSaverMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeRepoMockRecorder is the mock recorder for MocknodeRepo.
-type MocknodeRepoMockRecorder struct {
-	mock *MocknodeRepo
+// MocknodeSaverMockRecorder is the mock recorder for MocknodeSaver.
+type MocknodeSaverMockRecorder struct {
+	mock *MocknodeSaver
 }
 
-// NewMocknodeRepo creates a new mock instance.
-func NewMocknodeRepo(ctrl *gomock.Controller) *MocknodeRepo {
-	mock := &MocknodeRepo{ctrl: ctrl}
-	mock.recorder = &MocknodeRepoMockRecorder{mock}
+// NewMocknodeSaver creates a new mock instance.
+func NewMocknodeSaver(ctrl *gomock.Controller) *MocknodeSaver {
+	mock := &MocknodeSaver{ctrl: ctrl}
+	mock.recorder = &MocknodeSaverMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeRepo) EXPECT() *MocknodeRepoMockRecorder {
+func (m *MocknodeSaver) EXPECT() *MocknodeSaverMockRecorder {
 	return m.recorder
 }
 
-// ConnectionCountsByInbound mocks base method.
-func (m *MocknodeRepo) ConnectionCountsByInbound(ctx context.Context, inboundIDs []int64) (map[int64]int, error) {
+// Save mocks base method.
+func (m *MocknodeSaver) Save(ctx context.Context, n entity.Node) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConnectionCountsByInbound", ctx, inboundIDs)
-	ret0, _ := ret[0].(map[int64]int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ConnectionCountsByInbound indicates an expected call of ConnectionCountsByInbound.
-func (mr *MocknodeRepoMockRecorder) ConnectionCountsByInbound(ctx, inboundIDs any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectionCountsByInbound", reflect.TypeOf((*MocknodeRepo)(nil).ConnectionCountsByInbound), ctx, inboundIDs)
-}
-
-// Create mocks base method.
-func (m *MocknodeRepo) Create(ctx context.Context, n entity.Node) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, n)
+	ret := m.ctrl.Call(m, "Save", ctx, n)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Create indicates an expected call of Create.
-func (mr *MocknodeRepoMockRecorder) Create(ctx, n any) *gomock.Call {
+// Save indicates an expected call of Save.
+func (mr *MocknodeSaverMockRecorder) Save(ctx, n any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MocknodeRepo)(nil).Create), ctx, n)
-}
-
-// Get mocks base method.
-func (m *MocknodeRepo) Get(ctx context.Context, id int64) (*entity.Node, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, id)
-	ret0, _ := ret[0].(*entity.Node)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MocknodeRepoMockRecorder) Get(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MocknodeRepo)(nil).Get), ctx, id)
-}
-
-// Update mocks base method.
-func (m *MocknodeRepo) Update(ctx context.Context, id int64, n entity.Node, setToken bool) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, id, n, setToken)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Update indicates an expected call of Update.
-func (mr *MocknodeRepoMockRecorder) Update(ctx, id, n, setToken any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MocknodeRepo)(nil).Update), ctx, id, n, setToken)
-}
-
-// MockroutingRepo is a mock of routingRepo interface.
-type MockroutingRepo struct {
-	ctrl     *gomock.Controller
-	recorder *MockroutingRepoMockRecorder
-	isgomock struct{}
-}
-
-// MockroutingRepoMockRecorder is the mock recorder for MockroutingRepo.
-type MockroutingRepoMockRecorder struct {
-	mock *MockroutingRepo
-}
-
-// NewMockroutingRepo creates a new mock instance.
-func NewMockroutingRepo(ctrl *gomock.Controller) *MockroutingRepo {
-	mock := &MockroutingRepo{ctrl: ctrl}
-	mock.recorder = &MockroutingRepoMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockroutingRepo) EXPECT() *MockroutingRepoMockRecorder {
-	return m.recorder
-}
-
-// InboundRefCounts mocks base method.
-func (m *MockroutingRepo) InboundRefCounts(ctx context.Context, inboundIDs []int64) (map[int64]int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InboundRefCounts", ctx, inboundIDs)
-	ret0, _ := ret[0].(map[int64]int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InboundRefCounts indicates an expected call of InboundRefCounts.
-func (mr *MockroutingRepoMockRecorder) InboundRefCounts(ctx, inboundIDs any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InboundRefCounts", reflect.TypeOf((*MockroutingRepo)(nil).InboundRefCounts), ctx, inboundIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MocknodeSaver)(nil).Save), ctx, n)
 }

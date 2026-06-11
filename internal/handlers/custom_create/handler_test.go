@@ -36,11 +36,6 @@ func TestHandler_CustomCreate(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Кастомный конфиг создан"},
 		},
 		{
-			name:   "error.invalid_id",
-			req:    &oas.CustomCreateReq{UserId: 0},
-			result: &oas.CustomCreateBadRequest{ErrMessage: msgInvalidID}, // guard, no service call
-		},
-		{
 			name: "error.exists",
 			req:  &oas.CustomCreateReq{UserId: 7},
 			buildConfigsMock: func(m *MockconfigCreator) {

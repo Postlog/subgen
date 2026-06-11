@@ -1,5 +1,6 @@
 // Package node_save implements the nodeSave operation (POST /admin/api/nodes/save) —
-// create (id 0/absent) or update a node and its inbounds.
+// create (id 0/absent) or update a node and its inbounds. Validation, the FK-block check
+// and persistence live in the nodes service; this handler maps its errors to responses.
 package node_save
 
 import (
@@ -13,28 +14,36 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
-// User-facing messages for the domain conflicts the node repo can return. Field-level
-// validation messages are produced by web.ValidateNode (interpolating the offending
-// value), and the FK-block message by web.InboundsBlocking.
+// User-facing messages: name/inbound clashes (409) and the field-validation sentinels the
+// nodes service returns (400). The FK-block message is rendered by web.InboundsBlockedMessage.
 const (
 	msgNodeNameTaken    = "Узел с таким именем уже существует"
 	msgInboundDuplicate = "Имя или порт инбаунда уже заняты на этом узле"
+
+	msgNodeName      = "Имя узла: разрешены a-z, 0-9, -, пробел и флаги стран"
+	msgHost          = "Адрес VPN-хоста невалиден — ожидается хост или IP (без схемы и порта)"
+	msgPanelURL      = "3x-ui base URL невалиден — ожидается https://host:port (без пути)"
+	msgBasePath      = "Укажите base path панели (например /secret/)"
+	msgNoInbounds    = "Укажите хотя бы один инбаунд"
+	msgInboundName   = "Имя инбаунда: разрешены a-z, 0-9 и -"
+	msgInboundPort   = "Порт инбаунда должен быть числом 1–65535"
+	msgInboundNameUq = "Повторяющееся имя инбаунда"
+	msgInboundPortUq = "Повторяющийся порт инбаунда"
 )
 
 // Handler creates or updates a node from the node form.
 type Handler struct {
-	nodes   nodeRepo
-	routing routingRepo
+	svc nodeSaver
 }
 
 // New builds the handler.
-func New(nodes nodeRepo, routing routingRepo) *Handler {
-	return &Handler{nodes: nodes, routing: routing}
-}
+func New(svc nodeSaver) *Handler { return &Handler{svc: svc} }
 
-// NodeSave implements oas.Handler.
+// NodeSave implements oas.Handler: a name/inbound clash is a 409, invalid input or an
+// FK-block is a 400, any unexpected (store) failure is a 500.
 func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeSaveRes, error) {
 	n := entity.Node{
+		ID:            req.ID.Or(0),
 		Name:          strings.TrimSpace(req.Name),
 		VPNHost:       strings.TrimSpace(req.VpnHost),
 		PanelBaseURL:  strings.TrimSpace(req.PanelBaseURL),
@@ -50,68 +59,53 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 		n.Inbounds = append(n.Inbounds, entity.Inbound{ID: in.ID.Or(0), Name: strings.TrimSpace(in.Name), Port: in.Port})
 	}
 
-	if err := web.ValidateNode(&n); err != nil {
-		slog.Warn("handler node_save: invalid node", "name", n.Name, "err", err)
-		return &oas.NodeSaveBadRequest{ErrMessage: err.Error()}, nil
-	}
-
-	id := req.ID.Or(0)
-
-	// On update, block removing an inbound that is still referenced (users / mihomo
-	// rules / group members). "removed" = current ids absent from the submission.
-	if id > 0 {
-		kept := map[int64]bool{}
-
-		for _, in := range n.Inbounds {
-			if in.ID > 0 {
-				kept[in.ID] = true
-			}
-		}
-
-		var removed []int64
-
-		if cur, err := h.nodes.Get(ctx, id); err == nil {
-			for _, in := range cur.Inbounds {
-				if !kept[in.ID] {
-					removed = append(removed, in.ID)
-				}
-			}
-		}
-
-		if len(removed) > 0 {
-			msg, err := web.InboundsBlocking(ctx, h.nodes, h.routing, id, removed)
-			if err != nil {
-				slog.Error("handler node_save: inbound-block check failed", "id", id, "err", err)
-				return nil, err
-			}
-
-			if msg != "" {
-				slog.Warn("handler node_save: inbound still referenced", "id", id)
-				return &oas.NodeSaveBadRequest{ErrMessage: msg}, nil
-			}
-		}
-	}
-
-	var err error
-	if id > 0 {
-		err = h.nodes.Update(ctx, id, n, n.Token != "")
-	} else {
-		_, err = h.nodes.Create(ctx, n)
-	}
-
-	if err != nil {
-		switch {
-		case errors.Is(err, entity.ErrNodeNameTaken):
-			slog.Warn("handler node_save: node name taken", "name", n.Name)
-			return &oas.NodeSaveConflict{ErrMessage: msgNodeNameTaken}, nil
-		case errors.Is(err, entity.ErrInboundDuplicate):
-			slog.Warn("handler node_save: inbound duplicate", "name", n.Name)
-			return &oas.NodeSaveConflict{ErrMessage: msgInboundDuplicate}, nil
-		default:
-			slog.Error("handler node_save: save failed", "name", n.Name, "id", id, "err", err)
-			return nil, err
-		}
+	if _, err := h.svc.Save(ctx, n); err != nil {
+		return h.mapErr(n.Name, err)
 	}
 
 	return &oas.MessageResponse{Message: "Узел сохранён: " + n.Name}, nil
+}
+
+// mapErr classifies a Save failure: name/inbound clash → 409; validation / FK-block → 400
+// with a per-rule message; anything else (store) → 500.
+func (h *Handler) mapErr(name string, err error) (oas.NodeSaveRes, error) {
+	var blocked entity.InboundsBlockedError
+
+	bad := func(msg string) (oas.NodeSaveRes, error) {
+		slog.Warn("handler node_save: rejected", "name", name)
+		return &oas.NodeSaveBadRequest{ErrMessage: msg}, nil
+	}
+
+	switch {
+	case errors.Is(err, entity.ErrNodeNameTaken):
+		slog.Warn("handler node_save: node name taken", "name", name)
+		return &oas.NodeSaveConflict{ErrMessage: msgNodeNameTaken}, nil
+	case errors.Is(err, entity.ErrInboundDuplicate):
+		slog.Warn("handler node_save: inbound duplicate", "name", name)
+		return &oas.NodeSaveConflict{ErrMessage: msgInboundDuplicate}, nil
+	case errors.As(err, &blocked):
+		slog.Warn("handler node_save: inbound still referenced", "name", name)
+		return &oas.NodeSaveBadRequest{ErrMessage: web.InboundsBlockedMessage(blocked)}, nil
+	case errors.Is(err, entity.ErrValidationNodeName):
+		return bad(msgNodeName)
+	case errors.Is(err, entity.ErrValidationHost):
+		return bad(msgHost)
+	case errors.Is(err, entity.ErrValidationPanelURL):
+		return bad(msgPanelURL)
+	case errors.Is(err, entity.ErrValidationBasePath):
+		return bad(msgBasePath)
+	case errors.Is(err, entity.ErrValidationNoInbounds):
+		return bad(msgNoInbounds)
+	case errors.Is(err, entity.ErrValidationInboundName):
+		return bad(msgInboundName)
+	case errors.Is(err, entity.ErrValidationInboundPort):
+		return bad(msgInboundPort)
+	case errors.Is(err, entity.ErrValidationInboundNameUq):
+		return bad(msgInboundNameUq)
+	case errors.Is(err, entity.ErrValidationInboundPortUq):
+		return bad(msgInboundPortUq)
+	default:
+		slog.Error("handler node_save: save failed", "name", name, "err", err)
+		return nil, err
+	}
 }

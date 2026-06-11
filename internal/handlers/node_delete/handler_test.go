@@ -13,65 +13,23 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
-// node7 is a one-inbound node: "main" :4433 (inbound id 10).
-func node7() *entity.Node {
-	return &entity.Node{
-		ID: 7, Name: "N1",
-		Inbounds: []entity.Inbound{{ID: 10, Name: "main", Port: 4433}},
-	}
-}
-
-type mocks struct {
-	nodes   *MocknodeRepo
-	routing *MockroutingRepo
-}
-
 func TestHandler_NodeDelete(t *testing.T) {
-	targetErr := errors.New("test")
+	internalErr := errors.New("db down")
 
 	tt := []struct {
-		name       string
-		reqID      int64
-		buildMocks func(m *mocks)
-		wantBad    bool  // expect a 400 (NodeDeleteBadRequest)
-		wantErr    error // expect a propagated error (-> 500)
+		name        string
+		deleteErr   error // what the nodes service Delete returns
+		result      oas.NodeDeleteRes
+		wantBlocked bool
+		err         error
 	}{
+		{name: "success", result: &oas.MessageResponse{Message: msgDeleted}},
 		{
-			name:    "error.invalid_id",
-			reqID:   0,
-			wantBad: true, // guard returns before any repo call
+			name:        "error.blocked",
+			deleteErr:   entity.InboundsBlockedError{Inbounds: []entity.BlockedInbound{{Label: "RU1-force:8443", Users: 2}}},
+			wantBlocked: true,
 		},
-		{
-			name:    "error.users_blocking",
-			reqID:   7,
-			wantBad: true,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{10: 2}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-			},
-		},
-		{
-			name:    "error.delete",
-			reqID:   7,
-			wantErr: targetErr,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.nodes.EXPECT().Delete(gomock.Any(), int64(7)).Return(targetErr)
-			},
-		},
-		{
-			name:  "success",
-			reqID: 7,
-			buildMocks: func(m *mocks) {
-				m.nodes.EXPECT().Get(gomock.Any(), int64(7)).Return(node7(), nil)
-				m.nodes.EXPECT().ConnectionCountsByInbound(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.routing.EXPECT().InboundRefCounts(gomock.Any(), []int64{10}).Return(map[int64]int{}, nil)
-				m.nodes.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
-			},
-		},
+		{name: "error.internal", deleteErr: internalErr, err: internalErr},
 	}
 
 	t.Parallel()
@@ -81,27 +39,22 @@ func TestHandler_NodeDelete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := &mocks{nodes: NewMocknodeRepo(ctrl), routing: NewMockroutingRepo(ctrl)}
-			if tc.buildMocks != nil {
-				tc.buildMocks(m)
-			}
+			svc := NewMocknodeDeleter(ctrl)
+			svc.EXPECT().Delete(gomock.Any(), int64(7)).Return(tc.deleteErr)
 
-			res, err := New(m.nodes, m.routing).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: tc.reqID})
+			res, err := New(svc).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: 7})
 
-			require.ErrorIs(t, err, tc.wantErr)
+			require.ErrorIs(t, err, tc.err)
 
-			switch {
-			case tc.wantErr != nil:
-				assert.Nil(t, res)
-			case tc.wantBad:
+			if tc.wantBlocked {
 				bad, ok := res.(*oas.NodeDeleteBadRequest)
-				require.True(t, ok, "want NodeDeleteBadRequest, got %T", res)
+				require.True(t, ok, "want *oas.NodeDeleteBadRequest, got %T", res)
 				assert.NotEmpty(t, bad.ErrMessage)
-			default:
-				ok, _ := res.(*oas.MessageResponse)
-				require.NotNil(t, ok, "want MessageResponse, got %T", res)
-				assert.Equal(t, msgDeleted, ok.Message)
+
+				return
 			}
+
+			assert.Equal(t, tc.result, res)
 		})
 	}
 }

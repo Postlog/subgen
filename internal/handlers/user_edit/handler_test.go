@@ -36,11 +36,6 @@ func TestHandler_UserEdit(t *testing.T) {
 			result: &oas.MessageResponse{Message: "Подключения обновлены"},
 		},
 		{
-			name:   "error.invalid_id",
-			req:    &oas.UserEditReq{ID: 0, InboundIDs: []int64{1}},
-			result: &oas.UserEditBadRequest{ErrMessage: msgInvalidID}, // guard, no service call
-		},
-		{
 			name: "error.no_connection",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{}},
 			buildEditorMock: func(m *Mockeditor) {

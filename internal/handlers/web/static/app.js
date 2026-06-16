@@ -223,29 +223,30 @@ const app = createApp({
         _uid: this.uid(), type: r.type, value: r.value || "",
         providerUid: (r.providerIdx === undefined || r.providerIdx === null) ? null : pUid[r.providerIdx],
         noResolve: !!r.noResolve, pref: this.refToPref(r.target, gUid),
-        conditions: this.loadConditions(r.conditions, pUid),
+        children: this.loadChildren(r.children, pUid),
       }));
       this.cfg.baseYAML = c.baseYAML || "";
       this.cfg.profileTitle = c.profileTitle || "";
       this.cfg.filename = c.filename || "";
       this.cfg.profileUpdateInterval = c.profileUpdateInterval ?? 1;
     },
-    // loadConditions maps API sub-conditions (a logical rule's children) into the editor
-    // model, recursively. A RULE-SET sub-condition's providerIdx is resolved to the
-    // provider's stable uid (pUid: providerIdx -> uid), like a top-level RULE-SET rule.
-    loadConditions(conds, pUid) {
-      return (conds || []).map((c) => ({
+    // loadChildren maps a logical rule's API sub-rules (children) into the editor model,
+    // recursively. A RULE-SET sub-rule's providerIdx is resolved to the provider's stable
+    // uid (pUid: providerIdx -> uid), like a top-level RULE-SET rule. Sub-rules carry no
+    // target (they are matchers), so none is read.
+    loadChildren(children, pUid) {
+      return (children || []).map((c) => ({
         _uid: cuid(), type: c.type, value: c.value || "",
         providerUid: (c.providerIdx === undefined || c.providerIdx === null) ? null : pUid[c.providerIdx],
-        conditions: this.loadConditions(c.conditions, pUid),
+        children: this.loadChildren(c.children, pUid),
       }));
     },
-    // dumpConditions serialises a logical rule's children back to the API shape,
-    // recursively: a logical child carries nested conditions, a RULE-SET child a
-    // providerIdx, every other child a value.
-    dumpConditions(conds, provUidToIdx) {
-      return (conds || []).map((c) => {
-        if (this.isLogical(c.type)) return { type: c.type, conditions: this.dumpConditions(c.conditions, provUidToIdx) };
+    // dumpChildren serialises a logical rule's sub-rules back to the API shape, recursively:
+    // a logical child carries nested children, a RULE-SET child a providerIdx, every other
+    // child a value. A sub-rule never carries a target.
+    dumpChildren(children, provUidToIdx) {
+      return (children || []).map((c) => {
+        if (this.isLogical(c.type)) return { type: c.type, children: this.dumpChildren(c.children, provUidToIdx) };
         if (this.isRuleSet(c.type)) { const i = provUidToIdx[c.providerUid]; return { type: c.type, providerIdx: i === undefined ? null : i }; }
         return { type: c.type, value: c.value || "" };
       });
@@ -271,10 +272,10 @@ const app = createApp({
     delGroup(i) { this.cfg.groups.splice(i, 1); },
     addMember(g) { g.members.push({ _uid: this.uid(), pref: "direct" }); },
     delMember(g, i) { g.members.splice(i, 1); },
-    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, noResolve: false, pref: "direct", conditions: [] }); },
+    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, noResolve: false, pref: "direct", children: [] }); },
     delRule(i) { this.cfg.rules.splice(i, 1); },
-    // addCondition appends a fresh leaf sub-condition to a logical rule (or condition).
-    addCondition(node) { node.conditions.push(newCondition()); },
+    // addChild appends a fresh leaf sub-rule to a logical rule (or sub-rule).
+    addChild(node) { node.children.push(newChild()); },
     addProvider() { this.cfg.providers.push({ _uid: this.uid(), name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
     openProvider(i) { this.provForm = { open: true, idx: i }; },
     // checkProvider probes the provider URL via the backend (reachable / file present /
@@ -341,7 +342,7 @@ const app = createApp({
         // Logical rule (AND/OR/NOT): the payload is the sub-condition tree, no
         // value/provider/no-resolve.
         if (this.isLogical(r.type)) {
-          rule.conditions = this.dumpConditions(r.conditions, provUidToIdx);
+          rule.children = this.dumpChildren(r.children, provUidToIdx);
           return rule;
         }
         // value only for value-taking types (omitted for MATCH and RULE-SET).
@@ -524,22 +525,22 @@ app.component("policy-picker", {
     </select>`,
 });
 
-// cuid is the stable-key generator for condition-tree nodes (separate counter from the
-// root's uid(); only needs to be unique among siblings for Vue's :key). newCondition is
-// the fresh leaf factory used by "add condition" at any depth.
+// cuid is the stable-key generator for sub-rule tree nodes (separate counter from the
+// root's uid(); only needs to be unique among siblings for Vue's :key). newChild is the
+// fresh leaf factory used by "add sub-rule" at any depth. A sub-rule has no target.
 let _cuidc = 0;
 const cuid = () => "c" + (++_cuidc);
-function newCondition() { return { _uid: cuid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, conditions: [] }; }
+function newChild() { return { _uid: cuid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, children: [] }; }
 
-// condition-node: one matcher inside a logical rule (AND/OR/NOT), rendered recursively.
-// A leaf shows a type select + a value input (or a provider select for RULE-SET); a
-// logical node shows its children (each another condition-node) with add/remove and any
-// depth of nesting. Sub-conditions have no target and no no-resolve — they are matchers,
-// not full rules. Reordering is omitted on purpose: AND/OR/NOT are commutative, so the
-// order of conditions has no effect on matching. The type list comes from the schema
-// (MATCH excluded — it cannot be a condition); nothing about the taxonomy is hardcoded.
-app.component("condition-node", {
-  name: "condition-node",
+// rule-node: one sub-rule inside a logical rule (AND/OR/NOT), rendered recursively. A leaf
+// shows a type select + a value input (or a provider select for RULE-SET); a logical node
+// shows its children (each another rule-node) with add/remove and any depth of nesting. A
+// sub-rule has no target and no no-resolve — it is a matcher, not a routing decision.
+// Reordering is omitted on purpose: AND/OR/NOT are commutative, so child order has no
+// effect on matching. The type list comes from the schema (MATCH excluded — it cannot be a
+// sub-rule); nothing about the taxonomy is hardcoded.
+app.component("rule-node", {
+  name: "rule-node",
   props: { node: Object, schema: Object, providers: Array },
   emits: ["remove"],
   computed: {
@@ -549,8 +550,8 @@ app.component("condition-node", {
     info(t) { return (this.schema?.rules?.types || []).find((r) => r.type === t); },
     isLogical(t) { return !!this.info(t)?.isLogical; },
     isRuleSet(t) { return !!this.info(t)?.takesProvider; },
-    addChild() { this.node.conditions.push(newCondition()); },
-    delChild(i) { this.node.conditions.splice(i, 1); },
+    addChild() { this.node.children.push(newChild()); },
+    delChild(i) { this.node.children.splice(i, 1); },
   },
   template: `
     <div class="cond-node">
@@ -563,12 +564,12 @@ app.component("condition-node", {
           <option v-for="(p,pi) in providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
         </select>
         <input v-else-if="!isLogical(node.type)" class="form-control form-control-sm grow" v-model="node.value" placeholder="значение">
-        <span v-else class="grow text-dim small">вложенные условия</span>
-        <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="удалить условие">✕</button>
+        <span v-else class="grow text-dim small">вложенные правила</span>
+        <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="удалить вложенное правило">✕</button>
       </div>
       <div v-if="isLogical(node.type)" class="cond-children">
-        <condition-node v-for="(c,ci) in node.conditions" :key="c._uid" :node="c" :schema="schema" :providers="providers" @remove="delChild(ci)"></condition-node>
-        <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Добавить условие</button>
+        <rule-node v-for="(c,ci) in node.children" :key="c._uid" :node="c" :schema="schema" :providers="providers" @remove="delChild(ci)"></rule-node>
+        <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Добавить вложенное правило</button>
       </div>
     </div>`,
 });

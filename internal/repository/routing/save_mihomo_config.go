@@ -105,48 +105,11 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 		return err
 	}
 
-	// Rules, refs + provider resolved to columns.
-	ruleRows := make([][]any, len(draft.Rules))
-
-	for i, rule := range draft.Rules {
-		inbound, group, err := refColumns(rule.Target, groupID)
-		if err != nil {
-			return err
-		}
-
-		provider, err := providerColumn(rule.ProviderIdx, providerID)
-		if err != nil {
-			return err
-		}
-
-		ruleRows[i] = []any{
-			configID, i, rule.Type, utils.DereferenceOrNil(rule.Value), provider,
-			boolInt(rule.NoResolve != nil && *rule.NoResolve), rule.Target.Kind, inbound, group,
-		}
-	}
-
-	if err := batchInsert(ctx, tx, "mihomo_routing_rules",
-		[]string{"config_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"}, ruleRows); err != nil {
+	// Rules are recursive (a logical rule's sub-rules in the same table via parent_id);
+	// insert the tree depth-first. The DELETE above removed the whole config's rules
+	// (top-level + sub-rules all carry config_id), so no separate cleanup is needed.
+	if err := insertRules(ctx, tx, configID, nil, draft.Rules, groupID, providerID); err != nil {
 		return err
-	}
-
-	// Logical rules (AND/OR/NOT) carry a sub-condition tree; read the rule ids back in
-	// position order so a rule's conditions attach to the persisted id, then insert the
-	// tree (provider indices resolved like rules). The DELETE above cascades the old
-	// conditions away via rule_id, so no separate cleanup is needed.
-	ruleID, err := readIDs(ctx, tx, `SELECT id FROM mihomo_routing_rules WHERE config_id=? ORDER BY position`, configID)
-	if err != nil {
-		return err
-	}
-
-	for i, rule := range draft.Rules {
-		if len(rule.Conditions) == 0 {
-			continue
-		}
-
-		if err := insertConditions(ctx, tx, ruleID[i], nil, rule.Conditions, providerID); err != nil {
-			return err
-		}
 	}
 
 	if _, err := tx.ExecContext(ctx,
@@ -166,27 +129,42 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	return tx.Commit()
 }
 
-// insertConditions inserts a logical rule's sub-condition tree depth-first under (ruleID,
-// parentID). Each node is one INSERT (per-row, not batched: a child's parent_id is its
-// parent's autoincrement id, only known after that parent's insert — configs are tiny, so
-// the round-trips are immaterial). A RULE-SET sub-condition's ProviderIdx resolves to a
-// provider_id through providerID, like a rule. parentID is nil for a root condition (a
-// direct child of the rule), else the owning condition's id.
-func insertConditions(ctx context.Context, tx *sql.Tx, ruleID int64, parentID any, conds []mihomo.ConditionDraft, providerID []int64) error {
-	for pos, c := range conds {
-		provider, err := providerColumn(c.ProviderIdx, providerID)
+// insertRules inserts a rule subtree depth-first under parentID (nil for a top-level
+// rule, else the owning logical rule's id). Each node is one INSERT (per-row, not batched:
+// a child's parent_id is its parent's autoincrement id, known only after the parent's
+// insert — configs are tiny, so the round-trips are immaterial). A top-level rule's Target
+// resolves to (target_kind, inbound_id, target_group_id); a sub-rule has none (NULL). A
+// RULE-SET's ProviderIdx resolves to provider_id. Children are inserted only for a logical
+// rule (its only nodes with sub-rules).
+func insertRules(ctx context.Context, tx *sql.Tx, configID int64, parentID any, rules []mihomo.RuleDraft, groupID, providerID []int64) error {
+	for pos, r := range rules {
+		var inbound, group, kind any
+
+		if r.Target != nil {
+			ib, gp, err := refColumns(*r.Target, groupID)
+			if err != nil {
+				return err
+			}
+
+			inbound, group, kind = ib, gp, string(r.Target.Kind)
+		}
+
+		provider, err := providerColumn(r.ProviderIdx, providerID)
 		if err != nil {
 			return err
 		}
 
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_rule_conditions(rule_id,parent_id,position,type,value,provider_id) VALUES(?,?,?,?,?,?)`,
-			ruleID, parentID, pos, c.Type, utils.DereferenceOrNil(c.Value), provider)
+			`INSERT INTO mihomo_routing_rules
+			   (config_id,parent_id,position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id)
+			 VALUES(?,?,?,?,?,?,?,?,?,?)`,
+			configID, parentID, pos, r.Type, utils.DereferenceOrNil(r.Value), provider,
+			boolInt(r.NoResolve != nil && *r.NoResolve), kind, inbound, group)
 		if err != nil {
 			return err
 		}
 
-		if len(c.Conditions) == 0 {
+		if len(r.Children) == 0 {
 			continue
 		}
 
@@ -195,7 +173,7 @@ func insertConditions(ctx context.Context, tx *sql.Tx, ruleID int64, parentID an
 			return err
 		}
 
-		if err := insertConditions(ctx, tx, ruleID, id, c.Conditions, providerID); err != nil {
+		if err := insertRules(ctx, tx, configID, id, r.Children, groupID, providerID); err != nil {
 			return err
 		}
 	}

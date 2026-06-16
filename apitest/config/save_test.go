@@ -12,7 +12,7 @@ import (
 // rejected case is built to PASS every earlier check and trip exactly the one under
 // test, and asserts the EXACT Russian message:
 //   - happy.round_trip       — a small valid config saves and reads back identically.
-//   - happy.logical_round_trip — an AND rule with sub-conditions round-trips intact.
+//   - happy.logical_round_trip — an AND rule with sub-rules (children) round-trips intact.
 //   - err.match_not_last      — a MATCH followed by another rule → "MATCH должно быть последним".
 //   - err.sub_rules_in_base   — base YAML carrying `sub-rules:` → "Уберите ... генерируемые разделы".
 //   - err.rule_value_required — a non-MATCH rule with no value → "не указано значение".
@@ -69,14 +69,14 @@ func (s *ConfigSuite) TestSaveRoundTrip() {
 	s.T().Cleanup(func() { _, _ = s.api.SaveConfig(api.Config{}) })
 }
 
-// TestSaveLogicalRoundTrip covers a logical rule (AND with two sub-conditions): it saves
-// and reads back with its typed condition tree intact (the wire contract for `conditions`).
+// TestSaveLogicalRoundTrip covers a logical rule (AND with two sub-rules): it saves and
+// reads back with its typed sub-rule tree intact (the wire contract for `children`).
 func (s *ConfigSuite) TestSaveLogicalRoundTrip() {
 	want := api.Config{
 		BaseYAML: "mode: rule\n",
 		Rules: []api.ConfigRule{
 			// QUIC block: AND( NETWORK=UDP, DST-PORT=443 ) → reject-drop.
-			{Type: "AND", Target: api.ConfigRef{Kind: "reject-drop"}, Conditions: []api.ConfigCondition{
+			{Type: "AND", Target: api.ConfigRef{Kind: "reject-drop"}, Children: []api.ConfigChild{
 				{Type: "NETWORK", Value: "UDP"},
 				{Type: "DST-PORT", Value: "443"},
 			}},
@@ -96,11 +96,11 @@ func (s *ConfigSuite) TestSaveLogicalRoundTrip() {
 	s.Equal("AND", got.Rules[0].Type)
 	s.Equal("reject-drop", got.Rules[0].Target.Kind)
 	s.Empty(got.Rules[0].Value)
-	s.Require().Len(got.Rules[0].Conditions, 2)
-	s.Equal("NETWORK", got.Rules[0].Conditions[0].Type)
-	s.Equal("UDP", got.Rules[0].Conditions[0].Value)
-	s.Equal("DST-PORT", got.Rules[0].Conditions[1].Type)
-	s.Equal("443", got.Rules[0].Conditions[1].Value)
+	s.Require().Len(got.Rules[0].Children, 2)
+	s.Equal("NETWORK", got.Rules[0].Children[0].Type)
+	s.Equal("UDP", got.Rules[0].Children[0].Value)
+	s.Equal("DST-PORT", got.Rules[0].Children[1].Type)
+	s.Equal("443", got.Rules[0].Children[1].Value)
 	s.Equal("MATCH", got.Rules[1].Type)
 
 	s.T().Cleanup(func() { _, _ = s.api.SaveConfig(api.Config{}) })

@@ -2411,164 +2411,6 @@ func (s *MessageResponse) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *MihomoCondition) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *MihomoCondition) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("type")
-		e.Str(s.Type)
-	}
-	{
-		if s.Value.Set {
-			e.FieldStart("value")
-			s.Value.Encode(e)
-		}
-	}
-	{
-		if s.ProviderIdx.Set {
-			e.FieldStart("providerIdx")
-			s.ProviderIdx.Encode(e)
-		}
-	}
-	{
-		if s.Conditions != nil {
-			e.FieldStart("conditions")
-			e.ArrStart()
-			for _, elem := range s.Conditions {
-				elem.Encode(e)
-			}
-			e.ArrEnd()
-		}
-	}
-}
-
-var jsonFieldsNameOfMihomoCondition = [4]string{
-	0: "type",
-	1: "value",
-	2: "providerIdx",
-	3: "conditions",
-}
-
-// Decode decodes MihomoCondition from json.
-func (s *MihomoCondition) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode MihomoCondition to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "type":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Type = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"type\"")
-			}
-		case "value":
-			if err := func() error {
-				s.Value.Reset()
-				if err := s.Value.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"value\"")
-			}
-		case "providerIdx":
-			if err := func() error {
-				s.ProviderIdx.Reset()
-				if err := s.ProviderIdx.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"providerIdx\"")
-			}
-		case "conditions":
-			if err := func() error {
-				s.Conditions = make([]MihomoCondition, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem MihomoCondition
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.Conditions = append(s.Conditions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"conditions\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode MihomoCondition")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000001,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfMihomoCondition) {
-					name = jsonFieldsNameOfMihomoCondition[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *MihomoCondition) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *MihomoCondition) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *MihomoConfig) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -3234,14 +3076,16 @@ func (s *MihomoRule) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		e.FieldStart("target")
-		s.Target.Encode(e)
+		if s.Target.Set {
+			e.FieldStart("target")
+			s.Target.Encode(e)
+		}
 	}
 	{
-		if s.Conditions != nil {
-			e.FieldStart("conditions")
+		if s.Children != nil {
+			e.FieldStart("children")
 			e.ArrStart()
-			for _, elem := range s.Conditions {
+			for _, elem := range s.Children {
 				elem.Encode(e)
 			}
 			e.ArrEnd()
@@ -3255,7 +3099,7 @@ var jsonFieldsNameOfMihomoRule = [6]string{
 	2: "providerIdx",
 	3: "noResolve",
 	4: "target",
-	5: "conditions",
+	5: "children",
 }
 
 // Decode decodes MihomoRule from json.
@@ -3310,8 +3154,8 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"noResolve\"")
 			}
 		case "target":
-			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
+				s.Target.Reset()
 				if err := s.Target.Decode(d); err != nil {
 					return err
 				}
@@ -3319,22 +3163,22 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
 			}
-		case "conditions":
+		case "children":
 			if err := func() error {
-				s.Conditions = make([]MihomoCondition, 0)
+				s.Children = make([]MihomoRule, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem MihomoCondition
+					var elem MihomoRule
 					if err := elem.Decode(d); err != nil {
 						return err
 					}
-					s.Conditions = append(s.Conditions, elem)
+					s.Children = append(s.Children, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"conditions\"")
+				return errors.Wrap(err, "decode field \"children\"")
 			}
 		default:
 			return d.Skip()
@@ -3346,7 +3190,7 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010001,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -4544,6 +4388,39 @@ func (s OptInt64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInt64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PolicyRef as json.
+func (o OptPolicyRef) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes PolicyRef from json.
+func (o *OptPolicyRef) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPolicyRef to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPolicyRef) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPolicyRef) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

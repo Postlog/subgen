@@ -62,32 +62,16 @@ components:
         mirrorInterval:
           type: integer
 
-    # A sub-condition of a logical rule (AND/OR/NOT), recursive. It is a matcher, not a
-    # full rule: no target and no noResolve. value is the plain payload (omitted for
-    # RULE-SET and the logical types); providerIdx references a rule-provider for a
-    # RULE-SET sub-condition; conditions nests when type is itself logical.
-    MihomoCondition:
-      type: object
-      required: [type]
-      properties:
-        type:
-          type: string
-        value:
-          type: string
-        providerIdx:
-          type: integer
-        conditions:
-          type: array
-          items:
-            $ref: './common.yaml#/components/schemas/MihomoCondition'
-
-    # A routing rule. value is the plain matcher payload — optional, omitted for MATCH,
-    # RULE-SET and the logical types. For RULE-SET the rule-provider is referenced by
-    # providerIdx (index into the providers array — real ids never cross the wire), not by
-    # name in value. conditions is the sub-condition list of a logical rule (AND/OR/NOT).
+    # A routing rule — recursive: a logical rule (AND/OR/NOT) carries its sub-rules in
+    # children, every other type is a leaf. value is the plain matcher payload — optional,
+    # omitted for MATCH, RULE-SET and the logical types. For RULE-SET the rule-provider is
+    # referenced by providerIdx (index into the providers array — real ids never cross the
+    # wire). target is OPTIONAL (not required): a top-level rule has one, a sub-rule (a
+    # child of a logical rule) has none — the top-level/sub-rule distinction is validated
+    # in the service, not the schema.
     MihomoRule:
       type: object
-      required: [type, target]
+      required: [type]
       properties:
         type:
           type: string
@@ -99,10 +83,10 @@ components:
           type: boolean
         target:
           $ref: './common.yaml#/components/schemas/PolicyRef'
-        conditions:
+        children:
           type: array
           items:
-            $ref: './common.yaml#/components/schemas/MihomoCondition'
+            $ref: './common.yaml#/components/schemas/MihomoRule'
 
     # A proxy-group. interval/tolerance/lazy are optional — sent only for the types that
     # use them (interval/lazy for the health-check types, tolerance for url-test).

@@ -117,27 +117,7 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 
 	out.Rules = make([]oas.MihomoRule, 0, len(rules))
 	for _, r := range rules {
-		mr := oas.MihomoRule{Type: r.Type.String(), Target: refToView(r.Target, idx)}
-
-		if r.Value != nil {
-			mr.Value = oas.NewOptString(*r.Value)
-		}
-
-		if r.NoResolve != nil {
-			mr.NoResolve = oas.NewOptBool(*r.NoResolve)
-		}
-
-		// RULE-SET: surface the provider as its array index (real id never leaves).
-		if r.ProviderID != nil {
-			if i, ok := provIdx[*r.ProviderID]; ok {
-				mr.ProviderIdx = oas.NewOptInt(i)
-			}
-		}
-
-		// Logical rule (AND/OR/NOT): surface its sub-condition tree.
-		mr.Conditions = conditionsToView(r.Conditions, provIdx)
-
-		out.Rules = append(out.Rules, mr)
+		out.Rules = append(out.Rules, ruleToView(r, idx, provIdx))
 	}
 
 	out.Providers = make([]oas.MihomoProvider, 0, len(rps))
@@ -162,33 +142,36 @@ func (h *Handler) resolveConfigID(ctx context.Context, params oas.ConfigGetParam
 	return h.configs.UserConfigID(ctx, params.User.Value, entity.ConfigKindMihomo)
 }
 
-// conditionsToView converts a logical rule's stored sub-conditions to the wire shape,
-// recursively. A RULE-SET sub-condition's provider id becomes its array index (real ids
-// never leave). Empty input (a non-logical rule) maps to nil.
-func conditionsToView(conds []mihomo.RuleCondition, provIdx map[int64]int) []oas.MihomoCondition {
-	if len(conds) == 0 {
-		return nil
+// ruleToView converts a stored RoutingRule to the wire shape, recursively (a logical
+// rule's sub-rules in children). A top-level rule carries its target; a sub-rule (Target
+// nil) has none. A RULE-SET's provider id becomes its array index (real ids never leave);
+// idx maps a group id to its array index for the target.
+func ruleToView(r mihomo.RoutingRule, idx, provIdx map[int64]int) oas.MihomoRule {
+	mr := oas.MihomoRule{Type: r.Type.String()}
+
+	if r.Target != nil {
+		mr.Target = oas.NewOptPolicyRef(refToView(*r.Target, idx))
 	}
 
-	out := make([]oas.MihomoCondition, 0, len(conds))
-	for _, c := range conds {
-		mc := oas.MihomoCondition{Type: c.Type.String()}
-
-		if c.Value != nil {
-			mc.Value = oas.NewOptString(*c.Value)
-		}
-
-		if c.ProviderID != nil {
-			if i, ok := provIdx[*c.ProviderID]; ok {
-				mc.ProviderIdx = oas.NewOptInt(i)
-			}
-		}
-
-		mc.Conditions = conditionsToView(c.Conditions, provIdx)
-		out = append(out, mc)
+	if r.Value != nil {
+		mr.Value = oas.NewOptString(*r.Value)
 	}
 
-	return out
+	if r.NoResolve != nil {
+		mr.NoResolve = oas.NewOptBool(*r.NoResolve)
+	}
+
+	if r.ProviderID != nil {
+		if i, ok := provIdx[*r.ProviderID]; ok {
+			mr.ProviderIdx = oas.NewOptInt(i)
+		}
+	}
+
+	for _, c := range r.Children {
+		mr.Children = append(mr.Children, ruleToView(c, idx, provIdx))
+	}
+
+	return mr
 }
 
 // refToView converts a stored PolicyRef to the wire shape: an inbound ref carries the

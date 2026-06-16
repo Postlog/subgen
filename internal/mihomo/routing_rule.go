@@ -37,9 +37,9 @@ const (
 	RuleRuleSet          RuleType = "RULE-SET"
 	RuleMatch            RuleType = "MATCH"
 
-	// Logical rules: their payload is a parenthesised list of sub-conditions
-	// (RoutingRule.Conditions / RuleCondition), not a plain value. NOT takes exactly
-	// one condition; AND/OR take two or more.
+	// Logical rules: their payload is a parenthesised list of sub-rules
+	// (RoutingRule.Children — the same recursive type), not a plain value. NOT takes
+	// exactly one sub-rule; AND/OR take two or more.
 	RuleAnd RuleType = "AND"
 	RuleOr  RuleType = "OR"
 	RuleNot RuleType = "NOT"
@@ -118,16 +118,18 @@ func (t RuleType) SupportsNoResolve() bool { return ruleTypes[t].SupportsNoResol
 // String returns the wire value (used as the rule line's first field).
 func (t RuleType) String() string { return string(t) }
 
-// RoutingRule is one ordered mihomo rule with a typed target (PolicyRef). Value is the
-// plain matcher payload — optional (pointer): nil for RULE-SET and MATCH, set for every
-// other type. NoResolve is the optional no-resolve option (pointer; nil/false = off).
-// ProviderID is the rule-provider this rule points at by id (RULE-SET only); nil for
-// every other type. The provider name is resolved from the id at render — the rule never
-// carries the name as a string (that was the old dirty Value overload).
+// RoutingRule is one mihomo rule. It is recursive: a logical rule (Type AND/OR/NOT)
+// carries its sub-rules in Children (rendered as TYPE,((c1),(c2),…)); every other type is
+// a leaf with Children empty. Value is the plain matcher payload — optional (pointer): nil
+// for RULE-SET, MATCH and the logical types, set for every other type. ProviderID is the
+// rule-provider this rule points at by id (RULE-SET only). NoResolve is the optional
+// no-resolve option (pointer; nil/false = off); only a top-level rule carries it.
 //
-// Conditions is the sub-condition list of a logical rule (Type AND/OR/NOT); empty for
-// every other type. A logical rule carries no Value/ProviderID/NoResolve — its matcher
-// is the conditions, rendered as TYPE,((c1),(c2),…).
+// Target is the typed routing target — a pointer because it is OPTIONAL: a top-level rule
+// always has one, but a Child (a sub-rule of a logical rule) has none (it is a matcher,
+// not a routing decision). A child also carries no no-resolve — mihomo parses sub-rules
+// without params (rules/logic: ParseRulePayload with parseParams=false). The same type
+// describes a rule and a sub-rule; the difference is the absent Target, fixed by validation.
 type RoutingRule struct {
 	ID         int64
 	Position   int
@@ -135,20 +137,6 @@ type RoutingRule struct {
 	Value      *string
 	ProviderID *int64
 	NoResolve  *bool
-	Target     PolicyRef
-	Conditions []RuleCondition
-}
-
-// RuleCondition is one matcher inside a logical rule (AND/OR/NOT). It is a sub-condition,
-// not a full rule: it carries no target and no no-resolve — mihomo parses sub-conditions
-// without params, so no-resolve is meaningless here (rules/logic: ParseRulePayload with
-// parseParams=false). Type is the matcher (any simple matcher, RULE-SET, or a nested
-// logical type); Value is the plain payload (nil for RULE-SET and logical types);
-// ProviderID is the rule-provider id for a RULE-SET condition (nil otherwise); Conditions
-// is the nested sub-condition list when Type is itself logical (empty otherwise).
-type RuleCondition struct {
-	Type       RuleType
-	Value      *string
-	ProviderID *int64
-	Conditions []RuleCondition
+	Target     *PolicyRef
+	Children   []RoutingRule
 }

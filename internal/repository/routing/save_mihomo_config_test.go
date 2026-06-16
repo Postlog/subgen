@@ -45,11 +45,11 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		rules := []mihomo.RuleDraft{
 			{
 				Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("example.com"),
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Force.ID)},
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Force.ID)},
 			},
 			{
 				Type:   mihomo.RuleMatch,
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)},
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)},
 			}, // index of "top"
 		}
 
@@ -210,14 +210,14 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		// read it must resolve to the persisted provider id, and the tree must round-trip.
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "http://x"}}
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleAnd, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}, Conditions: []mihomo.ConditionDraft{
+			{Type: mihomo.RuleAnd, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}, Children: []mihomo.RuleDraft{
 				{Type: mihomo.RuleNetwork, Value: dbtest.Ptr("UDP")},
-				{Type: mihomo.RuleOr, Conditions: []mihomo.ConditionDraft{
+				{Type: mihomo.RuleOr, Children: []mihomo.RuleDraft{
 					{Type: mihomo.RuleDstPort, Value: dbtest.Ptr("443")},
 					{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0)},
 				}},
 			}},
-			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
 		}
 
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(rules, nil, provs, "mode: rule",
@@ -233,39 +233,40 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 
 		and := gotRules[0]
 		assert.Equal(t, mihomo.RuleAnd, and.Type)
-		require.Len(t, and.Conditions, 2)
+		require.Len(t, and.Children, 2)
 
-		assert.Equal(t, mihomo.RuleNetwork, and.Conditions[0].Type)
-		require.NotNil(t, and.Conditions[0].Value)
-		assert.Equal(t, "UDP", *and.Conditions[0].Value)
+		assert.Equal(t, mihomo.RuleNetwork, and.Children[0].Type)
+		require.NotNil(t, and.Children[0].Value)
+		assert.Equal(t, "UDP", *and.Children[0].Value)
 
-		or := and.Conditions[1]
+		or := and.Children[1]
 		assert.Equal(t, mihomo.RuleOr, or.Type)
-		require.Len(t, or.Conditions, 2)
+		require.Len(t, or.Children, 2)
 
-		assert.Equal(t, mihomo.RuleDstPort, or.Conditions[0].Type)
-		require.NotNil(t, or.Conditions[0].Value)
-		assert.Equal(t, "443", *or.Conditions[0].Value)
+		assert.Equal(t, mihomo.RuleDstPort, or.Children[0].Type)
+		require.NotNil(t, or.Children[0].Value)
+		assert.Equal(t, "443", *or.Children[0].Value)
 
 		// The nested RULE-SET sub-condition resolves to the persisted provider id.
-		rs := or.Conditions[1]
+		rs := or.Children[1]
 		assert.Equal(t, mihomo.RuleRuleSet, rs.Type)
 		require.NotNil(t, rs.ProviderID)
 		assert.Equal(t, gotRPs[0].ID, *rs.ProviderID)
 
 		assert.Equal(t, mihomo.RuleMatch, gotRules[1].Type)
-		assert.Empty(t, gotRules[1].Conditions)
+		assert.Empty(t, gotRules[1].Children)
 
-		// A second save fully replaces the tree — the old conditions cascade away with the
-		// old rules (rule_id FK), leaving no orphans.
+		// A second save fully replaces the tree — the old sub-rules are deleted with the
+		// config's rows (all carry config_id), leaving no orphaned children (parent_id set).
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
-			[]mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
+			[]mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
 			nil, nil, "mode: rule", mihomo.Profile{Title: "T", Filename: "t.yaml", UpdateInterval: 1},
 		)))
 
-		var conds int
-		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM mihomo_rule_conditions`).Scan(&conds))
-		assert.Zero(t, conds)
+		var children int
+		require.NoError(t, db.QueryRowContext(t.Context(),
+			`SELECT COUNT(*) FROM mihomo_routing_rules WHERE parent_id IS NOT NULL`).Scan(&children))
+		assert.Zero(t, children)
 	})
 
 	t.Run("error.group_index_out_of_range", func(t *testing.T) {
@@ -279,7 +280,7 @@ func TestRepository_SaveMihomoConfig(t *testing.T) {
 		err := repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(
 			[]mihomo.RuleDraft{{
 				Type:   mihomo.RuleMatch,
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(5)},
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(5)},
 			}},
 			nil, nil, "", mihomo.Profile{},
 		))

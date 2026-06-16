@@ -743,54 +743,6 @@ func (s *MessageResponseHeaders) SetResponse(val MessageResponse) {
 
 func (*MessageResponseHeaders) loginRes() {}
 
-// Ref: #/components/schemas/MihomoCondition
-type MihomoCondition struct {
-	Type        string            `json:"type"`
-	Value       OptString         `json:"value"`
-	ProviderIdx OptInt            `json:"providerIdx"`
-	Conditions  []MihomoCondition `json:"conditions"`
-}
-
-// GetType returns the value of Type.
-func (s *MihomoCondition) GetType() string {
-	return s.Type
-}
-
-// GetValue returns the value of Value.
-func (s *MihomoCondition) GetValue() OptString {
-	return s.Value
-}
-
-// GetProviderIdx returns the value of ProviderIdx.
-func (s *MihomoCondition) GetProviderIdx() OptInt {
-	return s.ProviderIdx
-}
-
-// GetConditions returns the value of Conditions.
-func (s *MihomoCondition) GetConditions() []MihomoCondition {
-	return s.Conditions
-}
-
-// SetType sets the value of Type.
-func (s *MihomoCondition) SetType(val string) {
-	s.Type = val
-}
-
-// SetValue sets the value of Value.
-func (s *MihomoCondition) SetValue(val OptString) {
-	s.Value = val
-}
-
-// SetProviderIdx sets the value of ProviderIdx.
-func (s *MihomoCondition) SetProviderIdx(val OptInt) {
-	s.ProviderIdx = val
-}
-
-// SetConditions sets the value of Conditions.
-func (s *MihomoCondition) SetConditions(val []MihomoCondition) {
-	s.Conditions = val
-}
-
 // Ref: #/components/schemas/MihomoConfig
 type MihomoConfig struct {
 	Groups                []MihomoGroup    `json:"groups"`
@@ -1038,12 +990,12 @@ func (s *MihomoProvider) SetMirrorInterval(val int) {
 
 // Ref: #/components/schemas/MihomoRule
 type MihomoRule struct {
-	Type        string            `json:"type"`
-	Value       OptString         `json:"value"`
-	ProviderIdx OptInt            `json:"providerIdx"`
-	NoResolve   OptBool           `json:"noResolve"`
-	Target      PolicyRef         `json:"target"`
-	Conditions  []MihomoCondition `json:"conditions"`
+	Type        string       `json:"type"`
+	Value       OptString    `json:"value"`
+	ProviderIdx OptInt       `json:"providerIdx"`
+	NoResolve   OptBool      `json:"noResolve"`
+	Target      OptPolicyRef `json:"target"`
+	Children    []MihomoRule `json:"children"`
 }
 
 // GetType returns the value of Type.
@@ -1067,13 +1019,13 @@ func (s *MihomoRule) GetNoResolve() OptBool {
 }
 
 // GetTarget returns the value of Target.
-func (s *MihomoRule) GetTarget() PolicyRef {
+func (s *MihomoRule) GetTarget() OptPolicyRef {
 	return s.Target
 }
 
-// GetConditions returns the value of Conditions.
-func (s *MihomoRule) GetConditions() []MihomoCondition {
-	return s.Conditions
+// GetChildren returns the value of Children.
+func (s *MihomoRule) GetChildren() []MihomoRule {
+	return s.Children
 }
 
 // SetType sets the value of Type.
@@ -1097,13 +1049,13 @@ func (s *MihomoRule) SetNoResolve(val OptBool) {
 }
 
 // SetTarget sets the value of Target.
-func (s *MihomoRule) SetTarget(val PolicyRef) {
+func (s *MihomoRule) SetTarget(val OptPolicyRef) {
 	s.Target = val
 }
 
-// SetConditions sets the value of Conditions.
-func (s *MihomoRule) SetConditions(val []MihomoCondition) {
-	s.Conditions = val
+// SetChildren sets the value of Children.
+func (s *MihomoRule) SetChildren(val []MihomoRule) {
+	s.Children = val
 }
 
 type NodeDeleteBadRequest ErrorResponse
@@ -1512,6 +1464,52 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyRef returns new OptPolicyRef with value set to v.
+func NewOptPolicyRef(v PolicyRef) OptPolicyRef {
+	return OptPolicyRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyRef is optional PolicyRef.
+type OptPolicyRef struct {
+	Value PolicyRef
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyRef was set.
+func (o OptPolicyRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyRef) Reset() {
+	var v PolicyRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyRef) SetTo(v PolicyRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyRef) Get() (v PolicyRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyRef) Or(d PolicyRef) PolicyRef {
 	if v, ok := o.Get(); ok {
 		return v
 	}

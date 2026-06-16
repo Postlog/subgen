@@ -22,7 +22,14 @@ func buildRules(rules []mihomo.RoutingRule, res entityNameResolver) []string {
 	out := make([]string, 0, len(rules))
 
 	for _, rule := range rules {
-		target, ok := res.resolve(rule.Target)
+		// Only top-level rules are iterated here; a top-level rule always has a target
+		// (validation guarantees it). A nil target is stored corruption — drop and log.
+		if rule.Target == nil {
+			slog.Error("render: top-level rule has no target", "subID", res.subID, "ruleType", rule.Type.String())
+			continue
+		}
+
+		target, ok := res.resolve(*rule.Target)
 		if !ok {
 			if rule.Target.Kind != mihomo.PolicyInbound {
 				slog.Error("render: rule target did not resolve",
@@ -32,7 +39,7 @@ func buildRules(rules []mihomo.RoutingRule, res entityNameResolver) []string {
 			continue
 		}
 
-		matcher, ok := renderMatcher(rule.Type, rule.Value, rule.ProviderID, rule.Conditions, res)
+		matcher, ok := renderMatcher(rule, res)
 		if !ok {
 			continue // a RULE-SET provider did not resolve (logged inside) → drop the rule
 		}
@@ -48,20 +55,20 @@ func buildRules(rules []mihomo.RoutingRule, res entityNameResolver) []string {
 	return out
 }
 
-// renderMatcher renders a rule's (or a sub-condition's) matcher WITHOUT the target:
-// "MATCH" for the catch-all, "TYPE,VALUE" for a plain matcher, "RULE-SET,<name>" for a
-// rule-set (name resolved from the provider id), and "TYPE,((c1),(c2),…)" for a logical
-// type — each child wrapped in its own parentheses (mihomo's nested-condition syntax).
-// It returns false only when a RULE-SET's provider id does not resolve (a stored-config
-// error, logged) so the whole rule is dropped. Sub-conditions never reference per-client
-// inbounds (they are matchers, not policy targets), so they cause no per-subscriber drop.
-func renderMatcher(typ mihomo.RuleType, value *string, providerID *int64, conds []mihomo.RuleCondition, res entityNameResolver) (string, bool) {
+// renderMatcher renders a rule's (or a sub-rule's) matcher WITHOUT the target: "MATCH"
+// for the catch-all, "TYPE,VALUE" for a plain matcher, "RULE-SET,<name>" for a rule-set
+// (name resolved from the provider id), and "TYPE,((c1),(c2),…)" for a logical type —
+// each child wrapped in its own parentheses (mihomo's nested-rule syntax). It returns
+// false only when a RULE-SET's provider id does not resolve (a stored-config error,
+// logged) so the whole rule is dropped. Sub-rules never reference per-client inbounds
+// (they are matchers, not policy targets), so they cause no per-subscriber drop.
+func renderMatcher(r mihomo.RoutingRule, res entityNameResolver) (string, bool) {
 	switch {
-	case typ.IsLogical():
-		parts := make([]string, 0, len(conds))
+	case r.Type.IsLogical():
+		parts := make([]string, 0, len(r.Children))
 
-		for _, c := range conds {
-			s, ok := renderMatcher(c.Type, c.Value, c.ProviderID, c.Conditions, res)
+		for _, c := range r.Children {
+			s, ok := renderMatcher(c, res)
 			if !ok {
 				return "", false
 			}
@@ -69,23 +76,23 @@ func renderMatcher(typ mihomo.RuleType, value *string, providerID *int64, conds 
 			parts = append(parts, "("+s+")")
 		}
 
-		return typ.String() + ",(" + strings.Join(parts, ",") + ")", true
-	case typ.TakesProvider(): // RULE-SET: payload is the provider name (from id)
-		if providerID == nil {
-			slog.Error("render: RULE-SET has no provider id", "subID", res.subID, "ruleType", typ.String())
+		return r.Type.String() + ",(" + strings.Join(parts, ",") + ")", true
+	case r.Type.TakesProvider(): // RULE-SET: payload is the provider name (from id)
+		if r.ProviderID == nil {
+			slog.Error("render: RULE-SET has no provider id", "subID", res.subID, "ruleType", r.Type.String())
 			return "", false
 		}
 
-		name, ok := res.providerName[*providerID]
+		name, ok := res.providerName[*r.ProviderID]
 		if !ok {
-			slog.Error("render: RULE-SET provider id did not resolve", "subID", res.subID, "providerID", *providerID)
+			slog.Error("render: RULE-SET provider id did not resolve", "subID", res.subID, "providerID", *r.ProviderID)
 			return "", false
 		}
 
-		return typ.String() + "," + name, true
-	case value != nil:
-		return typ.String() + "," + *value, true
+		return r.Type.String() + "," + name, true
+	case r.Value != nil:
+		return r.Type.String() + "," + *r.Value, true
 	default: // MATCH (no payload)
-		return typ.String(), true
+		return r.Type.String(), true
 	}
 }

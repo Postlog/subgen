@@ -47,14 +47,14 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 			}},
 		}
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
 			// A logical rule with a nested RULE-SET sub-condition: its condition tree (with
 			// rule/parent/provider refs) must be cloned and remapped to the clone's ids.
-			{Type: mihomo.RuleAnd, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}, Conditions: []mihomo.ConditionDraft{
+			{Type: mihomo.RuleAnd, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}, Children: []mihomo.RuleDraft{
 				{Type: mihomo.RuleNetwork, Value: dbtest.Ptr("UDP")},
 				{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0)},
 			}},
-			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}},
+			{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(1)}},
 		}
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "yaml", URL: "http://ads"}}
 		require.NoError(t, rt.SaveMihomoConfig(t.Context(), baseID, dbtest.Draft(rules, groups, provs, "dns: {}",
@@ -94,11 +94,11 @@ func TestRepository_CreateUserConfig(t *testing.T) {
 		// Logical rule cloned: the condition tree round-trips, and the nested RULE-SET
 		// sub-condition's provider_id is remapped to the clone's provider.
 		assert.Equal(t, mihomo.RuleAnd, gotRules[1].Type)
-		require.Len(t, gotRules[1].Conditions, 2)
-		assert.Equal(t, mihomo.RuleNetwork, gotRules[1].Conditions[0].Type)
-		assert.Equal(t, mihomo.RuleRuleSet, gotRules[1].Conditions[1].Type)
-		require.NotNil(t, gotRules[1].Conditions[1].ProviderID)
-		assert.Equal(t, gotProvs[0].ID, *gotRules[1].Conditions[1].ProviderID)
+		require.Len(t, gotRules[1].Children, 2)
+		assert.Equal(t, mihomo.RuleNetwork, gotRules[1].Children[0].Type)
+		assert.Equal(t, mihomo.RuleRuleSet, gotRules[1].Children[1].Type)
+		require.NotNil(t, gotRules[1].Children[1].ProviderID)
+		assert.Equal(t, gotProvs[0].ID, *gotRules[1].Children[1].ProviderID)
 		// MATCH cloned: group target remapped to the clone's "top".
 		require.NotNil(t, gotRules[2].Target.GroupID)
 		assert.Equal(t, gotGroups[1].ID, *gotRules[2].Target.GroupID)

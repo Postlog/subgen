@@ -23,7 +23,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 	// leaves the save scope as the base; >0 sets the per-user scope.
 	validReq := func(userID int64) *oas.ConfigSaveReq {
 		req := &oas.ConfigSaveReq{
-			Rules:                 []oas.MihomoRule{{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}}},
+			Rules:                 []oas.MihomoRule{{Type: "MATCH", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"})}},
 			Groups:                []oas.MihomoGroup{},
 			Providers:             []oas.MihomoProvider{},
 			ProfileTitle:          "My VPN",
@@ -40,7 +40,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 	// The validated config as the saver receives it (a ConfigDraft: group/provider refs
 	// carried as array indices; empty groups/providers are empty non-nil slices).
 	wantDraft := mihomo.ConfigDraft{
-		Rules:     []mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
+		Rules:     []mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
 		Groups:    []mihomo.GroupDraft{},
 		Providers: []mihomo.RuleProvider{},
 		Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
@@ -75,11 +75,11 @@ func TestHandler_ConfigSave(t *testing.T) {
 			name: "success.logical",
 			req: &oas.ConfigSaveReq{
 				Rules: []oas.MihomoRule{
-					{Type: "AND", Target: oas.PolicyRef{Kind: "reject-drop"}, Conditions: []oas.MihomoCondition{
+					{Type: "AND", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "reject-drop"}), Children: []oas.MihomoRule{
 						{Type: "NETWORK", Value: oas.NewOptString("UDP")},
 						{Type: "DST-PORT", Value: oas.NewOptString("443")},
 					}},
-					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
+					{Type: "MATCH", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"})},
 				},
 				Groups:                []oas.MihomoGroup{},
 				Providers:             []oas.MihomoProvider{},
@@ -93,11 +93,11 @@ func TestHandler_ConfigSave(t *testing.T) {
 			buildRoutingMock: func(m *MockmihomoSaver) {
 				m.EXPECT().SaveMihomoConfig(gomock.Any(), int64(3), mihomo.ConfigDraft{
 					Rules: []mihomo.RuleDraft{
-						{Type: mihomo.RuleAnd, Target: mihomo.RefDraft{Kind: mihomo.PolicyRejectDrop}, Conditions: []mihomo.ConditionDraft{
+						{Type: mihomo.RuleAnd, Target: &mihomo.RefDraft{Kind: mihomo.PolicyRejectDrop}, Children: []mihomo.RuleDraft{
 							{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
 							{Type: mihomo.RuleDstPort, Value: utils.Ptr("443")},
 						}},
-						{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+						{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
 					},
 					Groups:    []mihomo.GroupDraft{},
 					Providers: []mihomo.RuleProvider{},
@@ -112,10 +112,10 @@ func TestHandler_ConfigSave(t *testing.T) {
 			name: "error.logical_arity",
 			req: &oas.ConfigSaveReq{
 				Rules: []oas.MihomoRule{
-					{Type: "AND", Target: oas.PolicyRef{Kind: "direct"}, Conditions: []oas.MihomoCondition{
+					{Type: "AND", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"}), Children: []oas.MihomoRule{
 						{Type: "NETWORK", Value: oas.NewOptString("UDP")},
 					}},
-					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
+					{Type: "MATCH", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"})},
 				},
 				Groups:                []oas.MihomoGroup{},
 				Providers:             []oas.MihomoProvider{},
@@ -130,8 +130,8 @@ func TestHandler_ConfigSave(t *testing.T) {
 			req: &oas.ConfigSaveReq{
 				// MATCH not last → validation fails before any scope is resolved.
 				Rules: []oas.MihomoRule{
-					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
-					{Type: "DOMAIN", Value: oas.NewOptString("example.com"), Target: oas.PolicyRef{Kind: "direct"}},
+					{Type: "MATCH", Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"})},
+					{Type: "DOMAIN", Value: oas.NewOptString("example.com"), Target: oas.NewOptPolicyRef(oas.PolicyRef{Kind: "direct"})},
 				},
 				Groups:    []oas.MihomoGroup{},
 				Providers: []oas.MihomoProvider{},

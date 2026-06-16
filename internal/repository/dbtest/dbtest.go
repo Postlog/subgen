@@ -132,7 +132,7 @@ func Draft(rules []mihomo.RuleDraft, groups []mihomo.GroupDraft, provs []mihomo.
 func RuleToInbound(inboundID int64) mihomo.RuleDraft {
 	return mihomo.RuleDraft{
 		Type:   mihomo.RuleMatch,
-		Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)},
+		Target: &mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: Ptr(inboundID)},
 	}
 }
 

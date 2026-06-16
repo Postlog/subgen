@@ -50,9 +50,9 @@ func TestDecodeConfig(t *testing.T) {
 					}},
 				},
 				Rules: []RuleDraft{
-					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
-					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
-					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
+					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: &RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: &RefDraft{Kind: PolicyDirect}},
+					{Type: RuleMatch, Target: &RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
 				},
 				Providers: []RuleProvider{{Name: "allow", Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},
@@ -65,9 +65,9 @@ func TestDecodeConfig(t *testing.T) {
 			body: `{
 				"providers": [{"name":"ads","behavior":"domain","format":"mrs","url":"https://x"}],
 				"rules": [
-					{"type":"AND","target":{"kind":"reject-drop"},"conditions":[
+					{"type":"AND","target":{"kind":"reject-drop"},"children":[
 						{"type":"NETWORK","value":"UDP"},
-						{"type":"OR","conditions":[
+						{"type":"OR","children":[
 							{"type":"DST-PORT","value":"443"},
 							{"type":"RULE-SET","providerIdx":0}
 						]}
@@ -77,9 +77,9 @@ func TestDecodeConfig(t *testing.T) {
 			want: ConfigDraft{
 				Groups: []GroupDraft{},
 				Rules: []RuleDraft{
-					{Type: RuleAnd, Target: RefDraft{Kind: PolicyRejectDrop}, Conditions: []ConditionDraft{
+					{Type: RuleAnd, Target: &RefDraft{Kind: PolicyRejectDrop}, Children: []RuleDraft{
 						{Type: RuleNetwork, Value: utils.Ptr("UDP")},
-						{Type: RuleOr, Conditions: []ConditionDraft{
+						{Type: RuleOr, Children: []RuleDraft{
 							{Type: RuleDstPort, Value: utils.Ptr("443")},
 							{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0)},
 						}},

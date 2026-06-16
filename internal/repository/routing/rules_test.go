@@ -40,14 +40,22 @@ func TestRepository_Rules(t *testing.T) {
 		}
 		// Saved in this slice order; positions 0..3 must come back in the same order.
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: dbtest.Ptr(true),
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("ex.com"),
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)}},
-			{Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"),
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)}},
-			{Type: mihomo.RuleMatch,
-				Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
+			{
+				Type: mihomo.RuleIPCIDR, Value: dbtest.Ptr("10.0.0.0/8"), NoResolve: dbtest.Ptr(true),
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect},
+			},
+			{
+				Type: mihomo.RuleDomainSuffix, Value: dbtest.Ptr("ex.com"),
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyInbound, InboundID: dbtest.Ptr(seed.Smart.ID)},
+			},
+			{
+				Type: mihomo.RuleGeoIP, Value: dbtest.Ptr("CN"),
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyGroup, GroupIdx: dbtest.Ptr(0)},
+			},
+			{
+				Type:   mihomo.RuleMatch,
+				Target: &mihomo.RefDraft{Kind: mihomo.PolicyReject},
+			},
 		}
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(rules, groups, nil, "", mihomo.Profile{})))
 
@@ -99,8 +107,8 @@ func TestRepository_Rules(t *testing.T) {
 		// A RULE-SET rule references provider index 0 (no value); a MATCH has no provider.
 		provs := []mihomo.RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "http://ads"}}
 		rules := []mihomo.RuleDraft{
-			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyReject}},
+			{Type: mihomo.RuleRuleSet, ProviderIdx: dbtest.Ptr(0), Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyReject}},
 		}
 		require.NoError(t, repo.SaveMihomoConfig(t.Context(), cfg, dbtest.Draft(rules, nil, provs, "", mihomo.Profile{})))
 

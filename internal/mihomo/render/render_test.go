@@ -36,11 +36,11 @@ func fullOptions() Options {
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleGeoIP, Value: utils.Ptr("private"), NoResolve: utils.Ptr(true), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
-			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
+			{Type: mihomo.RuleGeoIP, Value: utils.Ptr("private"), NoResolve: utils.Ptr(true), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
 			// inbound 999: the subscriber lacks it → the rule is dropped (target unresolved).
-			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](999)}},
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
+			{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](7), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](999)}},
+			{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
 		Providers: []mihomo.RuleProvider{
 			{ID: 7, Name: "allow", Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
@@ -160,9 +160,9 @@ func partialOptions() Options {
 			}},
 		},
 		Rules: []mihomo.RoutingRule{
-			{Type: mihomo.RuleDomainSuffix, Value: utils.Ptr("skip.example"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
-			{Type: mihomo.RuleDomain, Value: utils.Ptr("x.com"), Target: mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)}},
-			{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
+			{Type: mihomo.RuleDomainSuffix, Value: utils.Ptr("skip.example"), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](30)}},
+			{Type: mihomo.RuleDomain, Value: utils.Ptr("x.com"), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)}},
+			{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
 	}
 }
@@ -249,8 +249,8 @@ rules:
 			opts: Options{
 				BaseYAML: "mode: rule",
 				Rules: []mihomo.RoutingRule{
-					{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](99), Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
-					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+					{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](99), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+					{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 				},
 			},
 			wantYAML: `
@@ -273,21 +273,21 @@ rules:
 					{ID: 5, Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://up/ads.mrs", Interval: 3600},
 				},
 				Rules: []mihomo.RoutingRule{
-					{Type: mihomo.RuleAnd, Target: mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Conditions: []mihomo.RuleCondition{
+					{Type: mihomo.RuleAnd, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Children: []mihomo.RoutingRule{
 						{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
 						{Type: mihomo.RuleDstPort, Value: utils.Ptr("443")},
 					}},
-					{Type: mihomo.RuleOr, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}, Conditions: []mihomo.RuleCondition{
-						{Type: mihomo.RuleAnd, Conditions: []mihomo.RuleCondition{
+					{Type: mihomo.RuleOr, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}, Children: []mihomo.RoutingRule{
+						{Type: mihomo.RuleAnd, Children: []mihomo.RoutingRule{
 							{Type: mihomo.RuleDomainKeyword, Value: utils.Ptr("ad")},
 							{Type: mihomo.RuleNetwork, Value: utils.Ptr("tcp")},
 						}},
 						{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](5)},
 					}},
-					{Type: mihomo.RuleNot, Target: mihomo.PolicyRef{Kind: mihomo.PolicyReject}, Conditions: []mihomo.RuleCondition{
+					{Type: mihomo.RuleNot, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyReject}, Children: []mihomo.RoutingRule{
 						{Type: mihomo.RuleDomainSuffix, Value: utils.Ptr("ok.com")},
 					}},
-					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+					{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 				},
 			},
 			wantYAML: `

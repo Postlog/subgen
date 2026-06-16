@@ -179,12 +179,12 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 }
 
 // cloneRules copies the config's routing rules — recursive: top-level rules and their
-// sub-rules live in one table via parent_id — remapping config_id to dst, parent_id to the
-// cloned rules, target_group_id to the cloned groups, and a RULE-SET's provider_id to the
-// cloned providers. Rows are read ordered by id: a parent always precedes its children (it
-// is inserted before its sub-rules, so its id is smaller), so the running old→new id map is
-// populated before any child needs its parent. Per-row insert (a child's parent_id is the
-// parent's new autoincrement id); configs are tiny, so the round-trips are immaterial.
+// sub-rules live in one table via parent_id — in ONE batched INSERT, remapping config_id
+// to dst, parent_id to the cloned rules, target_group_id to the cloned groups, and a
+// RULE-SET's provider_id to the cloned providers. Source rows are read ordered by id: a
+// parent always precedes its children (a parent's id is smaller — see insertRules), so the
+// pre-assigned new ids (from MAX(id), like insertRules) are mapped parent-before-child and
+// every parent_id remap resolves.
 func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provMap map[int64]int64) error {
 	type rule struct {
 		id         int64
@@ -225,15 +225,23 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 
 	rows.Close()
 
-	idMap := map[int64]int64{} // old rule id -> new rule id (for parent_id remap)
+	base, err := maxRuleID(ctx, tx)
+	if err != nil {
+		return err
+	}
 
-	for _, ru := range rules {
+	idMap := make(map[int64]int64, len(rules)) // old rule id -> new (pre-assigned) rule id
+
+	ruleRows := make([][]any, len(rules))
+
+	for i, ru := range rules {
+		newID := base + int64(i) + 1
+		idMap[ru.id] = newID
+
 		var parent, kind, inbound, group, provider any
 
 		if ru.parentID.Valid {
-			if mapped, ok := idMap[ru.parentID.V]; ok {
-				parent = mapped
-			}
+			parent = idMap[ru.parentID.V] // parent has a smaller id → already mapped
 		}
 
 		if ru.kind.Valid {
@@ -256,24 +264,12 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 			}
 		}
 
-		res, err := tx.ExecContext(ctx,
-			`INSERT INTO mihomo_routing_rules
-			   (config_id,parent_id,position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id)
-			 VALUES(?,?,?,?,?,?,?,?,?,?)`,
-			dst, parent, ru.position, ru.typ, ru.value, provider, ru.noResolve, kind, inbound, group)
-		if err != nil {
-			return err
-		}
-
-		newID, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-
-		idMap[ru.id] = newID
+		ruleRows[i] = []any{newID, dst, parent, ru.position, ru.typ, ru.value, provider, ru.noResolve, kind, inbound, group}
 	}
 
-	return nil
+	return batchInsert(ctx, tx, "mihomo_routing_rules",
+		[]string{"id", "config_id", "parent_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"},
+		ruleRows)
 }
 
 // cloneProviders copies the rule-providers (one batched INSERT) under the new config_id

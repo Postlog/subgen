@@ -71,7 +71,10 @@ func (r RuleDraft) Valid() error {
 
 	switch {
 	case r.Type.IsLogical():
-		if r.Value != nil || r.ProviderIdx != nil || r.NoResolve != nil {
+		// A logical rule carries no value/provider. A meaningful (true) no-resolve is
+		// caught by the SupportsNoResolve check below; an explicit false is harmless
+		// (clients may send noResolve:false unconditionally), so it is NOT rejected here.
+		if r.Value != nil || r.ProviderIdx != nil {
 			return ErrRulePayloadNotAllowed
 		}
 	case r.Type.IsMatch():

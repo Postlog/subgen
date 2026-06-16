@@ -97,13 +97,15 @@ func validateRule(r RuleDraft, top bool, numGroups, numProviders int) error {
 	}
 
 	// A sub-rule is a matcher, not a routing decision: MATCH is top-level only, and a
-	// sub-rule carries no no-resolve (mihomo does not parse sub-rule params).
+	// sub-rule carries no no-resolve (mihomo does not parse sub-rule params). Only a
+	// meaningful (true) no-resolve is rejected — an explicit false is harmless (clients
+	// may send noResolve:false unconditionally).
 	if !top {
 		if r.Type.IsMatch() {
 			return ErrMatchChild
 		}
 
-		if r.NoResolve != nil {
+		if r.NoResolve != nil && *r.NoResolve {
 			return ErrNoResolveUnsupported
 		}
 	}

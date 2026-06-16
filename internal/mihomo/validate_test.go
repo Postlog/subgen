@@ -195,6 +195,28 @@ func TestValidateRoutingRules(t *testing.T) {
 			err: ErrRuleValueRequired,
 		},
 		{
+			// A client may send noResolve:false unconditionally (no omitempty); an explicit
+			// false on a logical rule is harmless and must NOT be rejected.
+			name: "success.logical_explicit_false_no_resolve",
+			rules: []RuleDraft{
+				{Type: RuleAnd, NoResolve: utils.Ptr(false), Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+		},
+		{
+			// A meaningful (true) no-resolve on a sub-rule is rejected — sub-rules carry no params.
+			name: "error.child_true_no_resolve",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleIPCIDR, Value: utils.Ptr("1.1.1.1/32"), NoResolve: utils.Ptr(true)},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrNoResolveUnsupported,
+		},
+		{
 			// A top-level rule must carry a target (a sub-rule's nil-target shape is invalid here).
 			name:  "error.target_required",
 			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com")}},

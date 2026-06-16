@@ -27,6 +27,12 @@ var (
 	ErrNoResolveUnsupported  = errors.New("rule type does not support no-resolve")
 	ErrProviderRefRange      = errors.New("RULE-SET references a non-existent provider")
 
+	// Logical rules (AND/OR/NOT) and their sub-conditions.
+	ErrConditionsNotAllowed = errors.New("non-logical rule cannot carry sub-conditions")
+	ErrNotArity             = errors.New("NOT must contain exactly one sub-condition")
+	ErrLogicalArity         = errors.New("AND/OR must contain at least two sub-conditions")
+	ErrConditionMatch       = errors.New("MATCH cannot be used as a sub-condition")
+
 	// Rule-providers. (Name uniqueness is enforced by the DB UNIQUE(config_id,name),
 	// translated to entity.ErrRuleProviderNameTaken in the repository — not here.)
 	ErrProviderNameEmpty   = errors.New("rule-provider name is empty")

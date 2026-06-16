@@ -33,6 +33,10 @@ const (
 	MsgRuleValueReq     = "У правила не указано значение"
 	MsgRulePayloadNA    = "Тип правила не принимает это значение"
 	MsgNoResolveNA      = "no-resolve неприменим к этому типу правила"
+	MsgConditionsNA     = "Условия допустимы только у логических правил (AND/OR/NOT)"
+	MsgNotArity         = "NOT должен содержать ровно одно условие"
+	MsgLogicalArity     = "AND/OR должны содержать минимум два условия"
+	MsgConditionMatch   = "MATCH нельзя использовать как условие"
 	MsgBaseYAMLInvalid  = "YAML невалиден — проверьте синтаксис"
 	MsgGeneratedKey     = "Уберите из YAML генерируемые разделы"
 
@@ -164,6 +168,14 @@ func validationMessage(err error) (string, bool) {
 		return MsgRulePayloadNA, true
 	case errors.Is(err, mihomo.ErrNoResolveUnsupported):
 		return MsgNoResolveNA, true
+	case errors.Is(err, mihomo.ErrConditionsNotAllowed):
+		return MsgConditionsNA, true
+	case errors.Is(err, mihomo.ErrNotArity):
+		return MsgNotArity, true
+	case errors.Is(err, mihomo.ErrLogicalArity):
+		return MsgLogicalArity, true
+	case errors.Is(err, mihomo.ErrConditionMatch):
+		return MsgConditionMatch, true
 	case errors.Is(err, mihomo.ErrBaseYAMLInvalid):
 		return MsgBaseYAMLInvalid, true
 	case errors.Is(err, mihomo.ErrGeneratedKeyPresent):

@@ -472,6 +472,7 @@ type ConfigSchemaOKRulesTypesItem struct {
 	TakesProvider     bool     `json:"takesProvider"`
 	SupportsNoResolve bool     `json:"supportsNoResolve"`
 	IsMatch           bool     `json:"isMatch"`
+	IsLogical         bool     `json:"isLogical"`
 	Destinations      []string `json:"destinations"`
 }
 
@@ -493,6 +494,11 @@ func (s *ConfigSchemaOKRulesTypesItem) GetSupportsNoResolve() bool {
 // GetIsMatch returns the value of IsMatch.
 func (s *ConfigSchemaOKRulesTypesItem) GetIsMatch() bool {
 	return s.IsMatch
+}
+
+// GetIsLogical returns the value of IsLogical.
+func (s *ConfigSchemaOKRulesTypesItem) GetIsLogical() bool {
+	return s.IsLogical
 }
 
 // GetDestinations returns the value of Destinations.
@@ -518,6 +524,11 @@ func (s *ConfigSchemaOKRulesTypesItem) SetSupportsNoResolve(val bool) {
 // SetIsMatch sets the value of IsMatch.
 func (s *ConfigSchemaOKRulesTypesItem) SetIsMatch(val bool) {
 	s.IsMatch = val
+}
+
+// SetIsLogical sets the value of IsLogical.
+func (s *ConfigSchemaOKRulesTypesItem) SetIsLogical(val bool) {
+	s.IsLogical = val
 }
 
 // SetDestinations sets the value of Destinations.
@@ -731,6 +742,54 @@ func (s *MessageResponseHeaders) SetResponse(val MessageResponse) {
 }
 
 func (*MessageResponseHeaders) loginRes() {}
+
+// Ref: #/components/schemas/MihomoCondition
+type MihomoCondition struct {
+	Type        string            `json:"type"`
+	Value       OptString         `json:"value"`
+	ProviderIdx OptInt            `json:"providerIdx"`
+	Conditions  []MihomoCondition `json:"conditions"`
+}
+
+// GetType returns the value of Type.
+func (s *MihomoCondition) GetType() string {
+	return s.Type
+}
+
+// GetValue returns the value of Value.
+func (s *MihomoCondition) GetValue() OptString {
+	return s.Value
+}
+
+// GetProviderIdx returns the value of ProviderIdx.
+func (s *MihomoCondition) GetProviderIdx() OptInt {
+	return s.ProviderIdx
+}
+
+// GetConditions returns the value of Conditions.
+func (s *MihomoCondition) GetConditions() []MihomoCondition {
+	return s.Conditions
+}
+
+// SetType sets the value of Type.
+func (s *MihomoCondition) SetType(val string) {
+	s.Type = val
+}
+
+// SetValue sets the value of Value.
+func (s *MihomoCondition) SetValue(val OptString) {
+	s.Value = val
+}
+
+// SetProviderIdx sets the value of ProviderIdx.
+func (s *MihomoCondition) SetProviderIdx(val OptInt) {
+	s.ProviderIdx = val
+}
+
+// SetConditions sets the value of Conditions.
+func (s *MihomoCondition) SetConditions(val []MihomoCondition) {
+	s.Conditions = val
+}
 
 // Ref: #/components/schemas/MihomoConfig
 type MihomoConfig struct {
@@ -979,11 +1038,12 @@ func (s *MihomoProvider) SetMirrorInterval(val int) {
 
 // Ref: #/components/schemas/MihomoRule
 type MihomoRule struct {
-	Type        string    `json:"type"`
-	Value       OptString `json:"value"`
-	ProviderIdx OptInt    `json:"providerIdx"`
-	NoResolve   OptBool   `json:"noResolve"`
-	Target      PolicyRef `json:"target"`
+	Type        string            `json:"type"`
+	Value       OptString         `json:"value"`
+	ProviderIdx OptInt            `json:"providerIdx"`
+	NoResolve   OptBool           `json:"noResolve"`
+	Target      PolicyRef         `json:"target"`
+	Conditions  []MihomoCondition `json:"conditions"`
 }
 
 // GetType returns the value of Type.
@@ -1011,6 +1071,11 @@ func (s *MihomoRule) GetTarget() PolicyRef {
 	return s.Target
 }
 
+// GetConditions returns the value of Conditions.
+func (s *MihomoRule) GetConditions() []MihomoCondition {
+	return s.Conditions
+}
+
 // SetType sets the value of Type.
 func (s *MihomoRule) SetType(val string) {
 	s.Type = val
@@ -1034,6 +1099,11 @@ func (s *MihomoRule) SetNoResolve(val OptBool) {
 // SetTarget sets the value of Target.
 func (s *MihomoRule) SetTarget(val PolicyRef) {
 	s.Target = val
+}
+
+// SetConditions sets the value of Conditions.
+func (s *MihomoRule) SetConditions(val []MihomoCondition) {
+	s.Conditions = val
 }
 
 type NodeDeleteBadRequest ErrorResponse

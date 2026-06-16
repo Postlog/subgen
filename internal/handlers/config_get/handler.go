@@ -134,6 +134,9 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 			}
 		}
 
+		// Logical rule (AND/OR/NOT): surface its sub-condition tree.
+		mr.Conditions = conditionsToView(r.Conditions, provIdx)
+
 		out.Rules = append(out.Rules, mr)
 	}
 
@@ -157,6 +160,35 @@ func (h *Handler) resolveConfigID(ctx context.Context, params oas.ConfigGetParam
 	}
 
 	return h.configs.UserConfigID(ctx, params.User.Value, entity.ConfigKindMihomo)
+}
+
+// conditionsToView converts a logical rule's stored sub-conditions to the wire shape,
+// recursively. A RULE-SET sub-condition's provider id becomes its array index (real ids
+// never leave). Empty input (a non-logical rule) maps to nil.
+func conditionsToView(conds []mihomo.RuleCondition, provIdx map[int64]int) []oas.MihomoCondition {
+	if len(conds) == 0 {
+		return nil
+	}
+
+	out := make([]oas.MihomoCondition, 0, len(conds))
+	for _, c := range conds {
+		mc := oas.MihomoCondition{Type: c.Type.String()}
+
+		if c.Value != nil {
+			mc.Value = oas.NewOptString(*c.Value)
+		}
+
+		if c.ProviderID != nil {
+			if i, ok := provIdx[*c.ProviderID]; ok {
+				mc.ProviderIdx = oas.NewOptInt(i)
+			}
+		}
+
+		mc.Conditions = conditionsToView(c.Conditions, provIdx)
+		out = append(out, mc)
+	}
+
+	return out
 }
 
 // refToView converts a stored PolicyRef to the wire shape: an inbound ref carries the

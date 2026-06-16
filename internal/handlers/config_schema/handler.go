@@ -38,7 +38,7 @@ func build() oas.ConfigSchemaOK {
 	for t, o := range mihomo.RuleTypeCatalog() {
 		rules = append(rules, oas.ConfigSchemaOKRulesTypesItem{
 			Type: t.String(), TakesProvider: o.TakesProvider, SupportsNoResolve: o.SupportsNoResolve,
-			IsMatch: t.IsMatch(), Destinations: categories,
+			IsMatch: t.IsMatch(), IsLogical: o.Logical, Destinations: categories,
 		})
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/oas"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 func TestHandler_ConfigGet(t *testing.T) {
@@ -64,6 +65,45 @@ func TestHandler_ConfigGet(t *testing.T) {
 				ProfileTitle:          "X",
 				Filename:              "x.yaml",
 				ProfileUpdateInterval: 12,
+			},
+		},
+		{
+			// A logical rule surfaces its sub-condition tree on the wire (recursively);
+			// a RULE-SET sub-condition's provider id becomes its array index.
+			name:   "success.logical_rule",
+			params: oas.ConfigGetParams{},
+			buildConfigsMock: func(m *MockconfigResolver) {
+				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), true, nil)
+			},
+			buildRoutingMock: func(m *MockmihomoReader) {
+				m.EXPECT().Rules(gomock.Any(), int64(7)).Return([]mihomo.RoutingRule{
+					{Type: mihomo.RuleAnd, Target: mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Conditions: []mihomo.RuleCondition{
+						{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
+						{Type: mihomo.RuleOr, Conditions: []mihomo.RuleCondition{
+							{Type: mihomo.RuleDstPort, Value: utils.Ptr("443")},
+							{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](9)},
+						}},
+					}},
+					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+				}, nil)
+				m.EXPECT().ProxyGroups(gomock.Any(), int64(7)).Return(nil, nil)
+				m.EXPECT().RuleProviders(gomock.Any(), int64(7)).Return([]mihomo.RuleProvider{{ID: 9, Name: "ads"}}, nil)
+				m.EXPECT().Setting(gomock.Any(), int64(7), "base_yaml").Return("", nil)
+				m.EXPECT().Profile(gomock.Any(), int64(7)).Return(mihomo.Profile{}, nil)
+			},
+			result: &oas.MihomoConfig{
+				Groups: []oas.MihomoGroup{},
+				Rules: []oas.MihomoRule{
+					{Type: "AND", Target: oas.PolicyRef{Kind: "reject-drop"}, Conditions: []oas.MihomoCondition{
+						{Type: "NETWORK", Value: oas.NewOptString("UDP")},
+						{Type: "OR", Conditions: []oas.MihomoCondition{
+							{Type: "DST-PORT", Value: oas.NewOptString("443")},
+							{Type: "RULE-SET", ProviderIdx: oas.NewOptInt(0)},
+						}},
+					}},
+					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
+				},
+				Providers: []oas.MihomoProvider{{Name: "ads"}},
 			},
 		},
 		{

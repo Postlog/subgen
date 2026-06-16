@@ -25,6 +25,10 @@ type RuleProvider struct {
 func RuleProviderBehaviors() []string { return []string{"domain", "ipcidr", "classical"} }
 func RuleProviderFormats() []string   { return []string{"mrs", "yaml", "text"} }
 
-// GeneratedKeys are the top-level mihomo YAML keys subgen generates and injects; the
-// operator's base YAML must not set them (render strips them, save rejects them).
-func GeneratedKeys() []string { return []string{"proxies", "proxy-groups", "rules", "rule-providers"} }
+// GeneratedKeys are the top-level mihomo YAML keys subgen owns; the operator's base YAML
+// must not set them (render strips them, save rejects them). sub-rules is reserved: subgen
+// does not generate named sub-rule groups, but it owns the key so an operator cannot smuggle
+// a sub-rules section into the base YAML and collide with generation.
+func GeneratedKeys() []string {
+	return []string{"proxies", "proxy-groups", "rules", "rule-providers", "sub-rules"}
+}

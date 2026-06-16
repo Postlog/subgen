@@ -57,8 +57,9 @@ func ValidateProxyGroups(groups []GroupDraft) error {
 }
 
 // ValidateRoutingRules validates each rule's per-type invariant (RuleDraft.Valid: value/
-// provider/no-resolve by type), then the cross-rule checks: MATCH (if present) is last,
-// a RULE-SET's provider index is in range, and the target ref is well-formed/in range.
+// provider/no-resolve/conditions by type), then the cross-rule checks: MATCH (if present)
+// is last, a RULE-SET's provider index is in range, a logical rule's sub-conditions are
+// valid (recursively), and the target ref is well-formed/in range.
 func ValidateRoutingRules(rules []RuleDraft, numGroups, numProviders int) error {
 	for i, rule := range rules {
 		if err := rule.Valid(); err != nil {
@@ -74,8 +75,49 @@ func ValidateRoutingRules(rules []RuleDraft, numGroups, numProviders int) error 
 			return ErrProviderRefRange
 		}
 
+		if rule.Type.IsLogical() {
+			if err := validateConditions(rule.Type, rule.Conditions, numProviders); err != nil {
+				return err
+			}
+		}
+
 		if err := validateRef(rule.Target, numGroups); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// validateConditions validates a logical rule/condition's sub-conditions: the arity (NOT
+// exactly one, AND/OR at least two), then each sub-condition's per-type invariant
+// (ConditionDraft.Valid), a RULE-SET sub-condition's provider index range, and — for a
+// nested logical sub-condition — its own sub-conditions, recursively. parent is the
+// logical type owning conds.
+func validateConditions(parent RuleType, conds []ConditionDraft, numProviders int) error {
+	if parent == RuleNot {
+		if len(conds) != 1 {
+			return ErrNotArity
+		}
+	} else if len(conds) < 2 { // AND / OR
+		return ErrLogicalArity
+	}
+
+	for _, c := range conds {
+		if err := c.Valid(); err != nil {
+			return err
+		}
+
+		switch {
+		case c.Type.IsLogical():
+			if err := validateConditions(c.Type, c.Conditions, numProviders); err != nil {
+				return err
+			}
+		case c.Type.TakesProvider():
+			// Valid() ensured a RULE-SET sub-condition carries a provider index; range-check it.
+			if *c.ProviderIdx < 0 || *c.ProviderIdx >= numProviders {
+				return ErrProviderRefRange
+			}
 		}
 	}
 

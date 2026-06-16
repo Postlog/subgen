@@ -262,6 +262,54 @@ rules:
 `,
 		},
 		{
+			// Logical rules (AND/OR/NOT) render the nested-condition syntax verbatim,
+			// including a RULE-SET sub-condition (provider name from id) and a logical
+			// condition nested inside another. This is the QUIC-block use case + nesting.
+			name: "logical_rules",
+			sub:  &entity.Subscriber{SubID: "x"},
+			opts: Options{
+				BaseYAML: "mode: rule",
+				Providers: []mihomo.RuleProvider{
+					{ID: 5, Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://up/ads.mrs", Interval: 3600},
+				},
+				Rules: []mihomo.RoutingRule{
+					{Type: mihomo.RuleAnd, Target: mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Conditions: []mihomo.RuleCondition{
+						{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
+						{Type: mihomo.RuleDstPort, Value: utils.Ptr("443")},
+					}},
+					{Type: mihomo.RuleOr, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}, Conditions: []mihomo.RuleCondition{
+						{Type: mihomo.RuleAnd, Conditions: []mihomo.RuleCondition{
+							{Type: mihomo.RuleDomainKeyword, Value: utils.Ptr("ad")},
+							{Type: mihomo.RuleNetwork, Value: utils.Ptr("tcp")},
+						}},
+						{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](5)},
+					}},
+					{Type: mihomo.RuleNot, Target: mihomo.PolicyRef{Kind: mihomo.PolicyReject}, Conditions: []mihomo.RuleCondition{
+						{Type: mihomo.RuleDomainSuffix, Value: utils.Ptr("ok.com")},
+					}},
+					{Type: mihomo.RuleMatch, Target: mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+				},
+			},
+			wantYAML: `
+mode: rule
+proxies: []
+proxy-groups: []
+rules:
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP
+  - OR,((AND,((DOMAIN-KEYWORD,ad),(NETWORK,tcp))),(RULE-SET,ads)),DIRECT
+  - NOT,((DOMAIN-SUFFIX,ok.com)),REJECT
+  - MATCH,DIRECT
+rule-providers:
+  ads:
+    type: http
+    behavior: domain
+    url: https://up/ads.mrs
+    path: ./ruleset/ads.mrs
+    format: mrs
+    interval: 3600
+`,
+		},
+		{
 			name:    "error.invalid_base_yaml",
 			sub:     &entity.Subscriber{SubID: "x"},
 			opts:    Options{BaseYAML: "mode: rule\n\tbad: : indent"},

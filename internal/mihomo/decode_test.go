@@ -58,6 +58,37 @@ func TestDecodeConfig(t *testing.T) {
 			},
 		},
 		{
+			// A logical rule (AND/OR/NOT) decodes its recursive sub-conditions: a RULE-SET
+			// condition carries a providerIdx, a nested logical condition its own children.
+			// The logical rule itself carries no value/provider, just the conditions + target.
+			name: "success.logical_rule_conditions",
+			body: `{
+				"providers": [{"name":"ads","behavior":"domain","format":"mrs","url":"https://x"}],
+				"rules": [
+					{"type":"AND","target":{"kind":"reject-drop"},"conditions":[
+						{"type":"NETWORK","value":"UDP"},
+						{"type":"OR","conditions":[
+							{"type":"DST-PORT","value":"443"},
+							{"type":"RULE-SET","providerIdx":0}
+						]}
+					]}
+				]
+			}`,
+			want: ConfigDraft{
+				Groups: []GroupDraft{},
+				Rules: []RuleDraft{
+					{Type: RuleAnd, Target: RefDraft{Kind: PolicyRejectDrop}, Conditions: []ConditionDraft{
+						{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+						{Type: RuleOr, Conditions: []ConditionDraft{
+							{Type: RuleDstPort, Value: utils.Ptr("443")},
+							{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0)},
+						}},
+					}},
+				},
+				Providers: []RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+			},
+		},
+		{
 			// Regression: a provider with an all-whitespace name was once silently dropped
 			// (decode skip + frontend filter), so a half-filled row "saved" as a no-op.
 			// Decode now KEEPS it (name trimmed to "") so ValidateRuleProviders can reject

@@ -18,6 +18,13 @@ func TestRuleTypeCatalog(t *testing.T) {
 		assert.Truef(t, typ.Valid(), "%s not Valid()", typ)
 		assert.Equalf(t, opts.TakesProvider, typ.TakesProvider(), "%s TakesProvider() != catalog", typ)
 		assert.Equalf(t, opts.SupportsNoResolve, typ.SupportsNoResolve(), "%s SupportsNoResolve() != catalog", typ)
+		assert.Equalf(t, opts.Logical, typ.IsLogical(), "%s IsLogical() != catalog", typ)
+
+		// A logical type never carries a value-matcher's options.
+		if opts.Logical {
+			assert.Falsef(t, opts.TakesProvider, "%s logical must not take a provider", typ)
+			assert.Falsef(t, opts.SupportsNoResolve, "%s logical must not support no-resolve", typ)
+		}
 	}
 
 	// Spot-check the load-bearing facts the schema/UI relies on.
@@ -28,6 +35,21 @@ func TestRuleTypeCatalog(t *testing.T) {
 
 	assert.True(t, RuleMatch.IsMatch(), "MATCH should be IsMatch")
 	assert.False(t, RuleDomain.IsMatch(), "DOMAIN should not be IsMatch")
+
+	// Logical types are IsLogical; a plain matcher is not.
+	for _, lt := range []RuleType{RuleAnd, RuleOr, RuleNot} {
+		assert.Truef(t, lt.IsLogical(), "%s should be IsLogical", lt)
+	}
+
+	assert.False(t, RuleDomain.IsLogical(), "DOMAIN should not be IsLogical")
+
+	// The four wiki-parity matchers are catalogued and are plain matchers (no special opts).
+	for _, mt := range []RuleType{RuleSrcIPASN, RuleSrcIPSuffix, RuleProcessNameWild, RuleProcessPathWild} {
+		assert.Truef(t, mt.Valid(), "%s should be Valid", mt)
+		assert.Falsef(t, mt.TakesProvider(), "%s should not take a provider", mt)
+		assert.Falsef(t, mt.SupportsNoResolve(), "%s should not support no-resolve", mt)
+		assert.Falsef(t, mt.IsLogical(), "%s should not be logical", mt)
+	}
 }
 
 func TestProxyGroupTypeCatalog(t *testing.T) {

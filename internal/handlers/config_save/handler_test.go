@@ -12,6 +12,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/mihomo"
 	"github.com/postlog/subgen/internal/oas"
+	"github.com/postlog/subgen/internal/utils"
 )
 
 func TestHandler_ConfigSave(t *testing.T) {
@@ -67,6 +68,62 @@ func TestHandler_ConfigSave(t *testing.T) {
 					Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgSaved},
+		},
+		{
+			// A logical rule decodes its recursive conditions and reaches the saver as a
+			// ConfigDraft with the typed sub-condition tree (the wire→draft path end-to-end).
+			name: "success.logical",
+			req: &oas.ConfigSaveReq{
+				Rules: []oas.MihomoRule{
+					{Type: "AND", Target: oas.PolicyRef{Kind: "reject-drop"}, Conditions: []oas.MihomoCondition{
+						{Type: "NETWORK", Value: oas.NewOptString("UDP")},
+						{Type: "DST-PORT", Value: oas.NewOptString("443")},
+					}},
+					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
+				},
+				Groups:                []oas.MihomoGroup{},
+				Providers:             []oas.MihomoProvider{},
+				ProfileTitle:          "My VPN",
+				Filename:              "my.yaml",
+				ProfileUpdateInterval: 6,
+			},
+			buildConfigsMock: func(m *MockconfigResolver) {
+				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(3), nil)
+			},
+			buildRoutingMock: func(m *MockmihomoSaver) {
+				m.EXPECT().SaveMihomoConfig(gomock.Any(), int64(3), mihomo.ConfigDraft{
+					Rules: []mihomo.RuleDraft{
+						{Type: mihomo.RuleAnd, Target: mihomo.RefDraft{Kind: mihomo.PolicyRejectDrop}, Conditions: []mihomo.ConditionDraft{
+							{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
+							{Type: mihomo.RuleDstPort, Value: utils.Ptr("443")},
+						}},
+						{Type: mihomo.RuleMatch, Target: mihomo.RefDraft{Kind: mihomo.PolicyDirect}},
+					},
+					Groups:    []mihomo.GroupDraft{},
+					Providers: []mihomo.RuleProvider{},
+					Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
+				}).Return(nil)
+			},
+			result: &oas.MessageResponse{Message: MsgSaved},
+		},
+		{
+			// A malformed logical rule (AND with a single condition) is a 400 with the
+			// logical-arity message, before any scope is resolved.
+			name: "error.logical_arity",
+			req: &oas.ConfigSaveReq{
+				Rules: []oas.MihomoRule{
+					{Type: "AND", Target: oas.PolicyRef{Kind: "direct"}, Conditions: []oas.MihomoCondition{
+						{Type: "NETWORK", Value: oas.NewOptString("UDP")},
+					}},
+					{Type: "MATCH", Target: oas.PolicyRef{Kind: "direct"}},
+				},
+				Groups:                []oas.MihomoGroup{},
+				Providers:             []oas.MihomoProvider{},
+				ProfileTitle:          "My VPN",
+				Filename:              "my.yaml",
+				ProfileUpdateInterval: 6,
+			},
+			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgLogicalArity},
 		},
 		{
 			name: "error.invalid_config",

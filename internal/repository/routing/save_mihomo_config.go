@@ -130,6 +130,25 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 		return err
 	}
 
+	// Logical rules (AND/OR/NOT) carry a sub-condition tree; read the rule ids back in
+	// position order so a rule's conditions attach to the persisted id, then insert the
+	// tree (provider indices resolved like rules). The DELETE above cascades the old
+	// conditions away via rule_id, so no separate cleanup is needed.
+	ruleID, err := readIDs(ctx, tx, `SELECT id FROM mihomo_routing_rules WHERE config_id=? ORDER BY position`, configID)
+	if err != nil {
+		return err
+	}
+
+	for i, rule := range draft.Rules {
+		if len(rule.Conditions) == 0 {
+			continue
+		}
+
+		if err := insertConditions(ctx, tx, ruleID[i], nil, rule.Conditions, providerID); err != nil {
+			return err
+		}
+	}
+
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO mihomo_settings(config_id,key,value) VALUES(?,'base_yaml',?)
 		 ON CONFLICT(config_id,key) DO UPDATE SET value=excluded.value`, configID, draft.BaseYAML); err != nil {
@@ -145,6 +164,43 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	}
 
 	return tx.Commit()
+}
+
+// insertConditions inserts a logical rule's sub-condition tree depth-first under (ruleID,
+// parentID). Each node is one INSERT (per-row, not batched: a child's parent_id is its
+// parent's autoincrement id, only known after that parent's insert — configs are tiny, so
+// the round-trips are immaterial). A RULE-SET sub-condition's ProviderIdx resolves to a
+// provider_id through providerID, like a rule. parentID is nil for a root condition (a
+// direct child of the rule), else the owning condition's id.
+func insertConditions(ctx context.Context, tx *sql.Tx, ruleID int64, parentID any, conds []mihomo.ConditionDraft, providerID []int64) error {
+	for pos, c := range conds {
+		provider, err := providerColumn(c.ProviderIdx, providerID)
+		if err != nil {
+			return err
+		}
+
+		res, err := tx.ExecContext(ctx,
+			`INSERT INTO mihomo_rule_conditions(rule_id,parent_id,position,type,value,provider_id) VALUES(?,?,?,?,?,?)`,
+			ruleID, parentID, pos, c.Type, utils.DereferenceOrNil(c.Value), provider)
+		if err != nil {
+			return err
+		}
+
+		if len(c.Conditions) == 0 {
+			continue
+		}
+
+		id, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		if err := insertConditions(ctx, tx, ruleID, id, c.Conditions, providerID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // batchInsert inserts every row into table(cols) in ONE multi-row INSERT (no per-row

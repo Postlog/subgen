@@ -17,6 +17,7 @@ func TestValidateBaseYAML(t *testing.T) {
 		{name: "success.valid", base: "mode: rule\ndns: {}"},
 		{name: "error.invalid_yaml", base: "foo: [unclosed", err: ErrBaseYAMLInvalid},
 		{name: "error.generated_section", base: "rules: []", err: ErrGeneratedKeyPresent},
+		{name: "error.sub_rules_reserved", base: "sub-rules: {}", err: ErrGeneratedKeyPresent},
 	}
 
 	t.Parallel()
@@ -96,6 +97,102 @@ func TestValidateRoutingRules(t *testing.T) {
 			name:  "error.no_resolve_unsupported",
 			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com"), NoResolve: utils.Ptr(true), Target: RefDraft{Kind: PolicyDirect}}},
 			err:   ErrNoResolveUnsupported,
+		},
+		{
+			name: "success.logical_and",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyRejectDrop}, Conditions: []ConditionDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+		},
+		{
+			name: "success.logical_nested_with_ruleset_condition",
+			rules: []RuleDraft{
+				{Type: RuleOr, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleNot, Conditions: []ConditionDraft{{Type: RuleDomainSuffix, Value: utils.Ptr("ok.com")}}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0)},
+				}},
+			},
+			numProviders: 1,
+		},
+		{
+			name: "error.and_too_few_conditions",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{{Type: RuleNetwork, Value: utils.Ptr("UDP")}}},
+			},
+			err: ErrLogicalArity,
+		},
+		{
+			name: "error.not_arity",
+			rules: []RuleDraft{
+				{Type: RuleNot, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrNotArity,
+		},
+		{
+			name: "error.match_in_condition",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleMatch},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrConditionMatch,
+		},
+		{
+			name: "error.conditions_on_simple",
+			rules: []RuleDraft{
+				{Type: RuleDomain, Value: utils.Ptr("x.com"), Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrConditionsNotAllowed,
+		},
+		{
+			name: "error.logical_with_value",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrRulePayloadNotAllowed,
+		},
+		{
+			name: "error.condition_provider_oob",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(5)},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			numProviders: 1,
+			err:          ErrProviderRefRange,
+		},
+		{
+			name: "error.unknown_condition_type",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: "NOPE"},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrUnknownRuleType,
+		},
+		{
+			name: "error.condition_value_required",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: RefDraft{Kind: PolicyDirect}, Conditions: []ConditionDraft{
+					{Type: RuleDomain},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrRuleValueRequired,
 		},
 	}
 

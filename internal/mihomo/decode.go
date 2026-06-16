@@ -16,11 +16,21 @@ type policyRefDTO struct {
 }
 
 type ruleDTO struct {
-	Type        string       `json:"type"`
-	Value       *string      `json:"value"`
-	ProviderIdx *int         `json:"providerIdx"`
-	NoResolve   *bool        `json:"noResolve"`
-	Target      policyRefDTO `json:"target"`
+	Type        string         `json:"type"`
+	Value       *string        `json:"value"`
+	ProviderIdx *int           `json:"providerIdx"`
+	NoResolve   *bool          `json:"noResolve"`
+	Target      policyRefDTO   `json:"target"`
+	Conditions  []conditionDTO `json:"conditions"`
+}
+
+// conditionDTO is a logical rule's sub-condition (recursive). It has no target/no-resolve
+// — a sub-condition is a matcher, not a full rule.
+type conditionDTO struct {
+	Type        string         `json:"type"`
+	Value       *string        `json:"value"`
+	ProviderIdx *int           `json:"providerIdx"`
+	Conditions  []conditionDTO `json:"conditions"`
 }
 
 type groupDTO struct {
@@ -91,6 +101,7 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 			ProviderIdx: ru.ProviderIdx,
 			NoResolve:   ru.NoResolve,
 			Target:      refFromDTO(ru.Target),
+			Conditions:  conditionsFromDTO(ru.Conditions),
 		})
 	}
 
@@ -131,6 +142,27 @@ func trimPtr(s *string) *string {
 	}
 
 	return &v
+}
+
+// conditionsFromDTO maps a logical rule's JSON sub-conditions to ConditionDrafts,
+// recursively (a nested logical condition carries its own conditions). Empty input maps
+// to nil so a non-logical rule round-trips with no conditions.
+func conditionsFromDTO(in []conditionDTO) []ConditionDraft {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]ConditionDraft, 0, len(in))
+	for _, c := range in {
+		out = append(out, ConditionDraft{
+			Type:        RuleType(strings.TrimSpace(c.Type)),
+			Value:       trimPtr(c.Value),
+			ProviderIdx: c.ProviderIdx,
+			Conditions:  conditionsFromDTO(c.Conditions),
+		})
+	}
+
+	return out
 }
 
 // refFromDTO maps a JSON policy ref to a RefDraft. A group ref carries the array index

@@ -15,15 +15,27 @@ type ConfigRef struct {
 	GroupIdx  *int   `json:"groupIdx,omitempty"`
 }
 
+// ConfigCondition is a sub-condition of a logical rule (AND/OR/NOT) on the wire,
+// recursive. A leaf carries its payload in Value (or ProviderIdx for RULE-SET); a nested
+// logical condition carries its own Conditions. No target / no no-resolve.
+type ConfigCondition struct {
+	Type        string            `json:"type"`
+	Value       string            `json:"value,omitempty"`
+	ProviderIdx *int              `json:"providerIdx,omitempty"`
+	Conditions  []ConfigCondition `json:"conditions,omitempty"`
+}
+
 // ConfigRule is one routing rule for read/save. For RULE-SET the rule-provider is
 // referenced by ProviderIdx (index into the providers array — ids never leave the
-// backend); Value stays empty. Other types carry their payload in Value.
+// backend); Value stays empty. Other types carry their payload in Value. A logical rule
+// (AND/OR/NOT) carries its sub-condition tree in Conditions instead.
 type ConfigRule struct {
-	Type        string    `json:"type"`
-	Value       string    `json:"value"`
-	ProviderIdx *int      `json:"providerIdx,omitempty"`
-	NoResolve   bool      `json:"noResolve"`
-	Target      ConfigRef `json:"target"`
+	Type        string            `json:"type"`
+	Value       string            `json:"value"`
+	ProviderIdx *int              `json:"providerIdx,omitempty"`
+	NoResolve   bool              `json:"noResolve"`
+	Target      ConfigRef         `json:"target"`
+	Conditions  []ConfigCondition `json:"conditions,omitempty"`
 }
 
 // ConfigGroup is one proxy-group for read/save. interval/tolerance/lazy are optional

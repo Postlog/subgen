@@ -201,24 +201,31 @@
           <div v-if="cfgWarnings.length" class="cfg-warn">
             <div v-for="(w,i) in cfgWarnings" :key="i">⚠ {{ w }}</div>
           </div>
-          <div v-sortable="{handle:'.h-rule', item:'.rule-row', end:(o,n)=>reorder(cfg.rules,o,n)}">
-            <div v-for="(r,ri) in cfg.rules" :key="r._uid" class="rule-row">
-              <span class="drag h-rule" title="перетащить">⋮⋮</span>
-              <select class="form-select form-select-sm" style="max-width:170px" v-model="r.type">
-                <option v-for="rt in (schema?.rules?.types||[])" :key="rt.type" :value="rt.type">{{ rt.type }}</option>
-              </select>
-              <select v-if="isRuleSet(r.type)" class="form-select form-select-sm grow" v-model="r.providerUid">
-                <option :value="null" disabled>— провайдер —</option>
-                <option v-for="(p,pi) in cfg.providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
-              </select>
-              <input v-else-if="!isMatch(r.type)" class="form-control form-control-sm grow" v-model="r.value" placeholder="значение">
-              <span v-else class="grow text-dim small">catch-all</span>
-              <label v-if="supportsNoResolve(r.type)" class="form-check mb-0 nr" title="no-resolve">
-                <input class="form-check-input" type="checkbox" v-model="r.noResolve"><span class="form-check-label small">no-resolve</span>
-              </label>
-              <span class="arrow">→</span>
-              <policy-picker v-model="r.pref" :allowed="ruleDestinations(r.type)" :actions="schema?.actions||[]" :inbounds="inboundOptions" :groups="cfg.groups"></policy-picker>
-              <button class="btn btn-sm btn-danger-soft act" @click="delRule(ri)">✕</button>
+          <div v-sortable="{handle:'.h-rule', item:'.rule-item', end:(o,n)=>reorder(cfg.rules,o,n)}">
+            <div v-for="(r,ri) in cfg.rules" :key="r._uid" class="rule-item">
+              <div class="rule-row">
+                <span class="drag h-rule" title="перетащить">⋮⋮</span>
+                <select class="form-select form-select-sm" style="max-width:170px" v-model="r.type">
+                  <option v-for="rt in (schema?.rules?.types||[])" :key="rt.type" :value="rt.type">{{ rt.type }}</option>
+                </select>
+                <span v-if="isLogical(r.type)" class="grow text-dim small">условия ниже</span>
+                <select v-else-if="isRuleSet(r.type)" class="form-select form-select-sm grow" v-model="r.providerUid">
+                  <option :value="null" disabled>— провайдер —</option>
+                  <option v-for="(p,pi) in cfg.providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
+                </select>
+                <input v-else-if="!isMatch(r.type)" class="form-control form-control-sm grow" v-model="r.value" placeholder="значение">
+                <span v-else class="grow text-dim small">catch-all</span>
+                <label v-if="!isLogical(r.type) && supportsNoResolve(r.type)" class="form-check mb-0 nr" title="no-resolve">
+                  <input class="form-check-input" type="checkbox" v-model="r.noResolve"><span class="form-check-label small">no-resolve</span>
+                </label>
+                <span class="arrow">→</span>
+                <policy-picker v-model="r.pref" :allowed="ruleDestinations(r.type)" :actions="schema?.actions||[]" :inbounds="inboundOptions" :groups="cfg.groups"></policy-picker>
+                <button class="btn btn-sm btn-danger-soft act" @click="delRule(ri)">✕</button>
+              </div>
+              <div v-if="isLogical(r.type)" class="rule-conds">
+                <condition-node v-for="(c,ci) in r.conditions" :key="c._uid" :node="c" :schema="schema" :providers="cfg.providers" @remove="r.conditions.splice(ci,1)"></condition-node>
+                <button class="btn btn-sm btn-outline-secondary mt-1" @click="addCondition(r)">Добавить условие</button>
+              </div>
             </div>
           </div>
           <span v-if="!cfg.rules.length" class="text-dim small">правил нет</span>

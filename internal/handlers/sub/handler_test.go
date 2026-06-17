@@ -19,9 +19,9 @@ import (
 const testSecret = "hmac-secret"
 
 type mocks struct {
-	users    *MockuserResolver
-	fleet    *MockfleetReader
-	configs  *MockconfigResolver
+	users    *MockusersRepo
+	fleet    *MockfleetService
+	configs  *MockconfigsRepo
 	renderer *MockEngineRenderer
 }
 
@@ -108,9 +108,9 @@ func TestHandler_Sub(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			m := &mocks{
-				users:    NewMockuserResolver(ctrl),
-				fleet:    NewMockfleetReader(ctrl),
-				configs:  NewMockconfigResolver(ctrl),
+				users:    NewMockusersRepo(ctrl),
+				fleet:    NewMockfleetService(ctrl),
+				configs:  NewMockconfigsRepo(ctrl),
 				renderer: NewMockEngineRenderer(ctrl),
 			}
 			if tc.buildMocks != nil {

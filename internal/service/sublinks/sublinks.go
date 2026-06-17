@@ -49,13 +49,13 @@ func clashmiDeeplink(subURL, profileTitle string) string {
 type Service struct {
 	secret   string
 	base     string
-	configs  configResolver
-	profiles profileReader
+	configs  configsRepo
+	profiles routingRepo
 }
 
 // New builds the service. base is the public base URL (trailing slash trimmed); secret is
 // the HMAC secret behind the subscription token.
-func New(secret, base string, configs configResolver, profiles profileReader) *Service {
+func New(secret, base string, configs configsRepo, profiles routingRepo) *Service {
 	return &Service{
 		secret:   secret,
 		base:     strings.TrimRight(base, "/"),
@@ -108,7 +108,7 @@ func (s *Service) titlesByUser(ctx context.Context, users []entity.User) (map[in
 		out[users[i].ID] = make(map[entity.ConfigKind]string)
 	}
 
-	for _, kind := range catalogKinds() {
+	for _, kind := range catalogKinds {
 		baseTitle, err := s.baseTitle(ctx, kind)
 		if err != nil {
 			return nil, err
@@ -192,9 +192,10 @@ func (s *Service) title(ctx context.Context, configID int64) (string, error) {
 	return p.Title, nil
 }
 
-// catalogKinds returns the distinct engine kinds referenced by the catalog, preserving
-// first-seen order.
-func catalogKinds() []entity.ConfigKind {
+// catalogKinds is the distinct engine kinds referenced by the catalog, in first-seen
+// order. Computed once at package init — the catalog is immutable, so there is no reason
+// to recompute it per request.
+var catalogKinds = func() []entity.ConfigKind {
 	seen := make(map[entity.ConfigKind]struct{}, len(catalog))
 
 	var out []entity.ConfigKind
@@ -209,4 +210,4 @@ func catalogKinds() []entity.ConfigKind {
 	}
 
 	return out
-}
+}()

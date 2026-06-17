@@ -51,7 +51,7 @@ func (r *Repository) CreateUserConfig(ctx context.Context, userID int64, kind en
 	newID, _ := res.LastInsertId()
 
 	if hasBase {
-		if err := r.cloner.CloneConfig(ctx, tx, baseID, newID); err != nil {
+		if err := r.routing.CloneConfig(ctx, tx, baseID, newID); err != nil {
 			return 0, err
 		}
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// providerChecker probes a rule-provider URL (reachable / present / right format).
-type providerChecker interface {
+// rulesetChecker probes a rule-provider URL (reachable / present / right format).
+type rulesetChecker interface {
 	Check(ctx context.Context, url, format string) entity.RulesetCheckResult
 }

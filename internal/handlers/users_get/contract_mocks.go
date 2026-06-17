@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockuserLister is a mock of userLister interface.
-type MockuserLister struct {
+// MockusersRepo is a mock of usersRepo interface.
+type MockusersRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockuserListerMockRecorder
+	recorder *MockusersRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockuserListerMockRecorder is the mock recorder for MockuserLister.
-type MockuserListerMockRecorder struct {
-	mock *MockuserLister
+// MockusersRepoMockRecorder is the mock recorder for MockusersRepo.
+type MockusersRepoMockRecorder struct {
+	mock *MockusersRepo
 }
 
-// NewMockuserLister creates a new mock instance.
-func NewMockuserLister(ctrl *gomock.Controller) *MockuserLister {
-	mock := &MockuserLister{ctrl: ctrl}
-	mock.recorder = &MockuserListerMockRecorder{mock}
+// NewMockusersRepo creates a new mock instance.
+func NewMockusersRepo(ctrl *gomock.Controller) *MockusersRepo {
+	mock := &MockusersRepo{ctrl: ctrl}
+	mock.recorder = &MockusersRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockuserLister) EXPECT() *MockuserListerMockRecorder {
+func (m *MockusersRepo) EXPECT() *MockusersRepoMockRecorder {
 	return m.recorder
 }
 
 // ListPage mocks base method.
-func (m *MockuserLister) ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error) {
+func (m *MockusersRepo) ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListPage", ctx, p)
 	ret0, _ := ret[0].(entity.UserPage)
@@ -51,37 +51,37 @@ func (m *MockuserLister) ListPage(ctx context.Context, p entity.UserListParams) 
 }
 
 // ListPage indicates an expected call of ListPage.
-func (mr *MockuserListerMockRecorder) ListPage(ctx, p any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) ListPage(ctx, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPage", reflect.TypeOf((*MockuserLister)(nil).ListPage), ctx, p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPage", reflect.TypeOf((*MockusersRepo)(nil).ListPage), ctx, p)
 }
 
-// MockfleetReader is a mock of fleetReader interface.
-type MockfleetReader struct {
+// MockfleetService is a mock of fleetService interface.
+type MockfleetService struct {
 	ctrl     *gomock.Controller
-	recorder *MockfleetReaderMockRecorder
+	recorder *MockfleetServiceMockRecorder
 	isgomock struct{}
 }
 
-// MockfleetReaderMockRecorder is the mock recorder for MockfleetReader.
-type MockfleetReaderMockRecorder struct {
-	mock *MockfleetReader
+// MockfleetServiceMockRecorder is the mock recorder for MockfleetService.
+type MockfleetServiceMockRecorder struct {
+	mock *MockfleetService
 }
 
-// NewMockfleetReader creates a new mock instance.
-func NewMockfleetReader(ctrl *gomock.Controller) *MockfleetReader {
-	mock := &MockfleetReader{ctrl: ctrl}
-	mock.recorder = &MockfleetReaderMockRecorder{mock}
+// NewMockfleetService creates a new mock instance.
+func NewMockfleetService(ctrl *gomock.Controller) *MockfleetService {
+	mock := &MockfleetService{ctrl: ctrl}
+	mock.recorder = &MockfleetServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockfleetReader) EXPECT() *MockfleetReaderMockRecorder {
+func (m *MockfleetService) EXPECT() *MockfleetServiceMockRecorder {
 	return m.recorder
 }
 
 // Fleet mocks base method.
-func (m *MockfleetReader) Fleet(ctx context.Context) (*entity.Fleet, error) {
+func (m *MockfleetService) Fleet(ctx context.Context) (*entity.Fleet, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Fleet", ctx)
 	ret0, _ := ret[0].(*entity.Fleet)
@@ -90,37 +90,37 @@ func (m *MockfleetReader) Fleet(ctx context.Context) (*entity.Fleet, error) {
 }
 
 // Fleet indicates an expected call of Fleet.
-func (mr *MockfleetReaderMockRecorder) Fleet(ctx any) *gomock.Call {
+func (mr *MockfleetServiceMockRecorder) Fleet(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fleet", reflect.TypeOf((*MockfleetReader)(nil).Fleet), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fleet", reflect.TypeOf((*MockfleetService)(nil).Fleet), ctx)
 }
 
-// MocksubLinker is a mock of subLinker interface.
-type MocksubLinker struct {
+// MocksublinksService is a mock of sublinksService interface.
+type MocksublinksService struct {
 	ctrl     *gomock.Controller
-	recorder *MocksubLinkerMockRecorder
+	recorder *MocksublinksServiceMockRecorder
 	isgomock struct{}
 }
 
-// MocksubLinkerMockRecorder is the mock recorder for MocksubLinker.
-type MocksubLinkerMockRecorder struct {
-	mock *MocksubLinker
+// MocksublinksServiceMockRecorder is the mock recorder for MocksublinksService.
+type MocksublinksServiceMockRecorder struct {
+	mock *MocksublinksService
 }
 
-// NewMocksubLinker creates a new mock instance.
-func NewMocksubLinker(ctrl *gomock.Controller) *MocksubLinker {
-	mock := &MocksubLinker{ctrl: ctrl}
-	mock.recorder = &MocksubLinkerMockRecorder{mock}
+// NewMocksublinksService creates a new mock instance.
+func NewMocksublinksService(ctrl *gomock.Controller) *MocksublinksService {
+	mock := &MocksublinksService{ctrl: ctrl}
+	mock.recorder = &MocksublinksServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocksubLinker) EXPECT() *MocksubLinkerMockRecorder {
+func (m *MocksublinksService) EXPECT() *MocksublinksServiceMockRecorder {
 	return m.recorder
 }
 
 // Links mocks base method.
-func (m *MocksubLinker) Links(ctx context.Context, users []entity.User) (map[int64][]entity.SubLink, error) {
+func (m *MocksublinksService) Links(ctx context.Context, users []entity.User) (map[int64][]entity.SubLink, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Links", ctx, users)
 	ret0, _ := ret[0].(map[int64][]entity.SubLink)
@@ -129,7 +129,7 @@ func (m *MocksubLinker) Links(ctx context.Context, users []entity.User) (map[int
 }
 
 // Links indicates an expected call of Links.
-func (mr *MocksubLinkerMockRecorder) Links(ctx, users any) *gomock.Call {
+func (mr *MocksublinksServiceMockRecorder) Links(ctx, users any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Links", reflect.TypeOf((*MocksubLinker)(nil).Links), ctx, users)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Links", reflect.TypeOf((*MocksublinksService)(nil).Links), ctx, users)
 }

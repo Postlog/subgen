@@ -19,7 +19,7 @@ func TestHandler_UserRecreate(t *testing.T) {
 		name string
 		req  *oas.UserRecreateReq
 
-		buildRecreatorMock func(m *Mockrecreator)
+		buildRecreatorMock func(m *MockprovisioningService)
 
 		result oas.UserRecreateRes
 		err    error
@@ -27,7 +27,7 @@ func TestHandler_UserRecreate(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.UserRecreateReq{ID: 7},
-			buildRecreatorMock: func(m *Mockrecreator) {
+			buildRecreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().RecreateUser(gomock.Any(), int64(7)).Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgRecreated},
@@ -35,7 +35,7 @@ func TestHandler_UserRecreate(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.UserRecreateReq{ID: 7},
-			buildRecreatorMock: func(m *Mockrecreator) {
+			buildRecreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().RecreateUser(gomock.Any(), int64(7)).Return(internalErr)
 			},
 			err: internalErr,
@@ -49,7 +49,7 @@ func TestHandler_UserRecreate(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMockrecreator(ctrl)
+			svc := NewMockprovisioningService(ctrl)
 			if tc.buildRecreatorMock != nil {
 				tc.buildRecreatorMock(svc)
 			}

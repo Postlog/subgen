@@ -34,11 +34,11 @@ const (
 
 // Handler creates or updates a node from the node form.
 type Handler struct {
-	svc nodeSaver
+	svc nodesService
 }
 
 // New builds the handler.
-func New(svc nodeSaver) *Handler { return &Handler{svc: svc} }
+func New(svc nodesService) *Handler { return &Handler{svc: svc} }
 
 // NodeSave implements oas.Handler: a name/inbound clash is a 409, invalid input or a
 // still-referenced dropped inbound is a 400, any unexpected (store) failure is a 500.

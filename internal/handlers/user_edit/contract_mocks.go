@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockeditor is a mock of editor interface.
-type Mockeditor struct {
+// MockprovisioningService is a mock of provisioningService interface.
+type MockprovisioningService struct {
 	ctrl     *gomock.Controller
-	recorder *MockeditorMockRecorder
+	recorder *MockprovisioningServiceMockRecorder
 	isgomock struct{}
 }
 
-// MockeditorMockRecorder is the mock recorder for Mockeditor.
-type MockeditorMockRecorder struct {
-	mock *Mockeditor
+// MockprovisioningServiceMockRecorder is the mock recorder for MockprovisioningService.
+type MockprovisioningServiceMockRecorder struct {
+	mock *MockprovisioningService
 }
 
-// NewMockeditor creates a new mock instance.
-func NewMockeditor(ctrl *gomock.Controller) *Mockeditor {
-	mock := &Mockeditor{ctrl: ctrl}
-	mock.recorder = &MockeditorMockRecorder{mock}
+// NewMockprovisioningService creates a new mock instance.
+func NewMockprovisioningService(ctrl *gomock.Controller) *MockprovisioningService {
+	mock := &MockprovisioningService{ctrl: ctrl}
+	mock.recorder = &MockprovisioningServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockeditor) EXPECT() *MockeditorMockRecorder {
+func (m *MockprovisioningService) EXPECT() *MockprovisioningServiceMockRecorder {
 	return m.recorder
 }
 
 // EditUser mocks base method.
-func (m *Mockeditor) EditUser(ctx context.Context, p entity.UserEditParams) error {
+func (m *MockprovisioningService) EditUser(ctx context.Context, p entity.UserEditParams) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EditUser", ctx, p)
 	ret0, _ := ret[0].(error)
@@ -50,7 +50,7 @@ func (m *Mockeditor) EditUser(ctx context.Context, p entity.UserEditParams) erro
 }
 
 // EditUser indicates an expected call of EditUser.
-func (mr *MockeditorMockRecorder) EditUser(ctx, p any) *gomock.Call {
+func (mr *MockprovisioningServiceMockRecorder) EditUser(ctx, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditUser", reflect.TypeOf((*Mockeditor)(nil).EditUser), ctx, p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditUser", reflect.TypeOf((*MockprovisioningService)(nil).EditUser), ctx, p)
 }

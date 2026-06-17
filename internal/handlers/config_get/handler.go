@@ -15,12 +15,12 @@ import (
 
 // Handler serves a mihomo config (base or a user's custom).
 type Handler struct {
-	configs configResolver
-	routing mihomoReader
+	configs configsRepo
+	routing routingRepo
 }
 
 // New builds the handler.
-func New(configs configResolver, routing mihomoReader) *Handler {
+func New(configs configsRepo, routing routingRepo) *Handler {
 	return &Handler{configs: configs, routing: routing}
 }
 

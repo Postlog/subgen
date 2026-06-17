@@ -18,32 +18,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockconfigResolver is a mock of configResolver interface.
-type MockconfigResolver struct {
+// MockconfigsRepo is a mock of configsRepo interface.
+type MockconfigsRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockconfigResolverMockRecorder
+	recorder *MockconfigsRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockconfigResolverMockRecorder is the mock recorder for MockconfigResolver.
-type MockconfigResolverMockRecorder struct {
-	mock *MockconfigResolver
+// MockconfigsRepoMockRecorder is the mock recorder for MockconfigsRepo.
+type MockconfigsRepoMockRecorder struct {
+	mock *MockconfigsRepo
 }
 
-// NewMockconfigResolver creates a new mock instance.
-func NewMockconfigResolver(ctrl *gomock.Controller) *MockconfigResolver {
-	mock := &MockconfigResolver{ctrl: ctrl}
-	mock.recorder = &MockconfigResolverMockRecorder{mock}
+// NewMockconfigsRepo creates a new mock instance.
+func NewMockconfigsRepo(ctrl *gomock.Controller) *MockconfigsRepo {
+	mock := &MockconfigsRepo{ctrl: ctrl}
+	mock.recorder = &MockconfigsRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconfigResolver) EXPECT() *MockconfigResolverMockRecorder {
+func (m *MockconfigsRepo) EXPECT() *MockconfigsRepoMockRecorder {
 	return m.recorder
 }
 
 // EnsureBaseConfigID mocks base method.
-func (m *MockconfigResolver) EnsureBaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, error) {
+func (m *MockconfigsRepo) EnsureBaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EnsureBaseConfigID", ctx, kind)
 	ret0, _ := ret[0].(int64)
@@ -52,13 +52,13 @@ func (m *MockconfigResolver) EnsureBaseConfigID(ctx context.Context, kind entity
 }
 
 // EnsureBaseConfigID indicates an expected call of EnsureBaseConfigID.
-func (mr *MockconfigResolverMockRecorder) EnsureBaseConfigID(ctx, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) EnsureBaseConfigID(ctx, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureBaseConfigID", reflect.TypeOf((*MockconfigResolver)(nil).EnsureBaseConfigID), ctx, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureBaseConfigID", reflect.TypeOf((*MockconfigsRepo)(nil).EnsureBaseConfigID), ctx, kind)
 }
 
 // UserConfigID mocks base method.
-func (m *MockconfigResolver) UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error) {
+func (m *MockconfigsRepo) UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UserConfigID", ctx, userID, kind)
 	ret0, _ := ret[0].(int64)
@@ -68,37 +68,37 @@ func (m *MockconfigResolver) UserConfigID(ctx context.Context, userID int64, kin
 }
 
 // UserConfigID indicates an expected call of UserConfigID.
-func (mr *MockconfigResolverMockRecorder) UserConfigID(ctx, userID, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) UserConfigID(ctx, userID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigID", reflect.TypeOf((*MockconfigResolver)(nil).UserConfigID), ctx, userID, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigID", reflect.TypeOf((*MockconfigsRepo)(nil).UserConfigID), ctx, userID, kind)
 }
 
-// MockmihomoSaver is a mock of mihomoSaver interface.
-type MockmihomoSaver struct {
+// MockroutingRepo is a mock of routingRepo interface.
+type MockroutingRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockmihomoSaverMockRecorder
+	recorder *MockroutingRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockmihomoSaverMockRecorder is the mock recorder for MockmihomoSaver.
-type MockmihomoSaverMockRecorder struct {
-	mock *MockmihomoSaver
+// MockroutingRepoMockRecorder is the mock recorder for MockroutingRepo.
+type MockroutingRepoMockRecorder struct {
+	mock *MockroutingRepo
 }
 
-// NewMockmihomoSaver creates a new mock instance.
-func NewMockmihomoSaver(ctrl *gomock.Controller) *MockmihomoSaver {
-	mock := &MockmihomoSaver{ctrl: ctrl}
-	mock.recorder = &MockmihomoSaverMockRecorder{mock}
+// NewMockroutingRepo creates a new mock instance.
+func NewMockroutingRepo(ctrl *gomock.Controller) *MockroutingRepo {
+	mock := &MockroutingRepo{ctrl: ctrl}
+	mock.recorder = &MockroutingRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockmihomoSaver) EXPECT() *MockmihomoSaverMockRecorder {
+func (m *MockroutingRepo) EXPECT() *MockroutingRepoMockRecorder {
 	return m.recorder
 }
 
 // SaveMihomoConfig mocks base method.
-func (m *MockmihomoSaver) SaveMihomoConfig(ctx context.Context, configID int64, draft mihomo.ConfigDraft) error {
+func (m *MockroutingRepo) SaveMihomoConfig(ctx context.Context, configID int64, draft mihomo.ConfigDraft) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveMihomoConfig", ctx, configID, draft)
 	ret0, _ := ret[0].(error)
@@ -106,7 +106,7 @@ func (m *MockmihomoSaver) SaveMihomoConfig(ctx context.Context, configID int64, 
 }
 
 // SaveMihomoConfig indicates an expected call of SaveMihomoConfig.
-func (mr *MockmihomoSaverMockRecorder) SaveMihomoConfig(ctx, configID, draft any) *gomock.Call {
+func (mr *MockroutingRepoMockRecorder) SaveMihomoConfig(ctx, configID, draft any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMihomoConfig", reflect.TypeOf((*MockmihomoSaver)(nil).SaveMihomoConfig), ctx, configID, draft)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMihomoConfig", reflect.TypeOf((*MockroutingRepo)(nil).SaveMihomoConfig), ctx, configID, draft)
 }

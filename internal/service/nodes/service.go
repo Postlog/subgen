@@ -15,11 +15,11 @@ import (
 
 // Service owns node operations over the nodes repository.
 type Service struct {
-	nodes nodeRepo
+	nodes nodesRepo
 }
 
 // New builds the service.
-func New(nodes nodeRepo) *Service {
+func New(nodes nodesRepo) *Service {
 	return &Service{nodes: nodes}
 }
 

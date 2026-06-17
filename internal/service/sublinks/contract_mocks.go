@@ -18,32 +18,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockconfigResolver is a mock of configResolver interface.
-type MockconfigResolver struct {
+// MockconfigsRepo is a mock of configsRepo interface.
+type MockconfigsRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockconfigResolverMockRecorder
+	recorder *MockconfigsRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockconfigResolverMockRecorder is the mock recorder for MockconfigResolver.
-type MockconfigResolverMockRecorder struct {
-	mock *MockconfigResolver
+// MockconfigsRepoMockRecorder is the mock recorder for MockconfigsRepo.
+type MockconfigsRepoMockRecorder struct {
+	mock *MockconfigsRepo
 }
 
-// NewMockconfigResolver creates a new mock instance.
-func NewMockconfigResolver(ctrl *gomock.Controller) *MockconfigResolver {
-	mock := &MockconfigResolver{ctrl: ctrl}
-	mock.recorder = &MockconfigResolverMockRecorder{mock}
+// NewMockconfigsRepo creates a new mock instance.
+func NewMockconfigsRepo(ctrl *gomock.Controller) *MockconfigsRepo {
+	mock := &MockconfigsRepo{ctrl: ctrl}
+	mock.recorder = &MockconfigsRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconfigResolver) EXPECT() *MockconfigResolverMockRecorder {
+func (m *MockconfigsRepo) EXPECT() *MockconfigsRepoMockRecorder {
 	return m.recorder
 }
 
 // BaseConfigID mocks base method.
-func (m *MockconfigResolver) BaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, bool, error) {
+func (m *MockconfigsRepo) BaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BaseConfigID", ctx, kind)
 	ret0, _ := ret[0].(int64)
@@ -53,13 +53,13 @@ func (m *MockconfigResolver) BaseConfigID(ctx context.Context, kind entity.Confi
 }
 
 // BaseConfigID indicates an expected call of BaseConfigID.
-func (mr *MockconfigResolverMockRecorder) BaseConfigID(ctx, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) BaseConfigID(ctx, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BaseConfigID", reflect.TypeOf((*MockconfigResolver)(nil).BaseConfigID), ctx, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BaseConfigID", reflect.TypeOf((*MockconfigsRepo)(nil).BaseConfigID), ctx, kind)
 }
 
 // UserConfigID mocks base method.
-func (m *MockconfigResolver) UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error) {
+func (m *MockconfigsRepo) UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UserConfigID", ctx, userID, kind)
 	ret0, _ := ret[0].(int64)
@@ -69,13 +69,13 @@ func (m *MockconfigResolver) UserConfigID(ctx context.Context, userID int64, kin
 }
 
 // UserConfigID indicates an expected call of UserConfigID.
-func (mr *MockconfigResolverMockRecorder) UserConfigID(ctx, userID, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) UserConfigID(ctx, userID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigID", reflect.TypeOf((*MockconfigResolver)(nil).UserConfigID), ctx, userID, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigID", reflect.TypeOf((*MockconfigsRepo)(nil).UserConfigID), ctx, userID, kind)
 }
 
 // UserConfigUserIDs mocks base method.
-func (m *MockconfigResolver) UserConfigUserIDs(ctx context.Context, kind entity.ConfigKind) ([]int64, error) {
+func (m *MockconfigsRepo) UserConfigUserIDs(ctx context.Context, kind entity.ConfigKind) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UserConfigUserIDs", ctx, kind)
 	ret0, _ := ret[0].([]int64)
@@ -84,37 +84,37 @@ func (m *MockconfigResolver) UserConfigUserIDs(ctx context.Context, kind entity.
 }
 
 // UserConfigUserIDs indicates an expected call of UserConfigUserIDs.
-func (mr *MockconfigResolverMockRecorder) UserConfigUserIDs(ctx, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) UserConfigUserIDs(ctx, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigUserIDs", reflect.TypeOf((*MockconfigResolver)(nil).UserConfigUserIDs), ctx, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigUserIDs", reflect.TypeOf((*MockconfigsRepo)(nil).UserConfigUserIDs), ctx, kind)
 }
 
-// MockprofileReader is a mock of profileReader interface.
-type MockprofileReader struct {
+// MockroutingRepo is a mock of routingRepo interface.
+type MockroutingRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockprofileReaderMockRecorder
+	recorder *MockroutingRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockprofileReaderMockRecorder is the mock recorder for MockprofileReader.
-type MockprofileReaderMockRecorder struct {
-	mock *MockprofileReader
+// MockroutingRepoMockRecorder is the mock recorder for MockroutingRepo.
+type MockroutingRepoMockRecorder struct {
+	mock *MockroutingRepo
 }
 
-// NewMockprofileReader creates a new mock instance.
-func NewMockprofileReader(ctrl *gomock.Controller) *MockprofileReader {
-	mock := &MockprofileReader{ctrl: ctrl}
-	mock.recorder = &MockprofileReaderMockRecorder{mock}
+// NewMockroutingRepo creates a new mock instance.
+func NewMockroutingRepo(ctrl *gomock.Controller) *MockroutingRepo {
+	mock := &MockroutingRepo{ctrl: ctrl}
+	mock.recorder = &MockroutingRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockprofileReader) EXPECT() *MockprofileReaderMockRecorder {
+func (m *MockroutingRepo) EXPECT() *MockroutingRepoMockRecorder {
 	return m.recorder
 }
 
 // Profile mocks base method.
-func (m *MockprofileReader) Profile(ctx context.Context, configID int64) (mihomo.Profile, error) {
+func (m *MockroutingRepo) Profile(ctx context.Context, configID int64) (mihomo.Profile, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Profile", ctx, configID)
 	ret0, _ := ret[0].(mihomo.Profile)
@@ -123,7 +123,7 @@ func (m *MockprofileReader) Profile(ctx context.Context, configID int64) (mihomo
 }
 
 // Profile indicates an expected call of Profile.
-func (mr *MockprofileReaderMockRecorder) Profile(ctx, configID any) *gomock.Call {
+func (mr *MockroutingRepoMockRecorder) Profile(ctx, configID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Profile", reflect.TypeOf((*MockprofileReader)(nil).Profile), ctx, configID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Profile", reflect.TypeOf((*MockroutingRepo)(nil).Profile), ctx, configID)
 }

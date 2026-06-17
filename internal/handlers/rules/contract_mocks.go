@@ -15,32 +15,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockruleFiles is a mock of ruleFiles interface.
-type MockruleFiles struct {
+// MockrulesetMirror is a mock of rulesetMirror interface.
+type MockrulesetMirror struct {
 	ctrl     *gomock.Controller
-	recorder *MockruleFilesMockRecorder
+	recorder *MockrulesetMirrorMockRecorder
 	isgomock struct{}
 }
 
-// MockruleFilesMockRecorder is the mock recorder for MockruleFiles.
-type MockruleFilesMockRecorder struct {
-	mock *MockruleFiles
+// MockrulesetMirrorMockRecorder is the mock recorder for MockrulesetMirror.
+type MockrulesetMirrorMockRecorder struct {
+	mock *MockrulesetMirror
 }
 
-// NewMockruleFiles creates a new mock instance.
-func NewMockruleFiles(ctrl *gomock.Controller) *MockruleFiles {
-	mock := &MockruleFiles{ctrl: ctrl}
-	mock.recorder = &MockruleFilesMockRecorder{mock}
+// NewMockrulesetMirror creates a new mock instance.
+func NewMockrulesetMirror(ctrl *gomock.Controller) *MockrulesetMirror {
+	mock := &MockrulesetMirror{ctrl: ctrl}
+	mock.recorder = &MockrulesetMirrorMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockruleFiles) EXPECT() *MockruleFilesMockRecorder {
+func (m *MockrulesetMirror) EXPECT() *MockrulesetMirrorMockRecorder {
 	return m.recorder
 }
 
 // Get mocks base method.
-func (m *MockruleFiles) Get(file string) ([]byte, string, bool) {
+func (m *MockrulesetMirror) Get(file string) ([]byte, string, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", file)
 	ret0, _ := ret[0].([]byte)
@@ -50,7 +50,7 @@ func (m *MockruleFiles) Get(file string) ([]byte, string, bool) {
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockruleFilesMockRecorder) Get(file any) *gomock.Call {
+func (mr *MockrulesetMirrorMockRecorder) Get(file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockruleFiles)(nil).Get), file)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockrulesetMirror)(nil).Get), file)
 }

@@ -27,8 +27,8 @@ import (
 
 // Service provisions users into 3x-ui from the store.
 type Service struct {
-	users  userRepo
-	nodes  nodeRepo
+	users  usersRepo
+	nodes  nodesRepo
 	client panelClient
 
 	// Random-id sources, injected so tests can make them deterministic (defaulted in
@@ -38,7 +38,7 @@ type Service struct {
 }
 
 // New builds the provisioning service from its dependencies.
-func New(users userRepo, nodes nodeRepo, client panelClient) *Service {
+func New(users usersRepo, nodes nodesRepo, client panelClient) *Service {
 	return &Service{
 		users: users, nodes: nodes, client: client,
 		genID:   randID,

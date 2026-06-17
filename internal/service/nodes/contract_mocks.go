@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MocknodeRepo is a mock of nodeRepo interface.
-type MocknodeRepo struct {
+// MocknodesRepo is a mock of nodesRepo interface.
+type MocknodesRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeRepoMockRecorder
+	recorder *MocknodesRepoMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeRepoMockRecorder is the mock recorder for MocknodeRepo.
-type MocknodeRepoMockRecorder struct {
-	mock *MocknodeRepo
+// MocknodesRepoMockRecorder is the mock recorder for MocknodesRepo.
+type MocknodesRepoMockRecorder struct {
+	mock *MocknodesRepo
 }
 
-// NewMocknodeRepo creates a new mock instance.
-func NewMocknodeRepo(ctrl *gomock.Controller) *MocknodeRepo {
-	mock := &MocknodeRepo{ctrl: ctrl}
-	mock.recorder = &MocknodeRepoMockRecorder{mock}
+// NewMocknodesRepo creates a new mock instance.
+func NewMocknodesRepo(ctrl *gomock.Controller) *MocknodesRepo {
+	mock := &MocknodesRepo{ctrl: ctrl}
+	mock.recorder = &MocknodesRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeRepo) EXPECT() *MocknodeRepoMockRecorder {
+func (m *MocknodesRepo) EXPECT() *MocknodesRepoMockRecorder {
 	return m.recorder
 }
 
 // Create mocks base method.
-func (m *MocknodeRepo) Create(ctx context.Context, n entity.Node) (int64, error) {
+func (m *MocknodesRepo) Create(ctx context.Context, n entity.Node) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, n)
 	ret0, _ := ret[0].(int64)
@@ -51,13 +51,13 @@ func (m *MocknodeRepo) Create(ctx context.Context, n entity.Node) (int64, error)
 }
 
 // Create indicates an expected call of Create.
-func (mr *MocknodeRepoMockRecorder) Create(ctx, n any) *gomock.Call {
+func (mr *MocknodesRepoMockRecorder) Create(ctx, n any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MocknodeRepo)(nil).Create), ctx, n)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MocknodesRepo)(nil).Create), ctx, n)
 }
 
 // Delete mocks base method.
-func (m *MocknodeRepo) Delete(ctx context.Context, id int64) error {
+func (m *MocknodesRepo) Delete(ctx context.Context, id int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -65,13 +65,13 @@ func (m *MocknodeRepo) Delete(ctx context.Context, id int64) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MocknodeRepoMockRecorder) Delete(ctx, id any) *gomock.Call {
+func (mr *MocknodesRepoMockRecorder) Delete(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MocknodeRepo)(nil).Delete), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MocknodesRepo)(nil).Delete), ctx, id)
 }
 
 // Update mocks base method.
-func (m *MocknodeRepo) Update(ctx context.Context, id int64, n entity.Node, setToken bool) error {
+func (m *MocknodesRepo) Update(ctx context.Context, id int64, n entity.Node, setToken bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, id, n, setToken)
 	ret0, _ := ret[0].(error)
@@ -79,7 +79,7 @@ func (m *MocknodeRepo) Update(ctx context.Context, id int64, n entity.Node, setT
 }
 
 // Update indicates an expected call of Update.
-func (mr *MocknodeRepoMockRecorder) Update(ctx, id, n, setToken any) *gomock.Call {
+func (mr *MocknodesRepoMockRecorder) Update(ctx, id, n, setToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MocknodeRepo)(nil).Update), ctx, id, n, setToken)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MocknodesRepo)(nil).Update), ctx, id, n, setToken)
 }

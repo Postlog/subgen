@@ -7,8 +7,8 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// nodeSaver is the nodes service: it validates and persists a node (the nodes service
+// nodesService is the nodes service: it validates and persists a node (the nodes service
 // satisfies it).
-type nodeSaver interface {
+type nodesService interface {
 	Save(ctx context.Context, n entity.Node) (int64, error)
 }

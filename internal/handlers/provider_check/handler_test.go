@@ -22,14 +22,14 @@ func TestHandler_ProviderCheck(t *testing.T) {
 		name string
 		req  *oas.ProviderCheckReq
 
-		buildCheckerMock func(m *MockproviderChecker)
+		buildCheckerMock func(m *MockrulesetChecker)
 
 		result oas.ProviderCheckRes
 	}{
 		{
 			name: "ok",
 			req:  &oas.ProviderCheckReq{URL: url, Format: format},
-			buildCheckerMock: func(m *MockproviderChecker) {
+			buildCheckerMock: func(m *MockrulesetChecker) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckOK, Size: 1024})
 			},
@@ -38,7 +38,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 		{
 			name: "http_error",
 			req:  &oas.ProviderCheckReq{URL: url, Format: format},
-			buildCheckerMock: func(m *MockproviderChecker) {
+			buildCheckerMock: func(m *MockrulesetChecker) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckHTTPError, Status: 404})
 			},
@@ -47,7 +47,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 		{
 			name: "empty",
 			req:  &oas.ProviderCheckReq{URL: url, Format: format},
-			buildCheckerMock: func(m *MockproviderChecker) {
+			buildCheckerMock: func(m *MockrulesetChecker) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckEmpty})
 			},
@@ -56,7 +56,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 		{
 			name: "format_mismatch",
 			req:  &oas.ProviderCheckReq{URL: url, Format: format},
-			buildCheckerMock: func(m *MockproviderChecker) {
+			buildCheckerMock: func(m *MockrulesetChecker) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckFormatMismatch, Size: 512})
 			},
@@ -65,7 +65,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 		{
 			name: "unreachable",
 			req:  &oas.ProviderCheckReq{URL: url, Format: format},
-			buildCheckerMock: func(m *MockproviderChecker) {
+			buildCheckerMock: func(m *MockrulesetChecker) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckUnreachable})
 			},
@@ -80,7 +80,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			checker := NewMockproviderChecker(ctrl)
+			checker := NewMockrulesetChecker(ctrl)
 			if tc.buildCheckerMock != nil {
 				tc.buildCheckerMock(checker)
 			}

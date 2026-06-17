@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockuserRepo is a mock of userRepo interface.
-type MockuserRepo struct {
+// MockusersRepo is a mock of usersRepo interface.
+type MockusersRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockuserRepoMockRecorder
+	recorder *MockusersRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockuserRepoMockRecorder is the mock recorder for MockuserRepo.
-type MockuserRepoMockRecorder struct {
-	mock *MockuserRepo
+// MockusersRepoMockRecorder is the mock recorder for MockusersRepo.
+type MockusersRepoMockRecorder struct {
+	mock *MockusersRepo
 }
 
-// NewMockuserRepo creates a new mock instance.
-func NewMockuserRepo(ctrl *gomock.Controller) *MockuserRepo {
-	mock := &MockuserRepo{ctrl: ctrl}
-	mock.recorder = &MockuserRepoMockRecorder{mock}
+// NewMockusersRepo creates a new mock instance.
+func NewMockusersRepo(ctrl *gomock.Controller) *MockusersRepo {
+	mock := &MockusersRepo{ctrl: ctrl}
+	mock.recorder = &MockusersRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockuserRepo) EXPECT() *MockuserRepoMockRecorder {
+func (m *MockusersRepo) EXPECT() *MockusersRepoMockRecorder {
 	return m.recorder
 }
 
 // Create mocks base method.
-func (m *MockuserRepo) Create(ctx context.Context, u *entity.User) error {
+func (m *MockusersRepo) Create(ctx context.Context, u *entity.User) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, u)
 	ret0, _ := ret[0].(error)
@@ -50,13 +50,13 @@ func (m *MockuserRepo) Create(ctx context.Context, u *entity.User) error {
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockuserRepoMockRecorder) Create(ctx, u any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) Create(ctx, u any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockuserRepo)(nil).Create), ctx, u)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockusersRepo)(nil).Create), ctx, u)
 }
 
 // Delete mocks base method.
-func (m *MockuserRepo) Delete(ctx context.Context, id int64) error {
+func (m *MockusersRepo) Delete(ctx context.Context, id int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -64,13 +64,13 @@ func (m *MockuserRepo) Delete(ctx context.Context, id int64) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockuserRepoMockRecorder) Delete(ctx, id any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) Delete(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockuserRepo)(nil).Delete), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockusersRepo)(nil).Delete), ctx, id)
 }
 
 // Get mocks base method.
-func (m *MockuserRepo) Get(ctx context.Context, id int64) (*entity.User, error) {
+func (m *MockusersRepo) Get(ctx context.Context, id int64) (*entity.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, id)
 	ret0, _ := ret[0].(*entity.User)
@@ -79,13 +79,13 @@ func (m *MockuserRepo) Get(ctx context.Context, id int64) (*entity.User, error) 
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockuserRepoMockRecorder) Get(ctx, id any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) Get(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockuserRepo)(nil).Get), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockusersRepo)(nil).Get), ctx, id)
 }
 
 // ReplaceConnections mocks base method.
-func (m *MockuserRepo) ReplaceConnections(ctx context.Context, userID int64, inboundIDs []int64) error {
+func (m *MockusersRepo) ReplaceConnections(ctx context.Context, userID int64, inboundIDs []int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReplaceConnections", ctx, userID, inboundIDs)
 	ret0, _ := ret[0].(error)
@@ -93,13 +93,13 @@ func (m *MockuserRepo) ReplaceConnections(ctx context.Context, userID int64, inb
 }
 
 // ReplaceConnections indicates an expected call of ReplaceConnections.
-func (mr *MockuserRepoMockRecorder) ReplaceConnections(ctx, userID, inboundIDs any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) ReplaceConnections(ctx, userID, inboundIDs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceConnections", reflect.TypeOf((*MockuserRepo)(nil).ReplaceConnections), ctx, userID, inboundIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceConnections", reflect.TypeOf((*MockusersRepo)(nil).ReplaceConnections), ctx, userID, inboundIDs)
 }
 
 // SetDescription mocks base method.
-func (m *MockuserRepo) SetDescription(ctx context.Context, userID int64, description *string) error {
+func (m *MockusersRepo) SetDescription(ctx context.Context, userID int64, description *string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetDescription", ctx, userID, description)
 	ret0, _ := ret[0].(error)
@@ -107,37 +107,37 @@ func (m *MockuserRepo) SetDescription(ctx context.Context, userID int64, descrip
 }
 
 // SetDescription indicates an expected call of SetDescription.
-func (mr *MockuserRepoMockRecorder) SetDescription(ctx, userID, description any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) SetDescription(ctx, userID, description any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDescription", reflect.TypeOf((*MockuserRepo)(nil).SetDescription), ctx, userID, description)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDescription", reflect.TypeOf((*MockusersRepo)(nil).SetDescription), ctx, userID, description)
 }
 
-// MocknodeRepo is a mock of nodeRepo interface.
-type MocknodeRepo struct {
+// MocknodesRepo is a mock of nodesRepo interface.
+type MocknodesRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeRepoMockRecorder
+	recorder *MocknodesRepoMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeRepoMockRecorder is the mock recorder for MocknodeRepo.
-type MocknodeRepoMockRecorder struct {
-	mock *MocknodeRepo
+// MocknodesRepoMockRecorder is the mock recorder for MocknodesRepo.
+type MocknodesRepoMockRecorder struct {
+	mock *MocknodesRepo
 }
 
-// NewMocknodeRepo creates a new mock instance.
-func NewMocknodeRepo(ctrl *gomock.Controller) *MocknodeRepo {
-	mock := &MocknodeRepo{ctrl: ctrl}
-	mock.recorder = &MocknodeRepoMockRecorder{mock}
+// NewMocknodesRepo creates a new mock instance.
+func NewMocknodesRepo(ctrl *gomock.Controller) *MocknodesRepo {
+	mock := &MocknodesRepo{ctrl: ctrl}
+	mock.recorder = &MocknodesRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeRepo) EXPECT() *MocknodeRepoMockRecorder {
+func (m *MocknodesRepo) EXPECT() *MocknodesRepoMockRecorder {
 	return m.recorder
 }
 
 // List mocks base method.
-func (m *MocknodeRepo) List(ctx context.Context) ([]entity.Node, error) {
+func (m *MocknodesRepo) List(ctx context.Context) ([]entity.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]entity.Node)
@@ -146,9 +146,9 @@ func (m *MocknodeRepo) List(ctx context.Context) ([]entity.Node, error) {
 }
 
 // List indicates an expected call of List.
-func (mr *MocknodeRepoMockRecorder) List(ctx any) *gomock.Call {
+func (mr *MocknodesRepoMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MocknodeRepo)(nil).List), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MocknodesRepo)(nil).List), ctx)
 }
 
 // MockpanelClient is a mock of panelClient interface.

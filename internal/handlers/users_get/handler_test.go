@@ -22,9 +22,9 @@ func TestHandler_UsersGet(t *testing.T) {
 		name   string
 		params oas.UsersGetParams
 
-		buildUsersMock func(m *MockuserLister)
-		buildFleetMock func(m *MockfleetReader)
-		buildLinksMock func(m *MocksubLinker)
+		buildUsersMock func(m *MockusersRepo)
+		buildFleetMock func(m *MockfleetService)
+		buildLinksMock func(m *MocksublinksService)
 
 		result oas.UsersGetRes
 		err    error
@@ -32,7 +32,7 @@ func TestHandler_UsersGet(t *testing.T) {
 		{
 			name:   "success",
 			params: oas.UsersGetParams{},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().
 					ListPage(gomock.Any(), entity.UserListParams{Limit: 50, Offset: 0}).
 					Return(entity.UserPage{
@@ -47,10 +47,10 @@ func TestHandler_UsersGet(t *testing.T) {
 						Total: 1,
 					}, nil)
 			},
-			buildFleetMock: func(m *MockfleetReader) {
+			buildFleetMock: func(m *MockfleetService) {
 				m.EXPECT().Fleet(gomock.Any()).Return(&entity.Fleet{}, nil)
 			},
-			buildLinksMock: func(m *MocksubLinker) {
+			buildLinksMock: func(m *MocksublinksService) {
 				m.EXPECT().Links(gomock.Any(), gomock.Any()).Return(map[int64][]entity.SubLink{
 					7: {
 						{Title: "Mihomo", Value: "http://base/sub/mihomo/tok"},
@@ -80,15 +80,15 @@ func TestHandler_UsersGet(t *testing.T) {
 		{
 			name:   "empty",
 			params: oas.UsersGetParams{},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().
 					ListPage(gomock.Any(), entity.UserListParams{Limit: 50, Offset: 0}).
 					Return(entity.UserPage{}, nil)
 			},
-			buildFleetMock: func(m *MockfleetReader) {
+			buildFleetMock: func(m *MockfleetService) {
 				m.EXPECT().Fleet(gomock.Any()).Return(&entity.Fleet{}, nil)
 			},
-			buildLinksMock: func(m *MocksubLinker) {
+			buildLinksMock: func(m *MocksublinksService) {
 				m.EXPECT().Links(gomock.Any(), gomock.Any()).Return(map[int64][]entity.SubLink{}, nil)
 			},
 			result: &oas.UsersGetOK{
@@ -101,7 +101,7 @@ func TestHandler_UsersGet(t *testing.T) {
 		{
 			name:   "error.list",
 			params: oas.UsersGetParams{},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().ListPage(gomock.Any(), entity.UserListParams{Limit: 50, Offset: 0}).Return(entity.UserPage{}, internalErr)
 			},
 			err: internalErr,
@@ -109,15 +109,15 @@ func TestHandler_UsersGet(t *testing.T) {
 		{
 			name:   "error.links",
 			params: oas.UsersGetParams{},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().
 					ListPage(gomock.Any(), entity.UserListParams{Limit: 50, Offset: 0}).
 					Return(entity.UserPage{Users: []entity.User{{ID: 7, Name: "alice", SubID: subID}}, Total: 1}, nil)
 			},
-			buildFleetMock: func(m *MockfleetReader) {
+			buildFleetMock: func(m *MockfleetService) {
 				m.EXPECT().Fleet(gomock.Any()).Return(&entity.Fleet{}, nil)
 			},
-			buildLinksMock: func(m *MocksubLinker) {
+			buildLinksMock: func(m *MocksublinksService) {
 				m.EXPECT().Links(gomock.Any(), gomock.Any()).Return(nil, internalErr)
 			},
 			err: internalErr,
@@ -131,17 +131,17 @@ func TestHandler_UsersGet(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			users := NewMockuserLister(ctrl)
+			users := NewMockusersRepo(ctrl)
 			if tc.buildUsersMock != nil {
 				tc.buildUsersMock(users)
 			}
 
-			fleet := NewMockfleetReader(ctrl)
+			fleet := NewMockfleetService(ctrl)
 			if tc.buildFleetMock != nil {
 				tc.buildFleetMock(fleet)
 			}
 
-			links := NewMocksubLinker(ctrl)
+			links := NewMocksublinksService(ctrl)
 			if tc.buildLinksMock != nil {
 				tc.buildLinksMock(links)
 			}

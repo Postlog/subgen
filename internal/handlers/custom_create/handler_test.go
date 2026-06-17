@@ -20,7 +20,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 		name string
 		req  *oas.CustomCreateReq
 
-		buildConfigsMock func(m *MockconfigCreator)
+		buildConfigsMock func(m *MockconfigsRepo)
 
 		result oas.CustomCreateRes
 		err    error
@@ -28,7 +28,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.CustomCreateReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigCreator) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					CreateUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(int64(42), nil)
@@ -38,7 +38,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 		{
 			name: "error.exists",
 			req:  &oas.CustomCreateReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigCreator) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					CreateUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(int64(0), entity.ErrUserConfigExists)
@@ -48,7 +48,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.CustomCreateReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigCreator) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					CreateUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(int64(0), internalErr)
@@ -64,7 +64,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			configs := NewMockconfigCreator(ctrl)
+			configs := NewMockconfigsRepo(ctrl)
 			if tc.buildConfigsMock != nil {
 				tc.buildConfigsMock(configs)
 			}

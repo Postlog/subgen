@@ -7,7 +7,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// creator provisions a new user (the provisioning service satisfies it).
-type creator interface {
+// provisioningService provisions a new user (the provisioning service satisfies it).
+type provisioningService interface {
 	CreateUser(ctx context.Context, p entity.UserCreateParams) (*entity.User, error)
 }

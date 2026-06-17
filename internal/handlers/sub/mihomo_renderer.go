@@ -10,14 +10,14 @@ import (
 // MihomoRenderer is the mihomo (Clash.Meta) engineRenderer: it loads the config's
 // mihomo content (scoped by config id) and renders the per-subscriber YAML profile.
 type MihomoRenderer struct {
-	routing    mihomoReader
+	routing    routingRepo
 	publicBase string
 }
 
 // NewMihomoRenderer builds the mihomo renderer. publicBase rewrites mirrored
 // rule-provider URLs; the response metadata (filename, title, update interval) is read
 // per-config from the store at render time.
-func NewMihomoRenderer(routing mihomoReader, publicBase string) *MihomoRenderer {
+func NewMihomoRenderer(routing routingRepo, publicBase string) *MihomoRenderer {
 	return &MihomoRenderer{routing: routing, publicBase: publicBase}
 }
 

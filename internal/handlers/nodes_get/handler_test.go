@@ -19,14 +19,14 @@ func TestHandler_NodesGet(t *testing.T) {
 	tt := []struct {
 		name string
 
-		buildNodesMock func(m *MocknodeLister)
+		buildNodesMock func(m *MocknodesRepo)
 
 		result oas.NodesGetRes
 		err    error
 	}{
 		{
 			name: "success",
-			buildNodesMock: func(m *MocknodeLister) {
+			buildNodesMock: func(m *MocknodesRepo) {
 				m.EXPECT().List(gomock.Any()).Return([]entity.Node{{
 					ID:            1,
 					Name:          "RU1",
@@ -53,14 +53,14 @@ func TestHandler_NodesGet(t *testing.T) {
 		},
 		{
 			name: "empty",
-			buildNodesMock: func(m *MocknodeLister) {
+			buildNodesMock: func(m *MocknodesRepo) {
 				m.EXPECT().List(gomock.Any()).Return([]entity.Node{}, nil)
 			},
 			result: &oas.NodesGetOK{Nodes: []oas.NodesGetOKNodesItem{}},
 		},
 		{
 			name: "error.list",
-			buildNodesMock: func(m *MocknodeLister) {
+			buildNodesMock: func(m *MocknodesRepo) {
 				m.EXPECT().List(gomock.Any()).Return(nil, internalErr)
 			},
 			err: internalErr,
@@ -74,7 +74,7 @@ func TestHandler_NodesGet(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			nodes := NewMocknodeLister(ctrl)
+			nodes := NewMocknodesRepo(ctrl)
 			if tc.buildNodesMock != nil {
 				tc.buildNodesMock(nodes)
 			}

@@ -12,11 +12,11 @@ import (
 
 // Handler serves the node registry.
 type Handler struct {
-	nodes nodeLister
+	nodes nodesRepo
 }
 
 // New builds the handler.
-func New(nodes nodeLister) *Handler { return &Handler{nodes: nodes} }
+func New(nodes nodesRepo) *Handler { return &Handler{nodes: nodes} }
 
 // NodesGet implements oas.Handler: it lists the fleet nodes with their inbounds.
 func (h *Handler) NodesGet(ctx context.Context) (oas.NodesGetRes, error) {

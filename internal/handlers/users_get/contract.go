@@ -7,14 +7,14 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-type userLister interface {
+type usersRepo interface {
 	ListPage(ctx context.Context, p entity.UserListParams) (entity.UserPage, error)
 }
 
-type fleetReader interface {
+type fleetService interface {
 	Fleet(ctx context.Context) (*entity.Fleet, error)
 }
 
-type subLinker interface {
+type sublinksService interface {
 	Links(ctx context.Context, users []entity.User) (map[int64][]entity.SubLink, error)
 }

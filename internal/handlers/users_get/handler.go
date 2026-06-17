@@ -17,13 +17,13 @@ const (
 
 // Handler serves a page of the users list.
 type Handler struct {
-	users userLister
-	fleet fleetReader
-	links subLinker
+	users usersRepo
+	fleet fleetService
+	links sublinksService
 }
 
 // New builds the handler.
-func New(users userLister, fleet fleetReader, links subLinker) *Handler {
+func New(users usersRepo, fleet fleetService, links sublinksService) *Handler {
 	return &Handler{users: users, fleet: fleet, links: links}
 }
 

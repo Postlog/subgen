@@ -377,8 +377,13 @@ RENAME (иначе SQLite переписывает FK в чужих таблиц
 Зависимости сущности (хендлера, сервиса, …) объявляются **приватным интерфейсом
 в том пакете, где используются**, в файле `contract.go`, с директивой генерации
 мока. Интерфейс описывает ровно те методы, что нужны этому пакету (interface
-segregation), и именуется по роли зависимости (`itemPlatformClient`,
-`curlGenerator`, `usersRepository`).
+segregation), и **именуется по конкретной зависимости, на которую ссылается** (а не по
+абстрактной роли). По имени должно быть видно, что это: репозиторий → `<сущность>Repo`
+(`usersRepo`, `nodesRepo`, `configsRepo`, `routingRepo`), сервис → `<сущность>Service`
+(`fleetService`, `provisioningService`, `sublinksService`), клиент → `<сущность>Client`
+(`panelClient`, `itemPlatformClient`). Роль-имена, по которым не видно repo/service/client
+(`subLinker`, `configResolver`, `mihomoReader`, `creator`, `deleter`), **запрещены** —
+они усложняют чтение.
 
 ```go
 // contract.go
@@ -395,7 +400,7 @@ type itemPlatformClient interface {
 	Get(ctx context.Context, in entity.ItemGetIn) (map[int64]entity.Item, error)
 }
 
-type curlGenerator interface {
+type curlService interface {
 	Generate(ctx context.Context, pl entity.CURLGeneratorPayload) ([]entity.CURL, error)
 }
 ```

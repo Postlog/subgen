@@ -23,11 +23,11 @@ const (
 
 // Handler probes a rule-provider URL via the checker service.
 type Handler struct {
-	checker providerChecker
+	checker rulesetChecker
 }
 
 // New builds the handler.
-func New(checker providerChecker) *Handler { return &Handler{checker: checker} }
+func New(checker rulesetChecker) *Handler { return &Handler{checker: checker} }
 
 // ProviderCheck implements oas.Handler: a reachable, right-format file is a 200 with a
 // message; any other outcome is a 400. The handler does not validate the URL — a blank or

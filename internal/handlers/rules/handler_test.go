@@ -19,14 +19,14 @@ func TestHandler_Rules(t *testing.T) {
 		name   string
 		params oas.RulesParams
 
-		buildMirrorMock func(m *MockruleFiles)
+		buildMirrorMock func(m *MockrulesetMirror)
 
 		assertFn func(t *testing.T, res oas.RulesRes)
 	}{
 		{
 			name:   "success",
 			params: oas.RulesParams{File: "geosite.yaml"},
-			buildMirrorMock: func(m *MockruleFiles) {
+			buildMirrorMock: func(m *MockrulesetMirror) {
 				m.EXPECT().Get("geosite.yaml").Return(data, "text/yaml", true)
 			},
 			assertFn: func(t *testing.T, res oas.RulesRes) {
@@ -41,7 +41,7 @@ func TestHandler_Rules(t *testing.T) {
 		{
 			name:   "notfound.unknown_file",
 			params: oas.RulesParams{File: "missing.yaml"},
-			buildMirrorMock: func(m *MockruleFiles) {
+			buildMirrorMock: func(m *MockrulesetMirror) {
 				m.EXPECT().Get("missing.yaml").Return(nil, "", false)
 			},
 			assertFn: func(t *testing.T, res oas.RulesRes) {
@@ -66,7 +66,7 @@ func TestHandler_Rules(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			mirror := NewMockruleFiles(ctrl)
+			mirror := NewMockrulesetMirror(ctrl)
 			if tc.buildMirrorMock != nil {
 				tc.buildMirrorMock(mirror)
 			}

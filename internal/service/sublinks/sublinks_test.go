@@ -36,7 +36,7 @@ func TestService_Links(t *testing.T) {
 	tt := []struct {
 		name      string
 		users     []entity.User
-		buildMock func(m *MockconfigResolver, p *MockprofileReader)
+		buildMock func(m *MockconfigsRepo, p *MockroutingRepo)
 		result    map[int64][]entity.SubLink
 		err       error
 	}{
@@ -48,7 +48,7 @@ func TestService_Links(t *testing.T) {
 		{
 			name:  "success.base_only",
 			users: []entity.User{{ID: 7, SubID: "s7"}},
-			buildMock: func(m *MockconfigResolver, p *MockprofileReader) {
+			buildMock: func(m *MockconfigsRepo, p *MockroutingRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(100), true, nil)
 				p.EXPECT().Profile(gomock.Any(), int64(100)).Return(mihomo.Profile{Title: "Freedom"}, nil)
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return(nil, nil)
@@ -63,7 +63,7 @@ func TestService_Links(t *testing.T) {
 		{
 			name:  "success.custom_overrides_title",
 			users: []entity.User{{ID: 7, SubID: "s7"}, {ID: 8, SubID: "s8"}},
-			buildMock: func(m *MockconfigResolver, p *MockprofileReader) {
+			buildMock: func(m *MockconfigsRepo, p *MockroutingRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(100), true, nil)
 				p.EXPECT().Profile(gomock.Any(), int64(100)).Return(mihomo.Profile{Title: "Freedom"}, nil)
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return([]int64{7}, nil)
@@ -84,7 +84,7 @@ func TestService_Links(t *testing.T) {
 		{
 			name:  "success.no_base_config",
 			users: []entity.User{{ID: 7, SubID: "s7"}},
-			buildMock: func(m *MockconfigResolver, p *MockprofileReader) {
+			buildMock: func(m *MockconfigsRepo, p *MockroutingRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return(nil, nil)
 			},
@@ -98,7 +98,7 @@ func TestService_Links(t *testing.T) {
 		{
 			name:  "error.base_config",
 			users: []entity.User{{ID: 7, SubID: "s7"}},
-			buildMock: func(m *MockconfigResolver, _ *MockprofileReader) {
+			buildMock: func(m *MockconfigsRepo, _ *MockroutingRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), false, targetErr)
 			},
 			err: targetErr,
@@ -106,7 +106,7 @@ func TestService_Links(t *testing.T) {
 		{
 			name:  "error.profile",
 			users: []entity.User{{ID: 7, SubID: "s7"}},
-			buildMock: func(m *MockconfigResolver, p *MockprofileReader) {
+			buildMock: func(m *MockconfigsRepo, p *MockroutingRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(100), true, nil)
 				p.EXPECT().Profile(gomock.Any(), int64(100)).Return(mihomo.Profile{}, targetErr)
 			},
@@ -121,8 +121,8 @@ func TestService_Links(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			cfgs := NewMockconfigResolver(ctrl)
-			profiles := NewMockprofileReader(ctrl)
+			cfgs := NewMockconfigsRepo(ctrl)
+			profiles := NewMockroutingRepo(ctrl)
 			if tc.buildMock != nil {
 				tc.buildMock(cfgs, profiles)
 			}

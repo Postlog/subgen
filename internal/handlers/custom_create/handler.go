@@ -16,11 +16,11 @@ const msgConfigExists = "У пользователя уже есть касто�
 
 // Handler clones the base config into a new per-user custom config.
 type Handler struct {
-	configs configCreator
+	configs configsRepo
 }
 
 // New builds the handler.
-func New(configs configCreator) *Handler { return &Handler{configs: configs} }
+func New(configs configsRepo) *Handler { return &Handler{configs: configs} }
 
 // CustomCreate implements oas.Handler: an already-existing custom config is a 400; any
 // unexpected (store) failure is a 500.

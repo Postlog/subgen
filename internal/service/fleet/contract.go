@@ -7,8 +7,8 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// nodeLister lists the node registry (the nodes repository satisfies it).
-type nodeLister interface {
+// nodesRepo lists the node registry (the nodes repository satisfies it).
+type nodesRepo interface {
 	List(ctx context.Context) ([]entity.Node, error)
 }
 

@@ -19,7 +19,7 @@ func TestHandler_UserDelete(t *testing.T) {
 		name string
 		req  *oas.UserDeleteReq
 
-		buildDeleterMock func(m *Mockdeleter)
+		buildDeleterMock func(m *MockprovisioningService)
 
 		result oas.UserDeleteRes
 		err    error
@@ -27,7 +27,7 @@ func TestHandler_UserDelete(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.UserDeleteReq{ID: 7},
-			buildDeleterMock: func(m *Mockdeleter) {
+			buildDeleterMock: func(m *MockprovisioningService) {
 				m.EXPECT().DeleteUser(gomock.Any(), int64(7)).Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgDeleted},
@@ -35,7 +35,7 @@ func TestHandler_UserDelete(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.UserDeleteReq{ID: 7},
-			buildDeleterMock: func(m *Mockdeleter) {
+			buildDeleterMock: func(m *MockprovisioningService) {
 				m.EXPECT().DeleteUser(gomock.Any(), int64(7)).Return(internalErr)
 			},
 			err: internalErr,
@@ -49,7 +49,7 @@ func TestHandler_UserDelete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMockdeleter(ctrl)
+			svc := NewMockprovisioningService(ctrl)
 			if tc.buildDeleterMock != nil {
 				tc.buildDeleterMock(svc)
 			}

@@ -34,7 +34,7 @@ func TestService_Save(t *testing.T) {
 	tt := []struct {
 		name      string
 		node      entity.Node
-		buildMock func(m *MocknodeRepo)
+		buildMock func(m *MocknodesRepo)
 		wantID    int64
 		err       error // sentinel/target to ErrorIs; nil => success
 	}{
@@ -44,34 +44,34 @@ func TestService_Save(t *testing.T) {
 		},
 		{
 			name: "success.create", node: validNode(), wantID: 5,
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Create(gomock.Any(), validNode()).Return(int64(5), nil)
 			},
 		},
 		{
 			name: "error.create_conflict", node: validNode(),
 			err: entity.ErrNodeNameTaken,
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Create(gomock.Any(), validNode()).Return(int64(0), entity.ErrNodeNameTaken)
 			},
 		},
 		{
 			name: "success.update", node: updateNode(), wantID: 7,
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(nil)
 			},
 		},
 		{
 			name: "error.update_referenced", node: updateNode(),
 			err: entity.ErrInboundReferenced, // FK refused a dropped inbound — propagated
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(entity.ErrInboundReferenced)
 			},
 		},
 		{
 			name: "error.update_repo", node: updateNode(),
 			err: targetErr,
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Update(gomock.Any(), int64(7), updateNode(), false).Return(targetErr)
 			},
 		},
@@ -84,7 +84,7 @@ func TestService_Save(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := NewMocknodeRepo(ctrl)
+			m := NewMocknodesRepo(ctrl)
 			if tc.buildMock != nil {
 				tc.buildMock(m)
 			}
@@ -102,33 +102,33 @@ func TestService_Delete(t *testing.T) {
 
 	tt := []struct {
 		name      string
-		buildMock func(m *MocknodeRepo)
+		buildMock func(m *MocknodesRepo)
 		err       error
 	}{
 		{
 			name: "success",
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(nil)
 			},
 		},
 		{
 			name: "error.not_found",
 			err:  entity.ErrNodeNotFound, // repo found no row to delete — propagated
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(entity.ErrNodeNotFound)
 			},
 		},
 		{
 			name: "error.referenced",
 			err:  entity.ErrInboundReferenced, // FK refused a referenced inbound — propagated
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(entity.ErrInboundReferenced)
 			},
 		},
 		{
 			name: "error.repo",
 			err:  targetErr,
-			buildMock: func(m *MocknodeRepo) {
+			buildMock: func(m *MocknodesRepo) {
 				m.EXPECT().Delete(gomock.Any(), int64(7)).Return(targetErr)
 			},
 		},
@@ -141,7 +141,7 @@ func TestService_Delete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			m := NewMocknodeRepo(ctrl)
+			m := NewMocknodesRepo(ctrl)
 			if tc.buildMock != nil {
 				tc.buildMock(m)
 			}

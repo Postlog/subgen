@@ -15,12 +15,12 @@ import (
 
 // Handler serves the custom-config owners + the full user list.
 type Handler struct {
-	configs configLister
-	users   userLister
+	configs configsRepo
+	users   usersRepo
 }
 
 // New builds the handler.
-func New(configs configLister, users userLister) *Handler {
+func New(configs configsRepo, users usersRepo) *Handler {
 	return &Handler{configs: configs, users: users}
 }
 

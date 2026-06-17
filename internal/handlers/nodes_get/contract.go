@@ -7,6 +7,6 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-type nodeLister interface {
+type nodesRepo interface {
 	List(ctx context.Context) ([]entity.Node, error)
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// configDeleter removes a user's custom config (its content cascades away).
-type configDeleter interface {
+// configsRepo removes a user's custom config (its content cascades away).
+type configsRepo interface {
 	DeleteUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) error
 }

@@ -35,7 +35,7 @@ func TestHandler_NodeDelete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMocknodeDeleter(ctrl)
+			svc := NewMocknodesService(ctrl)
 			svc.EXPECT().Delete(gomock.Any(), int64(7)).Return(tc.deleteErr)
 
 			res, err := New(svc).NodeDelete(context.Background(), &oas.NodeDeleteReq{ID: 7})

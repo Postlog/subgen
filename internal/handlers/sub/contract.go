@@ -8,21 +8,21 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// userResolver lists the subscription IDs of service-owned users (for token
+// usersRepo lists the subscription IDs of service-owned users (for token
 // reverse-lookup) and resolves a matched sub_id to its user id.
-type userResolver interface {
+type usersRepo interface {
 	SubIDs(ctx context.Context) ([]string, error)
 	IDBySubID(ctx context.Context, subID string) (int64, error)
 }
 
-// fleetReader returns the current (cached) fleet snapshot.
-type fleetReader interface {
+// fleetService returns the current (cached) fleet snapshot.
+type fleetService interface {
 	Fleet(ctx context.Context) (*entity.Fleet, error)
 }
 
-// configResolver picks the config to render for a subscriber: a user's custom config
+// configsRepo picks the config to render for a subscriber: a user's custom config
 // when present, otherwise the engine's base.
-type configResolver interface {
+type configsRepo interface {
 	UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error)
 	BaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, bool, error)
 }
@@ -36,9 +36,9 @@ type EngineRenderer interface {
 	Render(ctx context.Context, sub *entity.Subscriber, configID int64) ([]byte, RenderMeta, error)
 }
 
-// mihomoReader reads one config's mihomo content (scoped by config id) for the mihomo
+// routingRepo reads one config's mihomo content (scoped by config id) for the mihomo
 // renderer.
-type mihomoReader interface {
+type routingRepo interface {
 	Rules(ctx context.Context, configID int64) ([]mihomo.RoutingRule, error)
 	ProxyGroups(ctx context.Context, configID int64) ([]mihomo.ProxyGroup, error)
 	RuleProviders(ctx context.Context, configID int64) ([]mihomo.RuleProvider, error)

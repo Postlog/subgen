@@ -61,7 +61,7 @@ func TestHandler_NodeSave(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMocknodeSaver(ctrl)
+			svc := NewMocknodesService(ctrl)
 			svc.EXPECT().Save(gomock.Any(), wantNode()).Return(int64(1), tc.saveErr)
 
 			res, err := New(svc).NodeSave(context.Background(), nodeReq())

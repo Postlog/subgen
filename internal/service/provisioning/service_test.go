@@ -42,15 +42,15 @@ func n1Target() entity.PanelTarget {
 
 // mocks bundles the service's dependency mocks for a test case.
 type mocks struct {
-	users  *MockuserRepo
-	nodes  *MocknodeRepo
+	users  *MockusersRepo
+	nodes  *MocknodesRepo
 	client *MockpanelClient
 }
 
 func newMocks(ctrl *gomock.Controller) *mocks {
 	return &mocks{
-		users:  NewMockuserRepo(ctrl),
-		nodes:  NewMocknodeRepo(ctrl),
+		users:  NewMockusersRepo(ctrl),
+		nodes:  NewMocknodesRepo(ctrl),
 		client: NewMockpanelClient(ctrl),
 	}
 }

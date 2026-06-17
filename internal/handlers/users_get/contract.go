@@ -14,3 +14,7 @@ type userLister interface {
 type fleetReader interface {
 	Fleet(ctx context.Context) (*entity.Fleet, error)
 }
+
+type subLinker interface {
+	Links(ctx context.Context, users []entity.User) (map[int64][]entity.SubLink, error)
+}

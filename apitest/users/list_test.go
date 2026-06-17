@@ -9,8 +9,9 @@ import (
 )
 
 // Corner cases considered for GET /admin/api/users:
-//   - shape          — a created user appears with id/name, a subId + absolute /sub URL,
-//                      and one inbound row per binding (label "<node>-<inbound>", port).
+//   - shape          — a created user appears with id/name, a non-empty subscription
+//                      link list carrying an absolute /sub URL, and one inbound row per
+//                      binding (label "<node>-<inbound>", port).
 //   - traffic        — the stats field is present; a brand-new client reports 0/0
 //                      (the users API folds fleet traffic in; fresh clients have none).
 //   - missing_flag   — a binding whose client was deleted out-of-band on the panel is
@@ -28,10 +29,12 @@ func (s *UserSuite) TestListShape() {
 	s.Equal(u.Name, row.Name)
 	s.Positive(row.ID)
 
-	// Subscription coordinates: a non-empty subId and an absolute, token-signed URL.
-	s.NotEmpty(row.Sub.ID, "row must carry the subId")
-	s.True(strings.HasPrefix(row.Sub.URL, "http"), "sub URL must be absolute: %q", row.Sub.URL)
-	s.Contains(row.Sub.URL, "/sub/", "sub URL must hit the /sub route")
+	// Subscription presentation: a non-empty link list, and the raw /sub URL among the
+	// links is absolute and hits the /sub route.
+	s.Require().NotEmpty(row.Sub.Links, "row must carry subscription links")
+	subURL := row.Sub.SubURL()
+	s.True(strings.HasPrefix(subURL, "http"), "sub URL must be absolute: %q", subURL)
+	s.Contains(subURL, "/sub/", "sub URL must hit the /sub route")
 
 	// Three bindings, labelled "<node>-<inbound>" with the right ports.
 	s.Require().Len(row.Inbounds, 3)

@@ -5,6 +5,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // The User* read DTOs below are hand-rolled to mirror the users-list response
@@ -20,11 +21,30 @@ type UserInbound struct {
 	Missing bool   `json:"missing"`
 }
 
-// UserSub is a user's subscription coordinates: the shared subId and the absolute
-// /sub URL (token-signed) the user fetches.
+// UserSubLink is one copyable subscription link the users API reports: a display title
+// and the literal value (a raw /sub URL or an app deeplink that embeds it).
+type UserSubLink struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
+}
+
+// UserSub is a user's subscription presentation: the ordered, copyable links. The
+// backend decides which links exist and their titles; this is a black-box mirror of that.
 type UserSub struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+	Links []UserSubLink `json:"links"`
+}
+
+// SubURL returns the raw, token-signed /sub URL among the links — the http(s) one a
+// client GETs. It is picked by scheme (deeplinks use app schemes like clashmi://), not by
+// title, so the test stays agnostic to which links the backend offers.
+func (s UserSub) SubURL() string {
+	for _, l := range s.Links {
+		if strings.HasPrefix(l.Value, "http") {
+			return l.Value
+		}
+	}
+
+	return ""
 }
 
 // UserStats is a user's aggregated traffic, as the users API computes from the fleet

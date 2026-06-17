@@ -24,6 +24,7 @@ const app = createApp({
       nodes: [],
       schema: null, // config UI schema (rule/group/policy/provider catalogs), from the backend
       uForm: { open: false, id: 0, name: "", description: "", inbounds: [] },
+      subLinks: { open: false, name: "", links: [] }, // subscription-links popup (links come from the backend)
       nodeForm: { open: false, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [] },
       provForm: { open: false, idx: -1 }, // which provider the edit modal is editing
 
@@ -430,6 +431,10 @@ const app = createApp({
 
     // ---- users --------------------------------------------------------------
     openCreateUser() { this.uForm = { open: true, id: 0, name: "", description: "", inbounds: [] }; },
+    // openSubLinks shows the subscription-links popup for a user. The list (titles +
+    // values) is whatever the users API reported under sub.links — nothing is hardcoded
+    // here, so new link kinds appear automatically.
+    openSubLinks(u) { this.subLinks = { open: true, name: u.name, links: (u.sub && u.sub.links) || [] }; },
     openEdit(u) {
       this.uForm = { open: true, id: u.id, name: u.name, description: u.description || "", inbounds: (u.inbounds || []).map((i) => i.id) };
     },
@@ -480,7 +485,7 @@ const app = createApp({
       if (d.ok) this.load("nodes");
     },
 
-    closeModals() { this.uForm.open = false; this.nodeForm.open = false; this.inboundFilterOpen = false; },
+    closeModals() { this.uForm.open = false; this.nodeForm.open = false; this.inboundFilterOpen = false; this.subLinks.open = false; },
   },
   mounted() {
     this.load("users");

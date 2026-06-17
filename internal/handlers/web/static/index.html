@@ -77,7 +77,7 @@
                 <span v-else class="text-dim small">—</span>
               </td>
               <td class="traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
-              <td><button class="btn btn-sm btn-outline-secondary act" @click="copy(u.sub.url)">Mihomo</button></td>
+              <td><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Ссылки</button></td>
               <td class="actions">
                 <span v-if="actingId===u.id" class="spin me-2"></span>
                 <div class="act-group">
@@ -372,6 +372,23 @@
         <button class="btn btn-primary" :disabled="busy" @click="submitUser()">
           <span v-if="busy" class="spin me-1"></span>{{ uForm.id ? 'Сохранить' : 'Создать' }}
         </button>
+      </template>
+    </modal>
+
+    <!-- ============ SUBSCRIPTION-LINKS MODAL ============ -->
+    <!-- The list of links comes entirely from the users API — nothing about which links
+         exist or their titles is hardcoded here. The value is private and not shown:
+         title + a copy button only. -->
+    <modal :open="subLinks.open" :title="'Подписка — ' + subLinks.name" @close="subLinks.open=false">
+      <div class="sublinks">
+        <div v-for="(l,i) in subLinks.links" :key="i" class="sublink">
+          <div class="sublink-title">{{ l.title }}</div>
+          <button class="btn btn-sm btn-outline-secondary sublink-copy" @click="copy(l.value)">Копировать</button>
+        </div>
+        <div v-if="!subLinks.links.length" class="inb-empty">ссылок нет</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline-secondary" @click="subLinks.open=false">Закрыть</button>
       </template>
     </modal>
 

@@ -223,6 +223,12 @@ tr.acting{opacity:.5;}
 .inb-row .form-control{max-width:150px;}
 .inb-empty{color:var(--bs-secondary-color);font-size:.85rem;margin:.2rem 0 .6rem;}
 
+/* ===== subscription-links popup (title + copy; the link value is private, not shown) ===== */
+.sublinks{display:flex;flex-direction:column;gap:.55rem;}
+.sublink{display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid var(--bs-border-color);border-radius:var(--bs-border-radius);background:var(--input-bg);}
+.sublink-title{flex:1;min-width:0;font-weight:600;color:#fff;font-size:.9rem;}
+.sublink-copy{flex:none;}
+
 /* ===== rule-provider list (compact rows; full edit in modal) ===== */
 .editrow{display:flex;gap:.5rem;align-items:center;margin-bottom:.55rem;}
 .editrow .grow{flex:1;min-width:0;}

@@ -94,3 +94,42 @@ func (mr *MockfleetReaderMockRecorder) Fleet(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fleet", reflect.TypeOf((*MockfleetReader)(nil).Fleet), ctx)
 }
+
+// MocksubLinker is a mock of subLinker interface.
+type MocksubLinker struct {
+	ctrl     *gomock.Controller
+	recorder *MocksubLinkerMockRecorder
+	isgomock struct{}
+}
+
+// MocksubLinkerMockRecorder is the mock recorder for MocksubLinker.
+type MocksubLinkerMockRecorder struct {
+	mock *MocksubLinker
+}
+
+// NewMocksubLinker creates a new mock instance.
+func NewMocksubLinker(ctrl *gomock.Controller) *MocksubLinker {
+	mock := &MocksubLinker{ctrl: ctrl}
+	mock.recorder = &MocksubLinkerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MocksubLinker) EXPECT() *MocksubLinkerMockRecorder {
+	return m.recorder
+}
+
+// Links mocks base method.
+func (m *MocksubLinker) Links(ctx context.Context, users []entity.User) (map[int64][]entity.SubLink, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Links", ctx, users)
+	ret0, _ := ret[0].(map[int64][]entity.SubLink)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Links indicates an expected call of Links.
+func (mr *MocksubLinkerMockRecorder) Links(ctx, users any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Links", reflect.TypeOf((*MocksubLinker)(nil).Links), ctx, users)
+}

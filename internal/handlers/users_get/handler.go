@@ -5,11 +5,9 @@ package users_get
 import (
 	"context"
 	"log/slog"
-	"strings"
 
 	"github.com/postlog/subgen/internal/entity"
 	"github.com/postlog/subgen/internal/oas"
-	"github.com/postlog/subgen/internal/token"
 )
 
 const (
@@ -19,15 +17,14 @@ const (
 
 // Handler serves a page of the users list.
 type Handler struct {
-	users  userLister
-	fleet  fleetReader
-	secret string // HMAC secret for subscription tokens
-	base   string // public base URL
+	users userLister
+	fleet fleetReader
+	links subLinker
 }
 
 // New builds the handler.
-func New(users userLister, fleet fleetReader, secret, base string) *Handler {
-	return &Handler{users: users, fleet: fleet, secret: secret, base: base}
+func New(users userLister, fleet fleetReader, links subLinker) *Handler {
+	return &Handler{users: users, fleet: fleet, links: links}
 }
 
 // UsersGet implements oas.Handler. Health badges and traffic come from the cached
@@ -57,7 +54,12 @@ func (h *Handler) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.
 	}
 
 	fl, _ := h.fleet.Fleet(ctx)
-	base := strings.TrimRight(h.base, "/")
+
+	links, err := h.links.Links(ctx, res.Users)
+	if err != nil {
+		slog.Error("handler users_get: build subscription links failed", "page", page, "perPage", perPage, "err", err)
+		return nil, err
+	}
 
 	rows := make([]oas.UsersGetOKUsersItem, 0, len(res.Users))
 
@@ -72,9 +74,14 @@ func (h *Handler) UsersGet(ctx context.Context, params oas.UsersGetParams) (oas.
 			})
 		}
 
+		sub := make([]oas.UsersGetOKUsersItemSubLinksItem, 0, len(links[u.ID]))
+		for _, l := range links[u.ID] {
+			sub = append(sub, oas.UsersGetOKUsersItemSubLinksItem{Title: l.Title, Value: l.Value})
+		}
+
 		row := oas.UsersGetOKUsersItem{
 			ID: u.ID, Name: u.Name, Inbounds: inbounds,
-			Sub: oas.UsersGetOKUsersItemSub{ID: u.SubID, URL: base + "/sub/mihomo/" + token.Make(h.secret, u.SubID)},
+			Sub: oas.UsersGetOKUsersItemSub{Links: sub},
 		}
 
 		if u.Description != nil {

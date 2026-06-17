@@ -8,12 +8,10 @@
 #   make apitest      — run the API tests against real 3x-ui panels in docker
 #                       (delegates to apitest/Makefile: up panels → run → down)
 #   make all          — generate, then lint + test + integration + apitest
-#   make hooks        — install the tracked git hooks (core.hooksPath = .githooks);
-#                       the pre-push hook runs `make all` before every push
 #
 # Lint requires golangci-lint v2: https://golangci-lint.run/welcome/install/
 
-.PHONY: generate lint test integration apitest all hooks
+.PHONY: generate lint test integration apitest all
 
 generate:
 	go generate ./...
@@ -31,7 +29,3 @@ apitest:
 	$(MAKE) -C apitest test
 
 all: generate lint test integration apitest
-
-hooks:
-	git config core.hooksPath .githooks
-	@echo "git hooks installed (core.hooksPath = .githooks); pre-push runs 'make all'"

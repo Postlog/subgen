@@ -50,11 +50,42 @@ func TestDecodeConfig(t *testing.T) {
 					}},
 				},
 				Rules: []RuleDraft{
-					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
-					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
-					{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
+					{Type: RuleDomainSuffix, Value: utils.Ptr("example.com"), Target: &RefDraft{Kind: PolicyInbound, InboundID: utils.Ptr[int64](5)}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: &RefDraft{Kind: PolicyDirect}},
+					{Type: RuleMatch, Target: &RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
 				},
 				Providers: []RuleProvider{{Name: "allow", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+			},
+		},
+		{
+			// A logical rule (AND/OR/NOT) decodes its recursive sub-conditions: a RULE-SET
+			// condition carries a providerIdx, a nested logical condition its own children.
+			// The logical rule itself carries no value/provider, just the conditions + target.
+			name: "success.logical_rule_conditions",
+			body: `{
+				"providers": [{"name":"ads","behavior":"domain","format":"mrs","url":"https://x"}],
+				"rules": [
+					{"type":"AND","target":{"kind":"reject-drop"},"children":[
+						{"type":"NETWORK","value":"UDP"},
+						{"type":"OR","children":[
+							{"type":"DST-PORT","value":"443"},
+							{"type":"RULE-SET","providerIdx":0}
+						]}
+					]}
+				]
+			}`,
+			want: ConfigDraft{
+				Groups: []GroupDraft{},
+				Rules: []RuleDraft{
+					{Type: RuleAnd, Target: &RefDraft{Kind: PolicyRejectDrop}, Children: []RuleDraft{
+						{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+						{Type: RuleOr, Children: []RuleDraft{
+							{Type: RuleDstPort, Value: utils.Ptr("443")},
+							{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0)},
+						}},
+					}},
+				},
+				Providers: []RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},
 		},
 		{

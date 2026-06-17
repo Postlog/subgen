@@ -15,12 +15,15 @@ type policyRefDTO struct {
 	GroupIdx  *int   `json:"groupIdx"`
 }
 
+// ruleDTO is recursive (a logical rule's sub-rules in children); target is a pointer
+// because it is optional — a sub-rule has none.
 type ruleDTO struct {
-	Type        string       `json:"type"`
-	Value       *string      `json:"value"`
-	ProviderIdx *int         `json:"providerIdx"`
-	NoResolve   *bool        `json:"noResolve"`
-	Target      policyRefDTO `json:"target"`
+	Type        string        `json:"type"`
+	Value       *string       `json:"value"`
+	ProviderIdx *int          `json:"providerIdx"`
+	NoResolve   *bool         `json:"noResolve"`
+	Target      *policyRefDTO `json:"target"`
+	Children    []ruleDTO     `json:"children"`
 }
 
 type groupDTO struct {
@@ -83,15 +86,11 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 		})
 	}
 
-	rules := make([]RuleDraft, 0, len(dto.Rules))
-	for _, ru := range dto.Rules {
-		rules = append(rules, RuleDraft{
-			Type:        RuleType(strings.TrimSpace(ru.Type)),
-			Value:       trimPtr(ru.Value),
-			ProviderIdx: ru.ProviderIdx,
-			NoResolve:   ru.NoResolve,
-			Target:      refFromDTO(ru.Target),
-		})
+	// Top-level rules are a non-nil empty slice (like groups/providers); rulesFromDTO
+	// returns nil for an empty/leaf children list (so a leaf has Children nil).
+	rules := rulesFromDTO(dto.Rules)
+	if rules == nil {
+		rules = []RuleDraft{}
 	}
 
 	// Keep every provider (empty name included) so ValidateRuleProviders can reject a
@@ -131,6 +130,36 @@ func trimPtr(s *string) *string {
 	}
 
 	return &v
+}
+
+// rulesFromDTO maps JSON rules to RuleDrafts, recursively (a logical rule's sub-rules in
+// children carry their own children). target is optional — a sub-rule has none, so it maps
+// to a nil *RefDraft. Empty input maps to nil so a leaf rule round-trips with no children.
+func rulesFromDTO(in []ruleDTO) []RuleDraft {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]RuleDraft, 0, len(in))
+	for _, ru := range in {
+		var target *RefDraft
+
+		if ru.Target != nil {
+			t := refFromDTO(*ru.Target)
+			target = &t
+		}
+
+		out = append(out, RuleDraft{
+			Type:        RuleType(strings.TrimSpace(ru.Type)),
+			Value:       trimPtr(ru.Value),
+			ProviderIdx: ru.ProviderIdx,
+			NoResolve:   ru.NoResolve,
+			Target:      target,
+			Children:    rulesFromDTO(ru.Children),
+		})
+	}
+
+	return out
 }
 
 // refFromDTO maps a JSON policy ref to a RefDraft. A group ref carries the array index

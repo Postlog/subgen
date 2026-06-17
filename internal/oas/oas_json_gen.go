@@ -1594,6 +1594,10 @@ func (s *ConfigSchemaOKRulesTypesItem) encodeFields(e *jx.Encoder) {
 		e.Bool(s.IsMatch)
 	}
 	{
+		e.FieldStart("isLogical")
+		e.Bool(s.IsLogical)
+	}
+	{
 		e.FieldStart("destinations")
 		e.ArrStart()
 		for _, elem := range s.Destinations {
@@ -1603,12 +1607,13 @@ func (s *ConfigSchemaOKRulesTypesItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfConfigSchemaOKRulesTypesItem = [5]string{
+var jsonFieldsNameOfConfigSchemaOKRulesTypesItem = [6]string{
 	0: "type",
 	1: "takesProvider",
 	2: "supportsNoResolve",
 	3: "isMatch",
-	4: "destinations",
+	4: "isLogical",
+	5: "destinations",
 }
 
 // Decode decodes ConfigSchemaOKRulesTypesItem from json.
@@ -1668,8 +1673,20 @@ func (s *ConfigSchemaOKRulesTypesItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"isMatch\"")
 			}
-		case "destinations":
+		case "isLogical":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.IsLogical = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isLogical\"")
+			}
+		case "destinations":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Destinations = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1698,7 +1715,7 @@ func (s *ConfigSchemaOKRulesTypesItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -3059,17 +3076,30 @@ func (s *MihomoRule) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		e.FieldStart("target")
-		s.Target.Encode(e)
+		if s.Target.Set {
+			e.FieldStart("target")
+			s.Target.Encode(e)
+		}
+	}
+	{
+		if s.Children != nil {
+			e.FieldStart("children")
+			e.ArrStart()
+			for _, elem := range s.Children {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
 	}
 }
 
-var jsonFieldsNameOfMihomoRule = [5]string{
+var jsonFieldsNameOfMihomoRule = [6]string{
 	0: "type",
 	1: "value",
 	2: "providerIdx",
 	3: "noResolve",
 	4: "target",
+	5: "children",
 }
 
 // Decode decodes MihomoRule from json.
@@ -3124,14 +3154,31 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"noResolve\"")
 			}
 		case "target":
-			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
+				s.Target.Reset()
 				if err := s.Target.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
+			}
+		case "children":
+			if err := func() error {
+				s.Children = make([]MihomoRule, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem MihomoRule
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Children = append(s.Children, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"children\"")
 			}
 		default:
 			return d.Skip()
@@ -3143,7 +3190,7 @@ func (s *MihomoRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010001,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -4341,6 +4388,39 @@ func (s OptInt64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInt64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PolicyRef as json.
+func (o OptPolicyRef) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes PolicyRef from json.
+func (o *OptPolicyRef) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPolicyRef to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPolicyRef) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPolicyRef) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

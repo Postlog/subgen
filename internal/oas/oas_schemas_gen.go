@@ -472,6 +472,7 @@ type ConfigSchemaOKRulesTypesItem struct {
 	TakesProvider     bool     `json:"takesProvider"`
 	SupportsNoResolve bool     `json:"supportsNoResolve"`
 	IsMatch           bool     `json:"isMatch"`
+	IsLogical         bool     `json:"isLogical"`
 	Destinations      []string `json:"destinations"`
 }
 
@@ -493,6 +494,11 @@ func (s *ConfigSchemaOKRulesTypesItem) GetSupportsNoResolve() bool {
 // GetIsMatch returns the value of IsMatch.
 func (s *ConfigSchemaOKRulesTypesItem) GetIsMatch() bool {
 	return s.IsMatch
+}
+
+// GetIsLogical returns the value of IsLogical.
+func (s *ConfigSchemaOKRulesTypesItem) GetIsLogical() bool {
+	return s.IsLogical
 }
 
 // GetDestinations returns the value of Destinations.
@@ -518,6 +524,11 @@ func (s *ConfigSchemaOKRulesTypesItem) SetSupportsNoResolve(val bool) {
 // SetIsMatch sets the value of IsMatch.
 func (s *ConfigSchemaOKRulesTypesItem) SetIsMatch(val bool) {
 	s.IsMatch = val
+}
+
+// SetIsLogical sets the value of IsLogical.
+func (s *ConfigSchemaOKRulesTypesItem) SetIsLogical(val bool) {
+	s.IsLogical = val
 }
 
 // SetDestinations sets the value of Destinations.
@@ -979,11 +990,12 @@ func (s *MihomoProvider) SetMirrorInterval(val int) {
 
 // Ref: #/components/schemas/MihomoRule
 type MihomoRule struct {
-	Type        string    `json:"type"`
-	Value       OptString `json:"value"`
-	ProviderIdx OptInt    `json:"providerIdx"`
-	NoResolve   OptBool   `json:"noResolve"`
-	Target      PolicyRef `json:"target"`
+	Type        string       `json:"type"`
+	Value       OptString    `json:"value"`
+	ProviderIdx OptInt       `json:"providerIdx"`
+	NoResolve   OptBool      `json:"noResolve"`
+	Target      OptPolicyRef `json:"target"`
+	Children    []MihomoRule `json:"children"`
 }
 
 // GetType returns the value of Type.
@@ -1007,8 +1019,13 @@ func (s *MihomoRule) GetNoResolve() OptBool {
 }
 
 // GetTarget returns the value of Target.
-func (s *MihomoRule) GetTarget() PolicyRef {
+func (s *MihomoRule) GetTarget() OptPolicyRef {
 	return s.Target
+}
+
+// GetChildren returns the value of Children.
+func (s *MihomoRule) GetChildren() []MihomoRule {
+	return s.Children
 }
 
 // SetType sets the value of Type.
@@ -1032,8 +1049,13 @@ func (s *MihomoRule) SetNoResolve(val OptBool) {
 }
 
 // SetTarget sets the value of Target.
-func (s *MihomoRule) SetTarget(val PolicyRef) {
+func (s *MihomoRule) SetTarget(val OptPolicyRef) {
 	s.Target = val
+}
+
+// SetChildren sets the value of Children.
+func (s *MihomoRule) SetChildren(val []MihomoRule) {
+	s.Children = val
 }
 
 type NodeDeleteBadRequest ErrorResponse
@@ -1442,6 +1464,52 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyRef returns new OptPolicyRef with value set to v.
+func NewOptPolicyRef(v PolicyRef) OptPolicyRef {
+	return OptPolicyRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyRef is optional PolicyRef.
+type OptPolicyRef struct {
+	Value PolicyRef
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyRef was set.
+func (o OptPolicyRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyRef) Reset() {
+	var v PolicyRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyRef) SetTo(v PolicyRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyRef) Get() (v PolicyRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyRef) Or(d PolicyRef) PolicyRef {
 	if v, ok := o.Get(); ok {
 		return v
 	}

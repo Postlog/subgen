@@ -178,24 +178,30 @@ func cloneMembers(ctx context.Context, tx *sql.Tx, src int64, idMap map[int64]in
 		[]string{"group_id", "position", "kind", "inbound_id", "ref_group_id"}, memberRows)
 }
 
-// cloneRules copies the rules (one batched INSERT), remapping target_group_id to the
-// cloned groups and a RULE-SET's provider_id to the cloned providers. value is nullable
-// (NULL for MATCH/RULE-SET).
+// cloneRules copies the config's routing rules — recursive: top-level rules and their
+// sub-rules live in one table via parent_id — in ONE batched INSERT, remapping config_id
+// to dst, parent_id to the cloned rules, target_group_id to the cloned groups, and a
+// RULE-SET's provider_id to the cloned providers. Source rows are read ordered by id: a
+// parent always precedes its children (a parent's id is smaller — see insertRules), so the
+// pre-assigned new ids (from MAX(id), like insertRules) are mapped parent-before-child and
+// every parent_id remap resolves.
 func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provMap map[int64]int64) error {
 	type rule struct {
+		id         int64
+		parentID   sql.Null[int64]
 		position   int
 		typ        string
 		value      sql.Null[string]
 		providerID sql.Null[int64]
 		noResolve  int
-		kind       string
+		kind       sql.Null[string]
 		inboundID  sql.Null[int64]
 		groupID    sql.Null[int64]
 	}
 
 	rows, err := tx.QueryContext(ctx,
-		`SELECT position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id
-		   FROM mihomo_routing_rules WHERE config_id=? ORDER BY position`, src)
+		`SELECT id,parent_id,position,type,value,provider_id,no_resolve,target_kind,inbound_id,target_group_id
+		   FROM mihomo_routing_rules WHERE config_id=? ORDER BY id`, src)
 	if err != nil {
 		return err
 	}
@@ -204,7 +210,7 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 
 	for rows.Next() {
 		var ru rule
-		if err := rows.Scan(&ru.position, &ru.typ, &ru.value, &ru.providerID, &ru.noResolve, &ru.kind, &ru.inboundID, &ru.groupID); err != nil {
+		if err := rows.Scan(&ru.id, &ru.parentID, &ru.position, &ru.typ, &ru.value, &ru.providerID, &ru.noResolve, &ru.kind, &ru.inboundID, &ru.groupID); err != nil {
 			rows.Close()
 			return err
 		}
@@ -219,10 +225,29 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 
 	rows.Close()
 
+	base, err := maxRuleID(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	idMap := make(map[int64]int64, len(rules)) // old rule id -> new (pre-assigned) rule id
+
 	ruleRows := make([][]any, len(rules))
 
 	for i, ru := range rules {
-		var inbound, group, provider any
+		newID := base + int64(i) + 1
+		idMap[ru.id] = newID
+
+		var parent, kind, inbound, group, provider any
+
+		if ru.parentID.Valid {
+			parent = idMap[ru.parentID.V] // parent has a smaller id → already mapped
+		}
+
+		if ru.kind.Valid {
+			kind = ru.kind.V
+		}
+
 		if ru.inboundID.Valid {
 			inbound = ru.inboundID.V
 		}
@@ -239,11 +264,12 @@ func cloneRules(ctx context.Context, tx *sql.Tx, src, dst int64, groupMap, provM
 			}
 		}
 
-		ruleRows[i] = []any{dst, ru.position, ru.typ, ru.value, provider, ru.noResolve, ru.kind, inbound, group}
+		ruleRows[i] = []any{newID, dst, parent, ru.position, ru.typ, ru.value, provider, ru.noResolve, kind, inbound, group}
 	}
 
 	return batchInsert(ctx, tx, "mihomo_routing_rules",
-		[]string{"config_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"}, ruleRows)
+		[]string{"id", "config_id", "parent_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"},
+		ruleRows)
 }
 
 // cloneProviders copies the rule-providers (one batched INSERT) under the new config_id

@@ -223,11 +223,33 @@ const app = createApp({
         _uid: this.uid(), type: r.type, value: r.value || "",
         providerUid: (r.providerIdx === undefined || r.providerIdx === null) ? null : pUid[r.providerIdx],
         noResolve: !!r.noResolve, pref: this.refToPref(r.target, gUid),
+        children: this.loadChildren(r.children, pUid),
       }));
       this.cfg.baseYAML = c.baseYAML || "";
       this.cfg.profileTitle = c.profileTitle || "";
       this.cfg.filename = c.filename || "";
       this.cfg.profileUpdateInterval = c.profileUpdateInterval ?? 1;
+    },
+    // loadChildren maps a logical rule's API sub-rules (children) into the editor model,
+    // recursively. A RULE-SET sub-rule's providerIdx is resolved to the provider's stable
+    // uid (pUid: providerIdx -> uid), like a top-level RULE-SET rule. Sub-rules carry no
+    // target (they are matchers), so none is read.
+    loadChildren(children, pUid) {
+      return (children || []).map((c) => ({
+        _uid: cuid(), type: c.type, value: c.value || "",
+        providerUid: (c.providerIdx === undefined || c.providerIdx === null) ? null : pUid[c.providerIdx],
+        children: this.loadChildren(c.children, pUid),
+      }));
+    },
+    // dumpChildren serialises a logical rule's sub-rules back to the API shape, recursively:
+    // a logical child carries nested children, a RULE-SET child a providerIdx, every other
+    // child a value. A sub-rule never carries a target.
+    dumpChildren(children, provUidToIdx) {
+      return (children || []).map((c) => {
+        if (this.isLogical(c.type)) return { type: c.type, children: this.dumpChildren(c.children, provUidToIdx) };
+        if (this.isRuleSet(c.type)) { const i = provUidToIdx[c.providerUid]; return { type: c.type, providerIdx: i === undefined ? null : i }; }
+        return { type: c.type, value: c.value || "" };
+      });
     },
     // refToPref encodes an API PolicyRef ({kind,inboundId,groupIdx}) into the select
     // string; a group ref is stored by the referenced group's stable uid.
@@ -250,8 +272,10 @@ const app = createApp({
     delGroup(i) { this.cfg.groups.splice(i, 1); },
     addMember(g) { g.members.push({ _uid: this.uid(), pref: "direct" }); },
     delMember(g, i) { g.members.splice(i, 1); },
-    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, noResolve: false, pref: "direct" }); },
+    addRule() { this.cfg.rules.push({ _uid: this.uid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, noResolve: false, pref: "direct", children: [] }); },
     delRule(i) { this.cfg.rules.splice(i, 1); },
+    // addChild appends a fresh leaf sub-rule to a logical rule (or sub-rule).
+    addChild(node) { node.children.push(newChild()); },
     addProvider() { this.cfg.providers.push({ _uid: this.uid(), name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
     openProvider(i) { this.provForm = { open: true, idx: i }; },
     // checkProvider probes the provider URL via the backend (reachable / file present /
@@ -279,6 +303,7 @@ const app = createApp({
     groupInfo(t) { return (this.schema?.proxyGroup?.types || []).find((g) => g.type === t); },
     isMatch(t) { return !!this.ruleInfo(t)?.isMatch; },
     isRuleSet(t) { return !!this.ruleInfo(t)?.takesProvider; },
+    isLogical(t) { return !!this.ruleInfo(t)?.isLogical; },
     supportsNoResolve(t) { return !!this.ruleInfo(t)?.supportsNoResolve; },
     groupHealthCheck(t) { return !!this.groupInfo(t)?.usesHealthCheck; },
     groupTolerance(t) { return !!this.groupInfo(t)?.usesTolerance; },
@@ -314,6 +339,12 @@ const app = createApp({
           type: r.type,
           target: this.prefToRef(r.pref, uidToIdx),
         };
+        // Logical rule (AND/OR/NOT): the payload is the sub-condition tree, no
+        // value/provider/no-resolve.
+        if (this.isLogical(r.type)) {
+          rule.children = this.dumpChildren(r.children, provUidToIdx);
+          return rule;
+        }
         // value only for value-taking types (omitted for MATCH and RULE-SET).
         if (!this.isMatch(r.type) && !this.isRuleSet(r.type)) {
           rule.value = r.value || "";
@@ -492,6 +523,55 @@ app.component("policy-picker", {
         <option v-for="(g,i) in groups" :key="g._uid" :value="'group:'+g._uid">{{ g.name || ('группа '+(i+1)) }}</option>
       </optgroup>
     </select>`,
+});
+
+// cuid is the stable-key generator for sub-rule tree nodes (separate counter from the
+// root's uid(); only needs to be unique among siblings for Vue's :key). newChild is the
+// fresh leaf factory used by "add sub-rule" at any depth. A sub-rule has no target.
+let _cuidc = 0;
+const cuid = () => "c" + (++_cuidc);
+function newChild() { return { _uid: cuid(), type: "DOMAIN-SUFFIX", value: "", providerUid: null, children: [] }; }
+
+// rule-node: one sub-rule inside a logical rule (AND/OR/NOT), rendered recursively. A leaf
+// shows a type select + a value input (or a provider select for RULE-SET); a logical node
+// shows its children (each another rule-node) with add/remove and any depth of nesting. A
+// sub-rule has no target and no no-resolve — it is a matcher, not a routing decision.
+// Reordering is omitted on purpose: AND/OR/NOT are commutative, so child order has no
+// effect on matching. The type list comes from the schema (MATCH excluded — it cannot be a
+// sub-rule); nothing about the taxonomy is hardcoded.
+app.component("rule-node", {
+  name: "rule-node",
+  props: { node: Object, schema: Object, providers: Array },
+  emits: ["remove"],
+  computed: {
+    types() { return (this.schema?.rules?.types || []).filter((t) => !t.isMatch); },
+  },
+  methods: {
+    info(t) { return (this.schema?.rules?.types || []).find((r) => r.type === t); },
+    isLogical(t) { return !!this.info(t)?.isLogical; },
+    isRuleSet(t) { return !!this.info(t)?.takesProvider; },
+    addChild() { this.node.children.push(newChild()); },
+    delChild(i) { this.node.children.splice(i, 1); },
+  },
+  template: `
+    <div class="cond-node">
+      <div class="cond-row">
+        <select class="form-select form-select-sm" style="max-width:200px" v-model="node.type">
+          <option v-for="t in types" :key="t.type" :value="t.type">{{ t.type }}</option>
+        </select>
+        <select v-if="isRuleSet(node.type)" class="form-select form-select-sm grow" v-model="node.providerUid">
+          <option :value="null" disabled>— провайдер —</option>
+          <option v-for="(p,pi) in providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
+        </select>
+        <input v-else-if="!isLogical(node.type)" class="form-control form-control-sm grow" v-model="node.value" placeholder="значение">
+        <span v-else class="grow text-dim small">вложенные правила</span>
+        <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="удалить вложенное правило">✕</button>
+      </div>
+      <div v-if="isLogical(node.type)" class="cond-children">
+        <rule-node v-for="(c,ci) in node.children" :key="c._uid" :node="c" :schema="schema" :providers="providers" @remove="delChild(ci)"></rule-node>
+        <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Добавить вложенное правило</button>
+      </div>
+    </div>`,
 });
 
 // duration-input: a human-friendly TTL field over a seconds integer. Renders a number

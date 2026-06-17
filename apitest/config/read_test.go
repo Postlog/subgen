@@ -46,6 +46,7 @@ func (s *ConfigSuite) TestSchema() {
 		s.True(sort.StringsAreSorted(types), "rule types must be name-sorted: %v", types)
 		s.Contains(types, "MATCH")
 		s.Contains(types, "RULE-SET")
+		s.Contains(types, "AND") // logical rules are offered
 	})
 
 	s.Run("group_types_sorted", func() {
@@ -63,7 +64,7 @@ func (s *ConfigSuite) TestSchema() {
 	})
 
 	s.Run("generated_keys", func() {
-		s.ElementsMatch([]any{"proxies", "proxy-groups", "rules", "rule-providers"}, schema["generatedKeys"])
+		s.ElementsMatch([]any{"proxies", "proxy-groups", "rules", "rule-providers", "sub-rules"}, schema["generatedKeys"])
 	})
 }
 

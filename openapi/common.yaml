@@ -62,12 +62,16 @@ components:
         mirrorInterval:
           type: integer
 
-    # A routing rule. value is the plain matcher payload — optional, omitted for MATCH
-    # and RULE-SET. For RULE-SET the rule-provider is referenced by providerIdx (index
-    # into the providers array — real ids never cross the wire), not by name in value.
+    # A routing rule — recursive: a logical rule (AND/OR/NOT) carries its sub-rules in
+    # children, every other type is a leaf. value is the plain matcher payload — optional,
+    # omitted for MATCH, RULE-SET and the logical types. For RULE-SET the rule-provider is
+    # referenced by providerIdx (index into the providers array — real ids never cross the
+    # wire). target is OPTIONAL (not required): a top-level rule has one, a sub-rule (a
+    # child of a logical rule) has none — the top-level/sub-rule distinction is validated
+    # in the service, not the schema.
     MihomoRule:
       type: object
-      required: [type, target]
+      required: [type]
       properties:
         type:
           type: string
@@ -79,6 +83,10 @@ components:
           type: boolean
         target:
           $ref: './common.yaml#/components/schemas/PolicyRef'
+        children:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/MihomoRule'
 
     # A proxy-group. interval/tolerance/lazy are optional — sent only for the types that
     # use them (interval/lazy for the health-check types, tolerance for url-test).

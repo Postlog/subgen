@@ -17,6 +17,7 @@ func TestValidateBaseYAML(t *testing.T) {
 		{name: "success.valid", base: "mode: rule\ndns: {}"},
 		{name: "error.invalid_yaml", base: "foo: [unclosed", err: ErrBaseYAMLInvalid},
 		{name: "error.generated_section", base: "rules: []", err: ErrGeneratedKeyPresent},
+		{name: "error.sub_rules_reserved", base: "sub-rules: {}", err: ErrGeneratedKeyPresent},
 	}
 
 	t.Parallel()
@@ -40,62 +41,197 @@ func TestValidateRoutingRules(t *testing.T) {
 		{
 			name: "success.valid",
 			rules: []RuleDraft{
-				{Type: RuleDomainSuffix, Value: utils.Ptr("x.com"), Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}},
+				{Type: RuleDomainSuffix, Value: utils.Ptr("x.com"), Target: &RefDraft{Kind: PolicyDirect}},
+				{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: &RefDraft{Kind: PolicyDirect}},
+				{Type: RuleMatch, Target: &RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(0)}},
 			},
 			numGroups:    1,
 			numProviders: 1,
 		},
 		{
 			name:  "error.bad_type",
-			rules: []RuleDraft{{Type: "NOPE", Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: "NOPE", Target: &RefDraft{Kind: PolicyDirect}}},
 			err:   ErrUnknownRuleType,
 		},
 		{
 			name:  "error.no_value",
-			rules: []RuleDraft{{Type: RuleDomain, Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleDomain, Target: &RefDraft{Kind: PolicyDirect}}},
 			err:   ErrRuleValueRequired,
 		},
 		{
 			name: "error.match_not_last",
 			rules: []RuleDraft{
-				{Type: RuleMatch, Target: RefDraft{Kind: PolicyDirect}},
-				{Type: RuleDomain, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}},
+				{Type: RuleMatch, Target: &RefDraft{Kind: PolicyDirect}},
+				{Type: RuleDomain, Value: utils.Ptr("x"), Target: &RefDraft{Kind: PolicyDirect}},
 			},
 			err: ErrMatchNotLast,
 		},
 		{
 			name:      "error.group_oob",
-			rules:     []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(3)}}},
+			rules:     []RuleDraft{{Type: RuleMatch, Target: &RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(3)}}},
 			numGroups: 1,
 			err:       ErrGroupRefRange,
 		},
 		{
 			name:  "error.bad_ref",
-			rules: []RuleDraft{{Type: RuleMatch, Target: RefDraft{Kind: PolicyInbound}}}, // inbound without id
+			rules: []RuleDraft{{Type: RuleMatch, Target: &RefDraft{Kind: PolicyInbound}}}, // inbound without id
 			err:   ErrBadRef,
 		},
 		{
 			name:         "error.ruleset_provider_oob",
-			rules:        []RuleDraft{{Type: RuleRuleSet, ProviderIdx: utils.Ptr(2), Target: RefDraft{Kind: PolicyDirect}}},
+			rules:        []RuleDraft{{Type: RuleRuleSet, ProviderIdx: utils.Ptr(2), Target: &RefDraft{Kind: PolicyDirect}}},
 			numProviders: 1,
 			err:          ErrProviderRefRange,
 		},
 		{
 			name:  "error.ruleset_no_provider",
-			rules: []RuleDraft{{Type: RuleRuleSet, Target: RefDraft{Kind: PolicyDirect}}}, // ProviderIdx nil
+			rules: []RuleDraft{{Type: RuleRuleSet, Target: &RefDraft{Kind: PolicyDirect}}}, // ProviderIdx nil
 			err:   ErrProviderRefRange,
 		},
 		{
 			name:  "error.value_on_match",
-			rules: []RuleDraft{{Type: RuleMatch, Value: utils.Ptr("x"), Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleMatch, Value: utils.Ptr("x"), Target: &RefDraft{Kind: PolicyDirect}}},
 			err:   ErrRulePayloadNotAllowed,
 		},
 		{
 			name:  "error.no_resolve_unsupported",
-			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com"), NoResolve: utils.Ptr(true), Target: RefDraft{Kind: PolicyDirect}}},
+			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com"), NoResolve: utils.Ptr(true), Target: &RefDraft{Kind: PolicyDirect}}},
 			err:   ErrNoResolveUnsupported,
+		},
+		{
+			name: "success.logical_and",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyRejectDrop}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+		},
+		{
+			name: "success.logical_nested_with_ruleset_condition",
+			rules: []RuleDraft{
+				{Type: RuleOr, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNot, Children: []RuleDraft{{Type: RuleDomainSuffix, Value: utils.Ptr("ok.com")}}},
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0)},
+				}},
+			},
+			numProviders: 1,
+		},
+		{
+			name: "error.and_too_few_conditions",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{{Type: RuleNetwork, Value: utils.Ptr("UDP")}}},
+			},
+			err: ErrLogicalArity,
+		},
+		{
+			name: "error.not_arity",
+			rules: []RuleDraft{
+				{Type: RuleNot, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrNotArity,
+		},
+		{
+			name: "error.match_in_condition",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleMatch},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrMatchChild,
+		},
+		{
+			name: "error.conditions_on_simple",
+			rules: []RuleDraft{
+				{Type: RuleDomain, Value: utils.Ptr("x.com"), Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrChildrenNotAllowed,
+		},
+		{
+			name: "error.logical_with_value",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Value: utils.Ptr("x"), Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrRulePayloadNotAllowed,
+		},
+		{
+			name: "error.condition_provider_oob",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(5)},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			numProviders: 1,
+			err:          ErrProviderRefRange,
+		},
+		{
+			name: "error.unknown_condition_type",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: "NOPE"},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrUnknownRuleType,
+		},
+		{
+			name: "error.condition_value_required",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleDomain},
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+				}},
+			},
+			err: ErrRuleValueRequired,
+		},
+		{
+			// A client may send noResolve:false unconditionally (no omitempty); an explicit
+			// false on a logical rule is harmless and must NOT be rejected.
+			name: "success.logical_explicit_false_no_resolve",
+			rules: []RuleDraft{
+				{Type: RuleAnd, NoResolve: utils.Ptr(false), Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP")},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+		},
+		{
+			// A meaningful (true) no-resolve on a sub-rule is rejected — sub-rules carry no params.
+			name: "error.child_true_no_resolve",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleIPCIDR, Value: utils.Ptr("1.1.1.1/32"), NoResolve: utils.Ptr(true)},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrNoResolveUnsupported,
+		},
+		{
+			// A top-level rule must carry a target (a sub-rule's nil-target shape is invalid here).
+			name:  "error.target_required",
+			rules: []RuleDraft{{Type: RuleDomain, Value: utils.Ptr("x.com")}},
+			err:   ErrTargetRequired,
+		},
+		{
+			// A sub-rule must NOT carry a target — it is a matcher, not a routing decision.
+			name: "error.child_has_target",
+			rules: []RuleDraft{
+				{Type: RuleAnd, Target: &RefDraft{Kind: PolicyDirect}, Children: []RuleDraft{
+					{Type: RuleNetwork, Value: utils.Ptr("UDP"), Target: &RefDraft{Kind: PolicyDirect}},
+					{Type: RuleDstPort, Value: utils.Ptr("443")},
+				}},
+			},
+			err: ErrChildTarget,
 		},
 	}
 

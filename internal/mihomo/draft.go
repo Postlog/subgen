@@ -40,27 +40,43 @@ func (r RefDraft) Valid() error {
 	return nil
 }
 
-// RuleDraft is a routing rule at save time. ProviderIdx is the index into
-// ConfigDraft.Providers for RULE-SET (nil otherwise); Value is the plain matcher payload
-// (nil for RULE-SET and MATCH). Both are optional → pointers.
+// RuleDraft is a routing rule at save time — the SAME recursive shape as the domain
+// RoutingRule (no separate sub-condition type): a logical rule (AND/OR/NOT) carries its
+// sub-rules in Children, every other type is a leaf with Children empty. ProviderIdx is
+// the index into ConfigDraft.Providers for RULE-SET (nil otherwise); Value is the plain
+// matcher payload (nil for RULE-SET, MATCH and the logical types). Target is OPTIONAL — a
+// pointer: a top-level rule has one, a sub-rule (a Child of a logical rule) has none. The
+// top-level/sub-rule distinction (target presence, MATCH placement, no-resolve) is fixed
+// by ValidateRoutingRules; Valid() below is the position-independent per-type check.
 type RuleDraft struct {
 	Type        RuleType
 	Value       *string
 	ProviderIdx *int
 	NoResolve   *bool
-	Target      RefDraft
+	Target      *RefDraft
+	Children    []RuleDraft
 }
 
-// Valid checks the per-type field invariant: MATCH carries neither value nor provider;
-// RULE-SET carries a provider and no value; every other type carries a value and no
-// provider. NoResolve is allowed only where the type supports it. The provider/group
-// index RANGES are checked by ValidateRoutingRules (which knows the counts).
+// Valid checks the position-independent per-type field invariant: a logical rule carries
+// neither value nor provider nor no-resolve (its matcher is the Children); MATCH carries
+// neither value nor provider; RULE-SET carries a provider and no value; every other type
+// carries a value and no provider. Children are allowed only on a logical type, and
+// no-resolve only where the type supports it. The positional rules (a top-level rule has a
+// target, a sub-rule does not; MATCH only at the top and last; index ranges; arity) are
+// checked by ValidateRoutingRules, which knows a node's position and the counts.
 func (r RuleDraft) Valid() error {
 	if !r.Type.Valid() {
 		return ErrUnknownRuleType
 	}
 
 	switch {
+	case r.Type.IsLogical():
+		// A logical rule carries no value/provider. A meaningful (true) no-resolve is
+		// caught by the SupportsNoResolve check below; an explicit false is harmless
+		// (clients may send noResolve:false unconditionally), so it is NOT rejected here.
+		if r.Value != nil || r.ProviderIdx != nil {
+			return ErrRulePayloadNotAllowed
+		}
 	case r.Type.IsMatch():
 		if r.Value != nil || r.ProviderIdx != nil {
 			return ErrRulePayloadNotAllowed
@@ -81,6 +97,10 @@ func (r RuleDraft) Valid() error {
 		if r.Value == nil || *r.Value == "" {
 			return ErrRuleValueRequired
 		}
+	}
+
+	if len(r.Children) != 0 && !r.Type.IsLogical() {
+		return ErrChildrenNotAllowed
 	}
 
 	if r.NoResolve != nil && *r.NoResolve && !r.Type.SupportsNoResolve() {

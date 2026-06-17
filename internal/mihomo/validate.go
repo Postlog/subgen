@@ -56,26 +56,78 @@ func ValidateProxyGroups(groups []GroupDraft) error {
 	return nil
 }
 
-// ValidateRoutingRules validates each rule's per-type invariant (RuleDraft.Valid: value/
-// provider/no-resolve by type), then the cross-rule checks: MATCH (if present) is last,
-// a RULE-SET's provider index is in range, and the target ref is well-formed/in range.
+// ValidateRoutingRules validates each top-level rule and its subtree (RuleDraft is
+// recursive), then the one cross-rule check: MATCH (if present) is last. A logical rule's
+// sub-rules (Children) are validated recursively as sub-rules (no target, no MATCH).
 func ValidateRoutingRules(rules []RuleDraft, numGroups, numProviders int) error {
 	for i, rule := range rules {
-		if err := rule.Valid(); err != nil {
+		if err := validateRule(rule, true, numGroups, numProviders); err != nil {
 			return err
 		}
 
 		if rule.Type.IsMatch() && i != len(rules)-1 {
 			return ErrMatchNotLast
 		}
+	}
 
-		// Valid() ensured a RULE-SET carries a provider index; check it is in range.
-		if rule.Type.TakesProvider() && (*rule.ProviderIdx < 0 || *rule.ProviderIdx >= numProviders) {
-			return ErrProviderRefRange
+	return nil
+}
+
+// validateRule validates one rule node and its subtree. top reports whether it is a
+// top-level rule (which must carry a target) vs a sub-rule (a Child of a logical rule,
+// which must not). It checks the per-type invariant (RuleDraft.Valid), the positional
+// rules (target presence/range, MATCH not nested, sub-rules carry no no-resolve), the
+// RULE-SET provider index range, and — for a logical rule — the child arity and each
+// child recursively.
+func validateRule(r RuleDraft, top bool, numGroups, numProviders int) error {
+	if err := r.Valid(); err != nil {
+		return err
+	}
+
+	// Target presence is positional: a top-level rule has one (in range), a sub-rule none.
+	switch {
+	case top && r.Target == nil:
+		return ErrTargetRequired
+	case !top && r.Target != nil:
+		return ErrChildTarget
+	case top:
+		if err := validateRef(*r.Target, numGroups); err != nil {
+			return err
+		}
+	}
+
+	// A sub-rule is a matcher, not a routing decision: MATCH is top-level only, and a
+	// sub-rule carries no no-resolve (mihomo does not parse sub-rule params). Only a
+	// meaningful (true) no-resolve is rejected — an explicit false is harmless (clients
+	// may send noResolve:false unconditionally).
+	if !top {
+		if r.Type.IsMatch() {
+			return ErrMatchChild
 		}
 
-		if err := validateRef(rule.Target, numGroups); err != nil {
-			return err
+		if r.NoResolve != nil && *r.NoResolve {
+			return ErrNoResolveUnsupported
+		}
+	}
+
+	// Valid() ensured a RULE-SET carries a provider index; check it is in range.
+	if r.Type.TakesProvider() && (*r.ProviderIdx < 0 || *r.ProviderIdx >= numProviders) {
+		return ErrProviderRefRange
+	}
+
+	if r.Type.IsLogical() {
+		if r.Type == RuleNot {
+			if len(r.Children) != 1 {
+				return ErrNotArity
+			}
+		} else if len(r.Children) < 2 { // AND / OR
+			return ErrLogicalArity
+		}
+
+		for _, c := range r.Children {
+			if err := validateRule(c, false, numGroups, numProviders); err != nil {
+				return err
+			}
 		}
 	}
 

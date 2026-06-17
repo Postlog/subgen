@@ -65,7 +65,7 @@ get:
                     type: array
                     items:
                       type: object
-                      required: [type, takesProvider, supportsNoResolve, isMatch, destinations]
+                      required: [type, takesProvider, supportsNoResolve, isMatch, isLogical, destinations]
                       properties:
                         type:
                           type: string
@@ -74,6 +74,8 @@ get:
                         supportsNoResolve:
                           type: boolean
                         isMatch:
+                          type: boolean
+                        isLogical:
                           type: boolean
                         destinations:
                           type: array

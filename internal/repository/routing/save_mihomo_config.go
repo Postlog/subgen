@@ -105,28 +105,10 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 		return err
 	}
 
-	// Rules, refs + provider resolved to columns.
-	ruleRows := make([][]any, len(draft.Rules))
-
-	for i, rule := range draft.Rules {
-		inbound, group, err := refColumns(rule.Target, groupID)
-		if err != nil {
-			return err
-		}
-
-		provider, err := providerColumn(rule.ProviderIdx, providerID)
-		if err != nil {
-			return err
-		}
-
-		ruleRows[i] = []any{
-			configID, i, rule.Type, utils.DereferenceOrNil(rule.Value), provider,
-			boolInt(rule.NoResolve != nil && *rule.NoResolve), rule.Target.Kind, inbound, group,
-		}
-	}
-
-	if err := batchInsert(ctx, tx, "mihomo_routing_rules",
-		[]string{"config_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"}, ruleRows); err != nil {
+	// Rules are recursive (a logical rule's sub-rules in the same table via parent_id);
+	// insert the whole tree in one batch. The DELETE above removed the whole config's rules
+	// (top-level + sub-rules all carry config_id), so no separate cleanup is needed.
+	if err := insertRules(ctx, tx, configID, draft.Rules, groupID, providerID); err != nil {
 		return err
 	}
 
@@ -145,6 +127,82 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	}
 
 	return tx.Commit()
+}
+
+// insertRules inserts the whole rule tree (top-level rules + their logical sub-rules, all
+// in the same table via parent_id) in ONE batched INSERT. The tree is walked in memory to
+// build the rows; each node's id is pre-assigned from the table's current MAX(id), so a
+// sub-rule's parent_id is known up front without a per-row round-trip. Pre-assigned ids
+// are safe because every insert into mihomo_routing_rules is an explicit-id batch like
+// this one (save + clone) — there are no auto-increment inserts, so MAX(id)+k always stays
+// above existing rows and never collides. A top-level rule's Target resolves to
+// (target_kind, inbound_id, target_group_id); a sub-rule has none (NULL). A RULE-SET's
+// ProviderIdx resolves to provider_id; children exist only for a logical rule.
+func insertRules(ctx context.Context, tx *sql.Tx, configID int64, rules []mihomo.RuleDraft, groupID, providerID []int64) error {
+	base, err := maxRuleID(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	var rows [][]any
+
+	next := base
+
+	var build func(rs []mihomo.RuleDraft, parentID any) error
+
+	build = func(rs []mihomo.RuleDraft, parentID any) error {
+		for pos, r := range rs {
+			var inbound, group, kind any
+
+			if r.Target != nil {
+				ib, gp, err := refColumns(*r.Target, groupID)
+				if err != nil {
+					return err
+				}
+
+				inbound, group, kind = ib, gp, string(r.Target.Kind)
+			}
+
+			provider, err := providerColumn(r.ProviderIdx, providerID)
+			if err != nil {
+				return err
+			}
+
+			next++
+			id := next
+
+			rows = append(rows, []any{
+				id, configID, parentID, pos, r.Type, utils.DereferenceOrNil(r.Value), provider,
+				boolInt(r.NoResolve != nil && *r.NoResolve), kind, inbound, group,
+			})
+
+			if r.Type.IsLogical() {
+				if err := build(r.Children, id); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}
+
+	if err := build(rules, nil); err != nil {
+		return err
+	}
+
+	return batchInsert(ctx, tx, "mihomo_routing_rules",
+		[]string{"id", "config_id", "parent_id", "position", "type", "value", "provider_id", "no_resolve", "target_kind", "inbound_id", "target_group_id"},
+		rows)
+}
+
+// maxRuleID returns the current MAX(id) of mihomo_routing_rules (0 when empty) — the base
+// for pre-assigning ids to a freshly-inserted rule tree (see insertRules / cloneRules).
+func maxRuleID(ctx context.Context, tx *sql.Tx) (int64, error) {
+	var maxID int64
+
+	err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM mihomo_routing_rules`).Scan(&maxID)
+
+	return maxID, err
 }
 
 // batchInsert inserts every row into table(cols) in ONE multi-row INSERT (no per-row

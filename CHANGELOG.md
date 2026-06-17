@@ -5,6 +5,20 @@
 в [`AGENTS.md`](AGENTS.md) (раздел «Документирование изменений»). Версий/тегов нет:
 сервис не релизится, деплой непрерывный.
 
+## 2026-06-16 — Логические правила mihomo (AND/OR/NOT) с рекурсивным tree-UI (#114)
+
+Маршрутное правило теперь умеет логические операторы `AND`/`OR`/`NOT` с произвольно
+вложенными под-правилами. Правило сделано рекурсивным (`RoutingRule.Children` — той же
+структуры, `Target` опционален: у под-правила его нет), без отдельной сущности «условие»;
+хранение — самоссылочная `mihomo_routing_rules` (`parent_id`), не JSON-блоб. Рендер выдаёт
+вложенный синтаксис дословно (`AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP`). Добавлены
+четыре матчера паритета с вики (`SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`,
+`PROCESS-NAME-WILDCARD`) и `sub-rules` в `GeneratedKeys` (оператор больше не может задать
+секцию в base YAML). Под-правила не несут `no-resolve` (mihomo их не парсит). UI —
+рекурсивный конструктор-дерево; SUB-RULE не реализован. Схема — миграция
+`migrations/0004-mihomo-rule-children.notx.sql`. См.
+[ADR-0006](docs/decisions/0006-recursive-routing-rules.md).
+
 ## 2026-06-11 — Строгие ссылки mihomo: RULE-SET → rule-provider по id (#17)
 
 `RoutingRule` больше не хранит имя провайдера строкой в `value` — `RULE-SET` ссылается на

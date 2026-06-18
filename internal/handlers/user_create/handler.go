@@ -13,13 +13,13 @@ import (
 // User-facing messages. Exported so apitest can assert against them without duplicating
 // the text.
 const (
-	MsgCreated         = "Создан пользователь"
-	MsgInvalidName     = "Имя клиента: разрешены символы a-z, 0-9, _ и -. От 1 до 32 символов"
-	MsgNameTaken       = "Имя занято"
-	MsgNoConnection    = "Выберите хотя бы одно подключение"
-	MsgInboundNotFound = "Указанный инбаунд не найден"
-	MsgNodeNotFound    = "Узел не найден"
-	MsgDescTooLong     = "Описание слишком длинное (максимум 500 символов)"
+	MsgCreated         = "User created"
+	MsgInvalidName     = "Client name: allowed characters are a-z, 0-9, _ and -. From 1 to 32 characters"
+	MsgNameTaken       = "Name already taken"
+	MsgNoConnection    = "Select at least one connection"
+	MsgInboundNotFound = "The specified inbound was not found"
+	MsgNodeNotFound    = "Node not found"
+	MsgDescTooLong     = "Description is too long (max 500 characters)"
 )
 
 // Handler provisions a new user.
@@ -55,7 +55,7 @@ func (h *Handler) UserCreate(ctx context.Context, req *oas.UserCreateReq) (oas.U
 		return &oas.UserCreateConflict{ErrMessage: MsgNameTaken}, nil
 	case errors.As(err, &pce):
 		slog.Warn("handler user_create: email exists on panel", "name", req.Name, "node", pce.Node)
-		return &oas.UserCreateConflict{ErrMessage: "на панели «" + pce.Node + "» уже есть клиент с таким именем — удалите его там вручную или выберите другое имя"}, nil
+		return &oas.UserCreateConflict{ErrMessage: "panel \"" + pce.Node + "\" already has a client with this name — delete it there manually or pick another name"}, nil
 	case errors.Is(err, entity.ErrInvalidUserName):
 		slog.Warn("handler user_create: invalid name", "name", req.Name)
 		return &oas.UserCreateBadRequest{ErrMessage: MsgInvalidName}, nil

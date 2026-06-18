@@ -38,7 +38,7 @@ func TestHandler_NodeSave(t *testing.T) {
 		result  oas.NodeSaveRes
 		err     error
 	}{
-		{name: "success", result: &oas.MessageResponse{Message: "Узел сохранён: RU1"}},
+		{name: "success", result: &oas.MessageResponse{Message: "Node saved: RU1"}},
 		{name: "error.name_taken", saveErr: entity.ErrNodeNameTaken, result: &oas.NodeSaveConflict{ErrMessage: MsgNodeNameTaken}},
 		{name: "error.inbound_duplicate", saveErr: entity.ErrInboundDuplicate, result: &oas.NodeSaveConflict{ErrMessage: MsgInboundDuplicate}},
 		{name: "error.inbound_referenced", saveErr: entity.ErrInboundReferenced, result: &oas.NodeSaveBadRequest{ErrMessage: MsgInboundReferenced}},

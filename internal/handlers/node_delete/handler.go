@@ -15,9 +15,9 @@ import (
 // User-facing messages. Exported so apitest can assert against them without duplicating
 // the text.
 const (
-	MsgDeleted           = "Узел удалён"
-	MsgNotFound          = "Узел не найден"
-	MsgInboundReferenced = "Узел используется — сначала отвяжите его инбаунды от пользователей и правил"
+	MsgDeleted           = "Node deleted"
+	MsgNotFound          = "Node not found"
+	MsgInboundReferenced = "Node is in use — first detach its inbounds from users and rules"
 )
 
 // Handler deletes a node via the nodes service.

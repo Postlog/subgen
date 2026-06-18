@@ -16,9 +16,9 @@ import (
 // started INSIDE the test serves sample mrs/yaml/text so the content checks need NO
 // docker:
 //   - ok.mrs / ok.yaml / ok.text  — reachable URL whose body matches the declared format
-//                                    → {ok:true} "Доступен".
+//                                    → {ok:true} "Available".
 //   - format_mismatch             — body present but wrong shape for the format → {ok:false}.
-//   - http_404                    — server returns 404 → {ok:false} "Сервер вернул HTTP 404".
+//   - http_404                    — server returns 404 → {ok:false} "The server returned HTTP 404".
 //   - empty_body                  — 200 with an empty body → {ok:false} (no file).
 //   - unreachable                 — connection refused on a closed port → {ok:false}.
 //   - empty_url                   — "" is just an un-probeable URL (same category as a
@@ -57,21 +57,21 @@ func (s *ConfigSuite) TestProviderCheck() {
 		res, err := s.api.CheckProvider(srv.URL+"/good.mrs", "mrs")
 		s.Require().NoError(err)
 		s.True(res.OK, "a valid mrs must be accepted: %s", res.Message())
-		s.Contains(res.Msg, "Доступен")
+		s.Contains(res.Msg, "Available")
 	})
 
 	s.Run("ok.yaml", func() {
 		res, err := s.api.CheckProvider(srv.URL+"/good.yaml", "yaml")
 		s.Require().NoError(err)
 		s.True(res.OK, "a valid yaml must be accepted: %s", res.Message())
-		s.Contains(res.Msg, "Доступен")
+		s.Contains(res.Msg, "Available")
 	})
 
 	s.Run("ok.text", func() {
 		res, err := s.api.CheckProvider(srv.URL+"/good.text", "text")
 		s.Require().NoError(err)
 		s.True(res.OK, "valid rule text must be accepted: %s", res.Message())
-		s.Contains(res.Msg, "Доступен")
+		s.Contains(res.Msg, "Available")
 	})
 
 	s.Run("format_mismatch", func() {
@@ -79,7 +79,7 @@ func (s *ConfigSuite) TestProviderCheck() {
 		res, err := s.api.CheckProvider(srv.URL+"/good.yaml", "mrs")
 		s.Require().NoError(err)
 		s.False(res.OK, "a format mismatch must be rejected")
-		s.Contains(res.Err, "не похоже на формат")
+		s.Contains(res.Err, "does not look like")
 	})
 
 	s.Run("http_404", func() {

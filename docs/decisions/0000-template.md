@@ -1,24 +1,24 @@
-# NNNN — <Заголовок решения>
+# NNNN — <Decision title>
 
-- **Статус:** Proposed | Accepted | Superseded by 000Y
-- **Дата:** YYYY-MM-DD
-- **PR:** #<номер>
+- **Status:** Proposed | Accepted | Superseded by 000Y
+- **Date:** YYYY-MM-DD
+- **PR:** #<number>
 
 ## Context
 
-Проблема/нужда, что её спровоцировало, какие ограничения. Почему вообще что-то меняем.
+The problem/need, what triggered it, what constraints. Why we are changing anything at all.
 
 ## Considered Options
 
-- **Вариант A** — суть; плюсы/минусы.
-- **Вариант B** — суть; плюсы/минусы.
-- (по необходимости — ещё)
+- **Option A** — the gist; pros/cons.
+- **Option B** — the gist; pros/cons.
+- (more, as needed)
 
 ## Decision
 
-Что выбрали и **почему именно это** — какой trade-off перевесил.
+What we chose and **why exactly this** — which trade-off tipped the scale.
 
 ## Consequences
 
-Что следует из выбора: что станет проще/сложнее, что теперь нельзя, на что ещё влияет,
-какие дальнейшие шаги/ограничения (и положительные, и отрицательные).
+What follows from the choice: what becomes easier/harder, what is now impossible, what else it affects,
+what further steps/constraints (both positive and negative).

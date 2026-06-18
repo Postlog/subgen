@@ -30,6 +30,9 @@ go.work.sum
 .idea/
 .vscode/
 
+# Tooling scratch (Playwright MCP traces/console logs)
+.playwright-mcp/
+
 # OS / editor noise
 .DS_Store
 ._*

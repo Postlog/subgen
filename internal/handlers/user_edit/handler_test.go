@@ -33,10 +33,10 @@ func TestHandler_UserEdit(t *testing.T) {
 	}{
 		{
 			name: "success",
-			req:  &oas.UserEditReq{ID: 7, Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
+			req:  &oas.UserEditReq{ID: 7, Description: oas.NewOptString("note"), InboundIDs: []int64{1, 2}},
 			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), entity.UserEditParams{
-					ID: 7, Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
+					ID: 7, Description: utils.Ptr("note"), InboundIDs: []int64{1, 2},
 				}).Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgUpdated},

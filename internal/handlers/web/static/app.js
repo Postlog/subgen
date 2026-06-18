@@ -53,7 +53,7 @@ const app = createApp({
       }
       return out;
     },
-    // Total pages for the users table (at least 1, so the pager always shows "1 из 1").
+    // Total pages for the users table (at least 1, so the pager always shows "1 of 1").
     userPageCount() { return Math.max(1, Math.ceil(this.userTotal / this.userPerPage)); },
     // Windowed page list for the pager. Always a CONSTANT 7 slots when there are >7
     // pages (first, last, a 3-wide window, and "…" fillers), so the layout width — and
@@ -77,16 +77,16 @@ const app = createApp({
     cfgWarnings() {
       const w = [];
       const matches = this.cfg.rules.filter((r) => r.type === "MATCH");
-      if (!matches.length) w.push("Нет правила MATCH — добавьте catch-all в конце.");
-      else if (this.cfg.rules[this.cfg.rules.length - 1].type !== "MATCH") w.push("Правило MATCH должно быть последним.");
+      if (!matches.length) w.push("No MATCH rule — add a catch-all at the end.");
+      else if (this.cfg.rules[this.cfg.rules.length - 1].type !== "MATCH") w.push("The MATCH rule must be last.");
       const pUids = new Set(this.cfg.providers.map((p) => p._uid));
       for (const r of this.cfg.rules) {
-        if (r.type === "RULE-SET" && (r.providerUid == null || !pUids.has(r.providerUid))) w.push("RULE-SET: не выбран провайдер или он удалён.");
+        if (r.type === "RULE-SET" && (r.providerUid == null || !pUids.has(r.providerUid))) w.push("RULE-SET: no provider selected or it was removed.");
       }
       const uids = new Set(this.cfg.groups.map((g) => g._uid));
       const dangling = (pref) => pref.startsWith("group:") && !uids.has(+pref.slice(6));
       if (this.cfg.rules.some((r) => dangling(r.pref)) || this.cfg.groups.some((g) => g.members.some((m) => dangling(m.pref))))
-        w.push("Есть ссылка на удалённую группу.");
+        w.push("There is a reference to a removed group.");
       return w;
     },
   },
@@ -111,7 +111,7 @@ const app = createApp({
           }
           await this.loadScopeConfig();
         }
-      } catch (e) { this.toast(false, "Загрузка: " + e); }
+      } catch (e) { this.toast(false, "Loading: " + e); }
     },
     async loadNodes() { this.nodes = (await this.getJSON("/admin/api/nodes")).nodes || []; },
 
@@ -200,7 +200,7 @@ const app = createApp({
     // deleteCustom drops the active user's custom config and returns to the base.
     async deleteCustom() {
       if (this.cfgScope.kind !== "user") return;
-      if (!confirm("Удалить кастомный конфиг пользователя " + this.cfgScope.name + "?")) return;
+      if (!confirm("Delete the custom config of user " + this.cfgScope.name + "?")) return;
       const d = await this.post("/admin/api/config/mihomo/custom/delete", { userId: this.cfgScope.userId });
       if (!d.ok) return;
       await this.loadCustoms();
@@ -283,7 +283,7 @@ const app = createApp({
     // right format) and toasts the outcome. Saves nothing; a per-row _checking flag
     // drives the inline spinner.
     async checkProvider(p) {
-      if (!p.url) { this.toast(false, "Сначала укажите URL у провайдера"); return; }
+      if (!p.url) { this.toast(false, "Set the provider URL first"); return; }
       p._checking = true;
       try {
         const r = await fetch("/admin/api/config/mihomo/provider/check", {
@@ -293,8 +293,8 @@ const app = createApp({
         });
         if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); return; }
         const d = await r.json().catch(() => ({}));
-        this.toast(r.ok, r.ok ? (d.message || "OK") : (d.errMessage || "Ошибка проверки"));
-      } catch (e) { this.toast(false, "Сеть: " + e); }
+        this.toast(r.ok, r.ok ? (d.message || "OK") : (d.errMessage || "Check failed"));
+      } catch (e) { this.toast(false, "Network: " + e); }
       finally { p._checking = false; }
     },
     reorder(arr, oldIndex, newIndex) { const [m] = arr.splice(oldIndex, 1); arr.splice(newIndex, 0, m); },
@@ -398,10 +398,10 @@ const app = createApp({
         if (r.status === 401 || r.status === 403) { location.assign("/admin/login"); return { ok: false }; }
         const d = r.status === 204 ? {} : await r.json().catch(() => ({}));
         const ok = r.ok;
-        const msg = ok ? (d.message || "Готово") : (d.errMessage || "Ошибка");
+        const msg = ok ? (d.message || "Done") : (d.errMessage || "Error");
         this.toast(ok, msg);
         return { ok, msg, data: d };
-      } catch (e) { this.toast(false, "Сеть: " + e); return { ok: false }; }
+      } catch (e) { this.toast(false, "Network: " + e); return { ok: false }; }
       finally { this.busy = false; }
     },
     // logout clears the session (POST), then navigates to the login page itself.
@@ -416,8 +416,8 @@ const app = createApp({
     },
     copy(text) {
       navigator.clipboard.writeText(text).then(
-        () => this.toast(true, "Скопировано"),
-        () => this.toast(false, "Не удалось скопировать"),
+        () => this.toast(true, "Copied"),
+        () => this.toast(false, "Failed to copy"),
       );
     },
     hsize(b) {
@@ -447,7 +447,7 @@ const app = createApp({
       if (d.ok) { this.uForm.open = false; this.loadUsers(); }
     },
     async deleteUser(u) {
-      if (!confirm("Удалить " + u.name + "?")) return;
+      if (!confirm("Delete " + u.name + "?")) return;
       this.actingId = u.id;
       try { const d = await this.post("/admin/api/users/delete", { id: u.id }); if (d.ok) await this.loadUsers(); }
       finally { this.actingId = 0; }
@@ -480,7 +480,7 @@ const app = createApp({
       if (d.ok) { this.nodeForm.open = false; this.load("nodes"); }
     },
     async deleteNode(n) {
-      if (!confirm("Удалить узел " + n.name + "?")) return;
+      if (!confirm("Delete node " + n.name + "?")) return;
       const d = await this.post("/admin/api/nodes/delete", { id: n.id });
       if (d.ok) this.load("nodes");
     },
@@ -518,14 +518,14 @@ app.component("policy-picker", {
   methods: { has(cat) { return (this.allowed || []).includes(cat); } },
   template: `
     <select class="form-select form-select-sm" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
-      <optgroup label="Действия" v-if="has('actions')">
+      <optgroup label="Actions" v-if="has('actions')">
         <option v-for="a in actions" :key="a.kind" :value="a.kind">{{ a.label }}</option>
       </optgroup>
-      <optgroup label="Инбаунды" v-if="has('inbounds')">
+      <optgroup label="Inbounds" v-if="has('inbounds')">
         <option v-for="f in inbounds" :key="f.id" :value="'inbound:'+f.id">{{ f.label }}</option>
       </optgroup>
-      <optgroup label="Группы" v-if="has('groups') && groups.length">
-        <option v-for="(g,i) in groups" :key="g._uid" :value="'group:'+g._uid">{{ g.name || ('группа '+(i+1)) }}</option>
+      <optgroup label="Groups" v-if="has('groups') && groups.length">
+        <option v-for="(g,i) in groups" :key="g._uid" :value="'group:'+g._uid">{{ g.name || ('group '+(i+1)) }}</option>
       </optgroup>
     </select>`,
 });
@@ -565,16 +565,16 @@ app.component("rule-node", {
           <option v-for="t in types" :key="t.type" :value="t.type">{{ t.type }}</option>
         </select>
         <select v-if="isRuleSet(node.type)" class="form-select form-select-sm grow" v-model="node.providerUid">
-          <option :value="null" disabled>— провайдер —</option>
-          <option v-for="(p,pi) in providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
+          <option :value="null" disabled>— provider —</option>
+          <option v-for="(p,pi) in providers" :key="p._uid" :value="p._uid">{{ p.name || ('provider '+(pi+1)) }}</option>
         </select>
-        <input v-else-if="!isLogical(node.type)" class="form-control form-control-sm grow" v-model="node.value" placeholder="значение">
-        <span v-else class="grow text-dim small">вложенные правила</span>
-        <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="удалить вложенное правило">✕</button>
+        <input v-else-if="!isLogical(node.type)" class="form-control form-control-sm grow" v-model="node.value" placeholder="value">
+        <span v-else class="grow text-dim small">nested rules</span>
+        <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="delete nested rule">✕</button>
       </div>
       <div v-if="isLogical(node.type)" class="cond-children">
         <rule-node v-for="(c,ci) in node.children" :key="c._uid" :node="c" :schema="schema" :providers="providers" @remove="delChild(ci)"></rule-node>
-        <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Добавить вложенное правило</button>
+        <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Add nested rule</button>
       </div>
     </div>`,
 });
@@ -605,10 +605,10 @@ app.component("duration-input", {
     <div class="dur-input">
       <input class="form-control" type="number" min="0" v-model.number="num" @input="emit">
       <select class="form-select" v-model.number="unit" @change="emit">
-        <option :value="1">сек</option>
-        <option :value="60">мин</option>
-        <option :value="3600">час</option>
-        <option :value="86400">дн</option>
+        <option :value="1">sec</option>
+        <option :value="60">min</option>
+        <option :value="3600">hour</option>
+        <option :value="86400">day</option>
       </select>
     </div>`,
 });
@@ -624,7 +624,7 @@ app.component("modal", {
         <div class="modal-card" :class="{lg}" role="dialog" aria-modal="true">
           <div class="modal-head">
             <h5>{{ title }}</h5>
-            <button class="icon-btn" @click="$emit('close')" aria-label="Закрыть">✕</button>
+            <button class="icon-btn" @click="$emit('close')" aria-label="Close">✕</button>
           </div>
           <div class="modal-body"><slot></slot></div>
           <div class="modal-foot"><slot name="footer"></slot></div>
@@ -770,9 +770,9 @@ app.component("yaml-editor", {
   },
   template: `
     <div class="ye">
-      <div class="ye-mon" ref="host"><span v-if="!ready" class="ye-loading">загрузка редактора…</span></div>
+      <div class="ye-mon" ref="host"><span v-if="!ready" class="ye-loading">loading editor…</span></div>
       <div class="ye-status" :class="err ? 'is-err' : ''" @click="gotoErr">
-        <template v-if="err"><span class="ye-dot"></span>строка {{ err.line }}:{{ err.col }} — {{ err.msg }}</template>
+        <template v-if="err"><span class="ye-dot"></span>line {{ err.line }}:{{ err.col }} — {{ err.msg }}</template>
       </div>
     </div>`,
 });

@@ -16,9 +16,9 @@ import (
 // URL (like a malformed one) and surfaces as RulesetCheckUnreachable — the handler only
 // maps checker outcomes to text, it does not validate the URL.
 const (
-	MsgUnreachable  = "Не удалось подключиться к URL"
-	MsgEmpty        = "Ответ пустой — по URL нет файла"
-	MsgUnreachableP = "Не удалось подключиться: " // + technical detail
+	MsgUnreachable  = "Could not connect to the URL"
+	MsgEmpty        = "The response is empty — no file at the URL"
+	MsgUnreachableP = "Could not connect: " // + technical detail
 )
 
 // Handler probes a rule-provider URL via the checker service.
@@ -47,13 +47,13 @@ func (h *Handler) ProviderCheck(ctx context.Context, req *oas.ProviderCheckReq) 
 func describe(res entity.RulesetCheckResult, format string) (bool, string) {
 	switch res.Outcome {
 	case entity.RulesetCheckOK:
-		return true, fmt.Sprintf("Доступен:  формат «%s», %s", format, humanSize(res.Size))
+		return true, fmt.Sprintf("Available: format %q, %s", format, humanSize(res.Size))
 	case entity.RulesetCheckHTTPError:
-		return false, fmt.Sprintf("Сервер вернул HTTP %d — файла нет или нет доступа", res.Status)
+		return false, fmt.Sprintf("The server returned HTTP %d — no file or no access", res.Status)
 	case entity.RulesetCheckEmpty:
 		return false, MsgEmpty
 	case entity.RulesetCheckFormatMismatch:
-		return false, fmt.Sprintf("Скачалось (%s), но содержимое не похоже на формат «%s»", humanSize(res.Size), format)
+		return false, fmt.Sprintf("Downloaded (%s), but the content does not look like the %q format", humanSize(res.Size), format)
 	default: // RulesetCheckUnreachable
 		if res.Detail != "" {
 			return false, MsgUnreachableP + res.Detail

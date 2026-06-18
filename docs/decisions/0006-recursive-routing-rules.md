@@ -1,111 +1,111 @@
-# 0006 — Логические правила маршрутизации (AND/OR/NOT) как рекурсивное правило
+# 0006 — Logical routing rules (AND/OR/NOT) as a recursive rule
 
-- **Статус:** Accepted
-- **Дата:** 2026-06-16
+- **Status:** Accepted
+- **Date:** 2026-06-16
 - **PR:** #114
 
 ## Context
 
-Модель маршрутного правила была плоским одиночным матчером:
-`RoutingRule{Type, Value, ProviderID, NoResolve, Target}` — один тип, одно значение, один
-таргет. Она не выражает логические/составные правила mihomo (`AND`/`OR`/`NOT`), у которых
-payload — это вложенный список под-правил: `LOGIC,((TYPE,VAL),(TYPE,VAL)),TARGET`. Это
-блокировало реальную операционную потребность — глушение QUIC
+The routing-rule model was a flat single matcher:
+`RoutingRule{Type, Value, ProviderID, NoResolve, Target}` — one type, one value, one
+target. It does not express mihomo's logical/composite rules (`AND`/`OR`/`NOT`), whose
+payload is a nested list of sub-rules: `LOGIC,((TYPE,VAL),(TYPE,VAL)),TARGET`. This
+blocked a real operational need — silencing QUIC
 
 ```
 AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP
 ```
 
-(заставляет HTTP/3 откатиться на TCP; чинит подвисания App Store / YouTube под TUN+fake-ip)
-— его нельзя было собрать из UI.
+(it forces HTTP/3 to fall back to TCP; fixes App Store / YouTube hangs under TUN+fake-ip)
+— it could not be assembled from the UI.
 
-Таргеты уже типизированы через `PolicyRef` (см. [ADR-0005](0005-strict-mihomo-refs.md)) —
-пробел был исключительно на стороне матчеров. Дополнительно: оператор мог вписать секцию
-`sub-rules` в base YAML и словить коллизию с генерацией (ключ не был в `GeneratedKeys`).
+Targets are already typed via `PolicyRef` (see [ADR-0005](0005-strict-mihomo-refs.md)) —
+the gap was exclusively on the matchers' side. Additionally: the operator could write a
+`sub-rules` section into the base YAML and hit a collision with generation (the key was not in `GeneratedKeys`).
 
-Сверка реестра `ruleTypes` с вики mihomo показала ещё четыре отсутствующих простых
-матчера: `SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`, `PROCESS-NAME-WILDCARD`.
+Cross-checking the `ruleTypes` registry against the mihomo wiki revealed four more missing simple
+matchers: `SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`, `PROCESS-NAME-WILDCARD`.
 
-Ограничения, выясненные из исходника mihomo (`rules/logic`): `NOT` принимает ровно одно
-под-правило; под-правила парсятся через `ParseRulePayload(payload, parseParams=false)` —
-**параметры (в т.ч. `no-resolve`) внутри логического под-правила не извлекаются**, то есть
-под-правило не несёт `no-resolve`. `SUB-RULE` (ссылка на именованную группу sub-rule) —
-отдельная крупная фича (именованные группы под-правил = второй редактор); по решению
-владельца в этой итерации **не реализуется**, только закрывается дыра base YAML.
+Constraints discovered from the mihomo source (`rules/logic`): `NOT` takes exactly one
+sub-rule; sub-rules are parsed via `ParseRulePayload(payload, parseParams=false)` —
+**parameters (incl. `no-resolve`) inside a logical sub-rule are not extracted**, that is,
+a sub-rule does not carry `no-resolve`. `SUB-RULE` (a reference to a named sub-rule group) is
+a separate large feature (named sub-rule groups = a second editor); by the
+owner's decision in this iteration it is **not implemented**, only the base-YAML hole is closed.
 
 ## Considered Options
 
-### Модель типа под-правила
+### The sub-rule type model
 
-- **A. Единый рекурсивный тип.** `RoutingRule` (и save-`RuleDraft`) рекурсивны: логическое
-  правило несёт под-правила в `Children []RoutingRule` — той же структуры; `Target`
-  становится опциональным (`*PolicyRef`) — у верхнего уровня есть, у под-правила нет.
-  Плюсы: один тип, никакой «второй сущности»; ровно та модель, что у самого mihomo (правило
-  и под-правило — одно). Минусы: под-правило несёт неприменимые поля (`Target`/`NoResolve`),
-  которые запрещает валидация (позиционный инвариант top-level vs child).
-- **B. Отдельный тип под-условия** (`RuleCondition`/`ConditionDraft`) — только нужные поля
-  (`Type/Value/Provider/Children`), без таргета. Плюсы: каждый тип несёт только своё. Минусы:
-  два параллельных рекурсивных типа + отдельная таблица + дублирование decode/render/clone;
-  переусложнение для по сути одной сущности.
+- **A. A single recursive type.** `RoutingRule` (and the save-side `RuleDraft`) are recursive: a logical
+  rule carries sub-rules in `Children []RoutingRule` — of the same structure; `Target`
+  becomes optional (`*PolicyRef`) — the top level has it, a sub-rule does not.
+  Pros: one type, no «second entity»; exactly the model mihomo itself has (a rule
+  and a sub-rule are one). Cons: a sub-rule carries inapplicable fields (`Target`/`NoResolve`),
+  which validation forbids (a positional invariant top-level vs child).
+- **B. A separate sub-condition type** (`RuleCondition`/`ConditionDraft`) — only the needed fields
+  (`Type/Value/Provider/Children`), without a target. Pros: each type carries only its own. Cons:
+  two parallel recursive types + a separate table + duplication of decode/render/clone;
+  over-engineering for what is essentially one entity.
 
-### Хранение
+### Storage
 
-- **A. Самоссылочная `mihomo_routing_rules`** (`parent_id` → self, `target_kind` nullable).
-  Под-правило — строка той же таблицы с `parent_id` и без таргета. CHECK пинит инвариант
-  `(parent_id IS NULL) = (target_kind IS NOT NULL)`. Плюсы: одна таблица, save/read/clone
-  — один проход; `DELETE … WHERE config_id` сносит дерево целиком (у всех строк есть
-  `config_id`). Минусы: нужен rebuild таблицы (target_kind → nullable) — `.notx`-миграция.
-- **B. Отдельная таблица** `mihomo_rule_conditions`. Минусы: «вторая сущность» в БД, три
-  места рекурсии (save/read/clone) + отдельный provider-FK; противоречит единому типу.
-- **C. JSON-блоб** под-правил. Минусы: ссылки на провайдер внутри блоба — не FK; нарушает
-  инвариант типизированных ссылок (AGENTS). Отвергнут сразу.
+- **A. A self-referential `mihomo_routing_rules`** (`parent_id` → self, `target_kind` nullable).
+  A sub-rule — a row of the same table with `parent_id` and without a target. A CHECK pins the invariant
+  `(parent_id IS NULL) = (target_kind IS NOT NULL)`. Pros: one table, save/read/clone
+  — one pass; `DELETE … WHERE config_id` removes the whole tree (every row has
+  `config_id`). Cons: a rebuild of the table is needed (target_kind → nullable) — a `.notx` migration.
+- **B. A separate table** `mihomo_rule_conditions`. Cons: a «second entity» in the DB, three
+  places of recursion (save/read/clone) + a separate provider FK; it contradicts the single type.
+- **C. A JSON blob** of sub-rules. Cons: references to a provider inside the blob are not FKs; it violates
+  the typed-references invariant (AGENTS). Rejected immediately.
 
 ## Decision
 
-- **Единый рекурсивный тип (A) + самоссылочная таблица (A).** `RoutingRule.Children
-  []RoutingRule`, `Target *PolicyRef` (nil только у под-правила); save-зеркало —
-  `RuleDraft.Children []RuleDraft`, `Target *RefDraft`. Отдельные `RuleCondition`/
-  `ConditionDraft` и таблица `mihomo_rule_conditions` **не вводятся** — это было
-  переусложнение (правило и под-правило — одна сущность, как в mihomo). Хранение —
-  `mihomo_routing_rules` с `parent_id` (миграция `0004-*.notx.sql`, rebuild с nullable
-  `target_kind`). JSON-блоб отвергнут как нарушающий типизированные ссылки.
-- **Инвариант — в коде, позиционно.** `RuleDraft.Valid()` — позиционно-независимая
-  per-type проверка (логическое не несёт value/provider/no-resolve; `Children` только у
-  логического). Рекурсивный `validateRule(r, top, …)` пинит позиционное: top-level обязан
-  иметь таргет (`ErrTargetRequired`), под-правило — не иметь (`ErrChildTarget`); `NOT`
-  ровно одно, `AND`/`OR` ≥2; `MATCH` нельзя как под-правило (`ErrMatchChild`); provider-индекс
-  в диапазоне; под-правило не несёт `no-resolve`.
-- **`no-resolve` у под-правил — нет.** Совпадает с парсером mihomo и убирает поле из
-  под-правила (несёт только top-level).
-- **Wire — `MihomoRule` рекурсивный.** `target` опционален (не `required`), `children[]` —
-  self-`$ref`; отдельного `MihomoCondition` нет. Инвариант top-level/child — в сервисе, не
-  в схеме (по конвенции AGENTS).
-- **`sub-rules` → `GeneratedKeys`.** Закрывает дыру base YAML (save отвергает, render
-  стрипает); subgen именованные sub-rule-группы не генерирует. SUB-RULE как тип правила не
-  добавлен.
-- **Паритет матчеров:** + `SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`,
-  `PROCESS-NAME-WILDCARD` (простые, без особых опций).
-- **UI:** рекурсивный компонент `rule-node` (дерево с отступами). Переупорядочивание
-  под-правил **намеренно не реализовано** — AND/OR/NOT коммутативны, порядок не влияет на
-  матчинг (и это снимает конфликт вложенных SortableJS). Перетаскивание правил верхнего
-  уровня сохранено (строка+под-правила обёрнуты в единый перетаскиваемый `.rule-item`).
+- **A single recursive type (A) + a self-referential table (A).** `RoutingRule.Children
+  []RoutingRule`, `Target *PolicyRef` (nil only on a sub-rule); the save mirror —
+  `RuleDraft.Children []RuleDraft`, `Target *RefDraft`. Separate `RuleCondition`/
+  `ConditionDraft` and a `mihomo_rule_conditions` table are **not introduced** — that was
+  over-engineering (a rule and a sub-rule are one entity, as in mihomo). Storage —
+  `mihomo_routing_rules` with `parent_id` (the migration `0004-*.notx.sql`, a rebuild with a nullable
+  `target_kind`). The JSON blob was rejected as violating typed references.
+- **The invariant — in code, positionally.** `RuleDraft.Valid()` — a position-independent
+  per-type check (a logical one carries no value/provider/no-resolve; `Children` only on a
+  logical one). A recursive `validateRule(r, top, …)` pins the positional part: a top-level one must
+  have a target (`ErrTargetRequired`), a sub-rule — must not (`ErrChildTarget`); `NOT`
+  exactly one, `AND`/`OR` ≥2; `MATCH` cannot be a sub-rule (`ErrMatchChild`); the provider index
+  in range; a sub-rule does not carry `no-resolve`.
+- **`no-resolve` on sub-rules — no.** Matches the mihomo parser and removes the field from the
+  sub-rule (only the top-level one carries it).
+- **The wire — `MihomoRule` is recursive.** `target` is optional (not `required`), `children[]` —
+  a self-`$ref`; there is no separate `MihomoCondition`. The top-level/child invariant — in the service, not
+  in the schema (per the AGENTS convention).
+- **`sub-rules` → `GeneratedKeys`.** Closes the base-YAML hole (save rejects, render
+  strips); subgen does not generate named sub-rule groups. SUB-RULE as a rule type was not
+  added.
+- **Matcher parity:** + `SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`,
+  `PROCESS-NAME-WILDCARD` (simple, without special options).
+- **UI:** a recursive `rule-node` component (a tree with indents). Reordering
+  sub-rules is **intentionally not implemented** — AND/OR/NOT are commutative, order does not affect
+  matching (and it removes the conflict of nested SortableJS). Dragging top-level
+  rules is preserved (a row + its sub-rules are wrapped in a single draggable `.rule-item`).
 
 ## Consequences
 
-- Произвольная рекурсия `AND(AND(OR(...),NOT(...)),...)` round-trip'ит БД ↔ render ↔
-  decode; QUIC-правило собирается из UI и рендерится дословно.
-- Одна таблица для правил и под-правил: save — рекурсивный `insertRules` (по-узловая
-  вставка, `LastInsertId` → `parent_id`); read — сборка дерева в памяти из одного запроса;
-  clone — один проход по `ORDER BY id` (родитель раньше ребёнка) с remap
-  parent/provider/group. `DELETE … WHERE config_id` сносит всё дерево.
-- Под-правило несёт неприменимые поля (`Target`/`NoResolve`), которые валидатор запрещает;
-  это осознанная цена единого типа (меньше типов важнее, чем «каждое поле применимо»).
-- Под-правила не ссылаются на инбаунды (это матчеры, не таргеты) → per-subscriber drop
-  работает только по `Target` правила; единственный «сбой» рендера под-правила —
-  нерезолвнутый провайдер RULE-SET (config-ошибка, лог + drop правила).
-- Под-правила не несут `no-resolve` — если он понадобится логике mihomo в будущем, это
-  потребует и поддержки в парсере mihomo, и расширения модели.
-- Порядок под-правил в UI не редактируется; если когда-нибудь понадобится — добавляется
-  тривиально (модель уже упорядочена `position`).
-- SUB-RULE (именованные группы под-правил) остаётся будущей задачей; `sub-rules`
-  зарезервирован за subgen, так что ввести его позже можно без миграции ключа.
+- An arbitrary recursion `AND(AND(OR(...),NOT(...)),...)` round-trips DB ↔ render ↔
+  decode; the QUIC rule is assembled from the UI and rendered verbatim.
+- One table for rules and sub-rules: save — a recursive `insertRules` (a per-node
+  insert, `LastInsertId` → `parent_id`); read — assembling the tree in memory from a single query;
+  clone — one pass over `ORDER BY id` (parent before child) with a remap of
+  parent/provider/group. `DELETE … WHERE config_id` removes the whole tree.
+- A sub-rule carries inapplicable fields (`Target`/`NoResolve`), which the validator forbids;
+  this is a deliberate cost of the single type (fewer types matters more than «every field is applicable»).
+- Sub-rules do not reference inbounds (they are matchers, not targets) → the per-subscriber drop
+  works only by the rule's `Target`; the only render «failure» of a sub-rule is
+  an unresolved RULE-SET provider (a config error, log + drop of the rule).
+- Sub-rules do not carry `no-resolve` — if it is ever needed by mihomo's logic in the future, it
+  will require both support in the mihomo parser and an extension of the model.
+- The sub-rule order in the UI is not editable; if it is ever needed — it is added
+  trivially (the model is already ordered by `position`).
+- SUB-RULE (named sub-rule groups) remains a future task; `sub-rules`
+  is reserved for subgen, so it can be introduced later without a key migration.

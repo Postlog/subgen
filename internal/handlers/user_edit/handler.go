@@ -13,10 +13,10 @@ import (
 // User-facing messages. Exported so apitest can assert against them without duplicating
 // the text.
 const (
-	MsgUpdated         = "Подключения обновлены"
-	MsgNoConnection    = "Выберите хотя бы одно подключение"
-	MsgInboundNotFound = "Указанный инбаунд не найден"
-	MsgDescTooLong     = "Описание слишком длинное (максимум 500 символов)"
+	MsgUpdated         = "Connections updated"
+	MsgNoConnection    = "Select at least one connection"
+	MsgInboundNotFound = "The specified inbound was not found"
+	MsgDescTooLong     = "Description is too long (max 500 characters)"
 )
 
 // Handler re-binds a user to a new inbound set.

@@ -11,7 +11,7 @@ import (
 
 // MsgRecreated is the success message. Exported so apitest can assert against it without
 // duplicating the text.
-const MsgRecreated = "Клиенты пересозданы"
+const MsgRecreated = "Clients recreated"
 
 // Handler re-provisions a user's panel clients from the store.
 type Handler struct {

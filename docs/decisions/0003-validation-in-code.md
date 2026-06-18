@@ -1,66 +1,68 @@
-# 0003 — Валидация запросов в коде, а не в OpenAPI-схеме
+# 0003 — Request validation in code, not in the OpenAPI schema
 
-- **Статус:** Accepted
-- **Дата:** 2026-06-11
+- **Status:** Accepted
+- **Date:** 2026-06-11
 - **PR:** #19
 
 ## Context
 
-ogen генерирует серверные валидаторы из schema-ограничений (`minLength`, `minItems`,
-`minimum`, …) и зовёт их на декоде запроса. При нарушении ответ — общий
-`400 {"errMessage":"Некорректный запрос"}` (центральный `ErrorHandler`), **без привязки
-к полю**: пользователь, редактирующий конкретное поле, не понимает, что не так.
+ogen generates server validators from schema constraints (`minLength`, `minItems`,
+`minimum`, …) and calls them on request decode. On a violation the response is a generic
+`400 {"errMessage":"Bad request"}` (the central `ErrorHandler`), **without a binding
+to the field**: a user editing a specific field does not understand what is wrong.
 
-Отключить **генерацию** этих валидаторов, оставив сами ограничения в `.yaml` как
-декларацию контракта, ogen не умеет: `server/request/validation`-фичи нет, а
-`x-ogen-validate` лишь добавляет кастомные валидаторы. Значит выбор бинарный: либо
-ограничение в схеме (ogen валидирует, общий месседж), либо его там нет (валидируем в
-коде, точный месседж). Понятное локализованное сообщение признано важнее декларативности.
+Disabling the **generation** of these validators while keeping the constraints themselves in the
+`.yaml` as a contract declaration is something ogen cannot do: there is no
+`server/request/validation` feature, and `x-ogen-validate` only adds custom validators. So the choice is
+binary: either the constraint is in the schema (ogen validates, generic message), or it is not there
+(we validate in code, a precise message). An understandable localized message was deemed more
+important than declarativeness.
 
 ## Considered Options
 
-- **Валидация схемой (как было)** — декларативно, бесплатно (codegen), отсекает на краю;
-  но месседж общий («Некорректный запрос»), плохой UX, и часть правил схемой не выразить.
-- **Дубль (схема + код)** — и контракт, и точный месседж; но с ограничением в схеме ogen
-  режет запрос **до** хендлера, и код-проверка по HTTP-пути мертва → формальный дубль.
-- **Кастомные ogen-шаблоны** — переопределить request-decode, чтобы не звать `.Validate()`;
-  глобально, хрупко (ресинк на каждом апгрейде ogen), высокий мейнтенанс.
-- **Вся валидация значений — в коде** *(выбрано)* — убрать value-constraints из схемы,
-  проверять в хендлере/сервисе с sentinel + локализованным сообщением.
+- **Validation by schema (as it was)** — declarative, free (codegen), cuts off at the edge;
+  but the message is generic («Bad request»), bad UX, and some rules cannot be expressed by the schema.
+- **Duplicate (schema + code)** — both the contract and a precise message; but with the constraint in the
+  schema ogen cuts the request **before** the handler, and the code check on the HTTP path is
+  dead → a formal duplicate.
+- **Custom ogen templates** — override the request decode so as not to call `.Validate()`;
+  global, fragile (a resync on every ogen upgrade), high maintenance.
+- **All value validation — in code** *(chosen)* — remove value constraints from the schema,
+  check in the handler/service with a sentinel + a localized message.
 
 ## Decision
 
-- Из `openapi/*.yaml` убраны **все value-constraints** (`minLength`, `minItems`,
-  `minimum`). **Оставлены** `required`, `type`, `format` — они определяют форму контракта
-  и сгенерированные Go-типы (это не «валидация значений», и ogen по ним валидирует
-  присутствие/тип, что нам нужно).
-- **Валидация — в сервисном слое**, sentinel-ошибками в `entity`; хендлеры тонкие и мапят
-  sentinel в типизированный 4xx с локальной константой-сообщением. Где сервиса не было — он
-  заведён: **`internal/service/nodes`** владеет валидацией узла (семейство
-  `entity.ErrValidation*` — имя/хост/URL/base-path/инбаунды) плюс save/delete. **Ссылочную
-  целостность инбаунда НЕ предчекаем**: удаление узла/снятие инбаунда, на который ещё есть
-  ссылка (user-подключение или mihomo-правило/группа), отвергает FK БД (RESTRICT), а
-  репозиторий переводит нарушение в `entity.ErrInboundReferenced` — хендлер мапит его в
-  400. Часть валидаций уже была в сервисе/домене и оставлена: `validateName`,
+- **All value constraints** (`minLength`, `minItems`,
+  `minimum`) were removed from `openapi/*.yaml`. **Kept** are `required`, `type`, `format` — they define the shape of the contract
+  and the generated Go types (this is not «value validation», and ogen validates
+  presence/type by them, which is what we need).
+- **Validation — in the service layer**, with sentinel errors in `entity`; the handlers are thin and map a
+  sentinel into a typed 4xx with a local message constant. Where there was no service — it was
+  introduced: **`internal/service/nodes`** owns node validation (the
+  `entity.ErrValidation*` family — name/host/URL/base-path/inbounds) plus save/delete. **Inbound
+  referential integrity we do NOT pre-check**: deleting a node/removing an inbound that still has a
+  reference (a user connection or a mihomo rule/group) is rejected by the DB FK (RESTRICT), and the
+  repository translates the violation into `entity.ErrInboundReferenced` — the handler maps it to
+  400. Some validations were already in the service/domain and were kept: `validateName`,
   `ErrNoConnectionSelected`, `PolicyRef.Valid()`.
-- **Суррогатные id (PK) НЕ валидируем.** Проверять `id ≥ 1` бессмысленно: несуществующий id
-  (хоть `-100`, хоть валидный-но-отсутствующий `1233`) одинаково даёт not-found на чтении —
-  отдельная «валидация формата id» не несёт смысла. Удалена.
-- Где старое поведение уже корректно отвергало вход без openapi-гарда — оставлено: пустые
-  креды → 401 (constant-time compare), пустые path-сегменты не матчат роут, пустой/неизвестный
-  `PolicyRef.kind` → `validateRef`. Пустой URL provider-check **не** валидируем отдельно: он
-  ничем не отличается от кривого URL — оба непробиваемы и дают `RulesetCheckUnreachable`
-  (гарда на пустоту в хендлере нет).
+- **Surrogate ids (PK) we do NOT validate.** Checking `id ≥ 1` is meaningless: a non-existent id
+  (whether `-100` or a valid-but-absent `1233`) yields not-found on read either way —
+  a separate «id format validation» carries no meaning. Removed.
+- Where the old behavior already correctly rejected the input without an openapi guard — it was kept: empty
+  creds → 401 (constant-time compare), empty path segments do not match the route, an empty/unknown
+  `PolicyRef.kind` → `validateRef`. An empty provider-check URL we do **not** validate separately: it is
+  no different from a malformed URL — both are unreachable and yield `RulesetCheckUnreachable`
+  (there is no emptiness guard in the handler).
 
 ## Consequences
 
-- Ошибки валидации — точные, локализованные, привязанные к полю; в сервисе, покрыты
-  юнит-тестами. Хендлеры остаются тонкими (вызов сервиса + маппинг sentinel'ов).
-- `openapi/*.yaml` перестаёт быть источником enforced-ограничений значений (только форма
-  контракта). **Конвенция на будущее**: значения валидируются в сервисе sentinel-ошибками,
-  в схему кладём только `required`/`type`/`format`; суррогатные id не валидируем.
-- Node-валидация переехала из `web` (handler-layer) в `internal/service/nodes`; `web` больше
-  не держит маппинг сообщений — человеко-текст ошибок живёт локальными константами в каждом
-  хендлере (`node_save`/`node_delete` и т.д.), экспортированными для apitest.
-- Небольшой минус: лимиты больше не самодокументируются в схеме для стороннего тулинга.
-- Снят риск «дубля» и общий невнятный 400 на schema-ошибке.
+- Validation errors are precise, localized, bound to the field; in the service, covered by
+  unit tests. The handlers stay thin (a service call + sentinel mapping).
+- `openapi/*.yaml` stops being a source of enforced value constraints (only the shape of the
+  contract). **A convention for the future**: values are validated in the service with sentinel errors,
+  into the schema we put only `required`/`type`/`format`; surrogate ids we do not validate.
+- Node validation moved from `web` (the handler layer) into `internal/service/nodes`; `web` no longer
+  holds the message mapping — the human error text lives in local constants in each
+  handler (`node_save`/`node_delete` etc.), exported for apitest.
+- A small downside: the limits no longer self-document in the schema for third-party tooling.
+- The risk of a «duplicate» and the generic vague 400 on a schema error are removed.

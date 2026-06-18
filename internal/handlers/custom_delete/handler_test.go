@@ -33,7 +33,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 					DeleteUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(nil)
 			},
-			result: &oas.MessageResponse{Message: "Кастомный конфиг удалён"},
+			result: &oas.MessageResponse{Message: "Custom config deleted"},
 		},
 		{
 			name: "error.missing",

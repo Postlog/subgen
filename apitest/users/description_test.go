@@ -22,26 +22,26 @@ func (s *UserSuite) TestDescription() {
 
 	s.Run("set_on_create", func() {
 		name := s.userName()
-		res, err := s.API().CreateUserWith(name, sel, "рабочий ноутбук")
+		res, err := s.API().CreateUserWith(name, sel, "work laptop")
 		s.Require().NoError(err)
 		s.Require().True(res.OK, "create with description: %s", res.Message())
 		s.T().Cleanup(func() { u, _ := s.API().FindUser(name); s.deleteIfFound(u) })
 
 		u, err := s.API().MustFindUser(name)
 		s.Require().NoError(err)
-		s.Equal("рабочий ноутбук", u.Description)
+		s.Equal("work laptop", u.Description)
 	})
 
 	s.Run("trimmed", func() {
 		name := s.userName()
-		res, err := s.API().CreateUserWith(name, sel, "  с пробелами  ")
+		res, err := s.API().CreateUserWith(name, sel, "  with spaces  ")
 		s.Require().NoError(err)
 		s.Require().True(res.OK, "create with padded description: %s", res.Message())
 		s.T().Cleanup(func() { u, _ := s.API().FindUser(name); s.deleteIfFound(u) })
 
 		u, err := s.API().MustFindUser(name)
 		s.Require().NoError(err)
-		s.Equal("с пробелами", u.Description)
+		s.Equal("with spaces", u.Description)
 	})
 
 	s.Run("omitted_is_empty", func() {
@@ -52,13 +52,13 @@ func (s *UserSuite) TestDescription() {
 	s.Run("edit_replaces", func() {
 		u := s.createUser(s.userName(), "N1")
 
-		res, err := s.API().EditUserWith(u.ID, sel, "после правки")
+		res, err := s.API().EditUserWith(u.ID, sel, "after edit")
 		s.Require().NoError(err)
 		s.Require().True(res.OK, "edit set description: %s", res.Message())
 
 		got, err := s.API().MustFindUser(u.Name)
 		s.Require().NoError(err)
-		s.Equal("после правки", got.Description)
+		s.Equal("after edit", got.Description)
 
 		// editing with an empty description clears it
 		res, err = s.API().EditUserWith(u.ID, sel, "")
@@ -72,7 +72,7 @@ func (s *UserSuite) TestDescription() {
 
 	s.Run("too_long", func() {
 		name := s.userName()
-		res, err := s.API().CreateUserWith(name, sel, strings.Repeat("я", 501))
+		res, err := s.API().CreateUserWith(name, sel, strings.Repeat("a", 501))
 		s.Require().NoError(err)
 		s.Require().False(res.OK, "over-length description must be rejected")
 		s.NotEmpty(res.Message())

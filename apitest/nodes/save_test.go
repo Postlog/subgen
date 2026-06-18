@@ -13,14 +13,14 @@ import (
 //   - update.keep_token      — update with an EMPTY token preserves the stored token
 //                              (verified end-to-end: a user still provisions onto the panel).
 //   - update.replace_token   — update with a NEW token replaces it (the node still works).
-//   - err.bad_vpn_host       — host with a scheme/port → rejected ("невалиден").
-//   - err.no_inbounds        — zero inbounds → rejected ("хотя бы один инбаунд").
-//   - err.bad_inbound_name   — inbound name with illegal chars → rejected ("имя инбаунда").
-//   - err.bad_node_name      — node name with illegal chars → rejected ("имя узла").
-//   - err.duplicate_node_name — second node with an existing name → "Узел ... уже существует".
-//   - err.duplicate_inbound_name — two inbounds same name in one payload → "повторяющееся имя инбаунда"
+//   - err.bad_vpn_host       — host with a scheme/port → rejected ("invalid").
+//   - err.no_inbounds        — zero inbounds → rejected ("at least one inbound").
+//   - err.bad_inbound_name   — inbound name with illegal chars → rejected ("inbound name").
+//   - err.bad_node_name      — node name with illegal chars → rejected ("node name").
+//   - err.duplicate_node_name — second node with an existing name → "A node ... already exists".
+//   - err.duplicate_inbound_name — two inbounds same name in one payload → "Duplicate inbound name"
 //                              (web.ValidateNode catches the in-payload dup before the DB).
-//   - err.duplicate_inbound_port — two inbounds same port in one payload → "повторяющийся порт инбаунда".
+//   - err.duplicate_inbound_port — two inbounds same port in one payload → "Duplicate inbound port".
 //   - err.malformed_json     — non-JSON body → MsgBadRequest.
 
 // TestSaveCreateUpdate covers the create + update happy paths against the registry.

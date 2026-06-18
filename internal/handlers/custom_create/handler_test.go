@@ -33,7 +33,7 @@ func TestHandler_CustomCreate(t *testing.T) {
 					CreateUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(int64(42), nil)
 			},
-			result: &oas.MessageResponse{Message: "Кастомный конфиг создан"},
+			result: &oas.MessageResponse{Message: "Custom config created"},
 		},
 		{
 			name: "error.exists",

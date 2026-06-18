@@ -51,12 +51,23 @@ get:
                       description: Optional free-text note, shown only in the admin UI; omitted when unset.
                     sub:
                       type: object
-                      required: [id, url]
+                      description: >-
+                        Subscription presentation: the ordered, copyable links for this
+                        user — the raw subscription URL plus app deeplinks that embed it.
+                        Titles and which links exist are decided by the backend; the UI
+                        renders the list verbatim and hardcodes neither.
+                      required: [links]
                       properties:
-                        id:
-                          type: string
-                        url:
-                          type: string
+                        links:
+                          type: array
+                          items:
+                            type: object
+                            required: [title, value]
+                            properties:
+                              title:
+                                type: string
+                              value:
+                                type: string
                     inbounds:
                       type: array
                       items:

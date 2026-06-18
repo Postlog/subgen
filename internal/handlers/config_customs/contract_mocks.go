@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockconfigLister is a mock of configLister interface.
-type MockconfigLister struct {
+// MockconfigsRepo is a mock of configsRepo interface.
+type MockconfigsRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockconfigListerMockRecorder
+	recorder *MockconfigsRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockconfigListerMockRecorder is the mock recorder for MockconfigLister.
-type MockconfigListerMockRecorder struct {
-	mock *MockconfigLister
+// MockconfigsRepoMockRecorder is the mock recorder for MockconfigsRepo.
+type MockconfigsRepoMockRecorder struct {
+	mock *MockconfigsRepo
 }
 
-// NewMockconfigLister creates a new mock instance.
-func NewMockconfigLister(ctrl *gomock.Controller) *MockconfigLister {
-	mock := &MockconfigLister{ctrl: ctrl}
-	mock.recorder = &MockconfigListerMockRecorder{mock}
+// NewMockconfigsRepo creates a new mock instance.
+func NewMockconfigsRepo(ctrl *gomock.Controller) *MockconfigsRepo {
+	mock := &MockconfigsRepo{ctrl: ctrl}
+	mock.recorder = &MockconfigsRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconfigLister) EXPECT() *MockconfigListerMockRecorder {
+func (m *MockconfigsRepo) EXPECT() *MockconfigsRepoMockRecorder {
 	return m.recorder
 }
 
 // UserConfigUserIDs mocks base method.
-func (m *MockconfigLister) UserConfigUserIDs(ctx context.Context, kind entity.ConfigKind) ([]int64, error) {
+func (m *MockconfigsRepo) UserConfigUserIDs(ctx context.Context, kind entity.ConfigKind) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UserConfigUserIDs", ctx, kind)
 	ret0, _ := ret[0].([]int64)
@@ -51,37 +51,37 @@ func (m *MockconfigLister) UserConfigUserIDs(ctx context.Context, kind entity.Co
 }
 
 // UserConfigUserIDs indicates an expected call of UserConfigUserIDs.
-func (mr *MockconfigListerMockRecorder) UserConfigUserIDs(ctx, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) UserConfigUserIDs(ctx, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigUserIDs", reflect.TypeOf((*MockconfigLister)(nil).UserConfigUserIDs), ctx, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserConfigUserIDs", reflect.TypeOf((*MockconfigsRepo)(nil).UserConfigUserIDs), ctx, kind)
 }
 
-// MockuserLister is a mock of userLister interface.
-type MockuserLister struct {
+// MockusersRepo is a mock of usersRepo interface.
+type MockusersRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockuserListerMockRecorder
+	recorder *MockusersRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockuserListerMockRecorder is the mock recorder for MockuserLister.
-type MockuserListerMockRecorder struct {
-	mock *MockuserLister
+// MockusersRepoMockRecorder is the mock recorder for MockusersRepo.
+type MockusersRepoMockRecorder struct {
+	mock *MockusersRepo
 }
 
-// NewMockuserLister creates a new mock instance.
-func NewMockuserLister(ctrl *gomock.Controller) *MockuserLister {
-	mock := &MockuserLister{ctrl: ctrl}
-	mock.recorder = &MockuserListerMockRecorder{mock}
+// NewMockusersRepo creates a new mock instance.
+func NewMockusersRepo(ctrl *gomock.Controller) *MockusersRepo {
+	mock := &MockusersRepo{ctrl: ctrl}
+	mock.recorder = &MockusersRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockuserLister) EXPECT() *MockuserListerMockRecorder {
+func (m *MockusersRepo) EXPECT() *MockusersRepoMockRecorder {
 	return m.recorder
 }
 
 // ListNames mocks base method.
-func (m *MockuserLister) ListNames(ctx context.Context) ([]entity.User, error) {
+func (m *MockusersRepo) ListNames(ctx context.Context) ([]entity.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListNames", ctx)
 	ret0, _ := ret[0].([]entity.User)
@@ -90,7 +90,7 @@ func (m *MockuserLister) ListNames(ctx context.Context) ([]entity.User, error) {
 }
 
 // ListNames indicates an expected call of ListNames.
-func (mr *MockuserListerMockRecorder) ListNames(ctx any) *gomock.Call {
+func (mr *MockusersRepoMockRecorder) ListNames(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListNames", reflect.TypeOf((*MockuserLister)(nil).ListNames), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListNames", reflect.TypeOf((*MockusersRepo)(nil).ListNames), ctx)
 }

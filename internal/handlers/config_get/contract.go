@@ -8,14 +8,14 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// configResolver resolves the config scope (base vs a user's custom) to a config id.
-type configResolver interface {
+// configsRepo resolves the config scope (base vs a user's custom) to a config id.
+type configsRepo interface {
 	BaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, bool, error)
 	UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error)
 }
 
-// mihomoReader reads one config's mihomo content (scoped by config id).
-type mihomoReader interface {
+// routingRepo reads one config's mihomo content (scoped by config id).
+type routingRepo interface {
 	Rules(ctx context.Context, configID int64) ([]mihomo.RoutingRule, error)
 	ProxyGroups(ctx context.Context, configID int64) ([]mihomo.ProxyGroup, error)
 	RuleProviders(ctx context.Context, configID int64) ([]mihomo.RuleProvider, error)

@@ -19,18 +19,18 @@ func TestHandler_ConfigCustoms(t *testing.T) {
 	tt := []struct {
 		name string
 
-		buildConfigsMock func(m *MockconfigLister)
-		buildUsersMock   func(m *MockuserLister)
+		buildConfigsMock func(m *MockconfigsRepo)
+		buildUsersMock   func(m *MockusersRepo)
 
 		result oas.ConfigCustomsRes
 		err    error
 	}{
 		{
 			name: "success",
-			buildConfigsMock: func(m *MockconfigLister) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return([]int64{2}, nil)
 			},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().ListNames(gomock.Any()).Return([]entity.User{
 					{ID: 1, Name: "alice"},
 					{ID: 2, Name: "bob"},
@@ -46,17 +46,17 @@ func TestHandler_ConfigCustoms(t *testing.T) {
 		},
 		{
 			name: "error.list_ids",
-			buildConfigsMock: func(m *MockconfigLister) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return(nil, internalErr)
 			},
 			err: internalErr,
 		},
 		{
 			name: "error.list_names",
-			buildConfigsMock: func(m *MockconfigLister) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigUserIDs(gomock.Any(), entity.ConfigKindMihomo).Return([]int64{}, nil)
 			},
-			buildUsersMock: func(m *MockuserLister) {
+			buildUsersMock: func(m *MockusersRepo) {
 				m.EXPECT().ListNames(gomock.Any()).Return(nil, internalErr)
 			},
 			err: internalErr,
@@ -70,12 +70,12 @@ func TestHandler_ConfigCustoms(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			configs := NewMockconfigLister(ctrl)
+			configs := NewMockconfigsRepo(ctrl)
 			if tc.buildConfigsMock != nil {
 				tc.buildConfigsMock(configs)
 			}
 
-			users := NewMockuserLister(ctrl)
+			users := NewMockusersRepo(ctrl)
 			if tc.buildUsersMock != nil {
 				tc.buildUsersMock(users)
 			}

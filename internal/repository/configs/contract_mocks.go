@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockcloner is a mock of cloner interface.
-type Mockcloner struct {
+// MockroutingRepo is a mock of routingRepo interface.
+type MockroutingRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockclonerMockRecorder
+	recorder *MockroutingRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockclonerMockRecorder is the mock recorder for Mockcloner.
-type MockclonerMockRecorder struct {
-	mock *Mockcloner
+// MockroutingRepoMockRecorder is the mock recorder for MockroutingRepo.
+type MockroutingRepoMockRecorder struct {
+	mock *MockroutingRepo
 }
 
-// NewMockcloner creates a new mock instance.
-func NewMockcloner(ctrl *gomock.Controller) *Mockcloner {
-	mock := &Mockcloner{ctrl: ctrl}
-	mock.recorder = &MockclonerMockRecorder{mock}
+// NewMockroutingRepo creates a new mock instance.
+func NewMockroutingRepo(ctrl *gomock.Controller) *MockroutingRepo {
+	mock := &MockroutingRepo{ctrl: ctrl}
+	mock.recorder = &MockroutingRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockcloner) EXPECT() *MockclonerMockRecorder {
+func (m *MockroutingRepo) EXPECT() *MockroutingRepoMockRecorder {
 	return m.recorder
 }
 
 // CloneConfig mocks base method.
-func (m *Mockcloner) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, dstConfigID int64) error {
+func (m *MockroutingRepo) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, dstConfigID int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CloneConfig", ctx, tx, srcConfigID, dstConfigID)
 	ret0, _ := ret[0].(error)
@@ -50,7 +50,7 @@ func (m *Mockcloner) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, d
 }
 
 // CloneConfig indicates an expected call of CloneConfig.
-func (mr *MockclonerMockRecorder) CloneConfig(ctx, tx, srcConfigID, dstConfigID any) *gomock.Call {
+func (mr *MockroutingRepoMockRecorder) CloneConfig(ctx, tx, srcConfigID, dstConfigID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloneConfig", reflect.TypeOf((*Mockcloner)(nil).CloneConfig), ctx, tx, srcConfigID, dstConfigID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloneConfig", reflect.TypeOf((*MockroutingRepo)(nil).CloneConfig), ctx, tx, srcConfigID, dstConfigID)
 }

@@ -14,11 +14,11 @@ const MsgDeleted = "Пользователь удалён"
 
 // Handler deletes a user and deprovisions its panel clients.
 type Handler struct {
-	svc deleter
+	svc provisioningService
 }
 
 // New builds the handler.
-func New(svc deleter) *Handler { return &Handler{svc: svc} }
+func New(svc provisioningService) *Handler { return &Handler{svc: svc} }
 
 // UserDelete implements oas.Handler. DeleteUser surfaces no domain (4xx) error — a missing
 // user or a panel/store failure is an internal condition — so any failure is a logged 500.

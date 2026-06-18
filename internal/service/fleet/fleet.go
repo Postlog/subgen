@@ -16,11 +16,11 @@ import (
 // Service fetches every node's inbounds and assembles the fleet.
 type Service struct {
 	client panelClient
-	nodes  nodeLister
+	nodes  nodesRepo
 }
 
 // New builds the fleet service.
-func New(client panelClient, nodes nodeLister) *Service {
+func New(client panelClient, nodes nodesRepo) *Service {
 	return &Service{client: client, nodes: nodes}
 }
 

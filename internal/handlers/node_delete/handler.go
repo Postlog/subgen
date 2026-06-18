@@ -22,11 +22,11 @@ const (
 
 // Handler deletes a node via the nodes service.
 type Handler struct {
-	svc nodeDeleter
+	svc nodesService
 }
 
 // New builds the handler.
-func New(svc nodeDeleter) *Handler { return &Handler{svc: svc} }
+func New(svc nodesService) *Handler { return &Handler{svc: svc} }
 
 // NodeDelete implements oas.Handler: a still-referenced inbound is a 400, any unexpected
 // (store) failure is a 500.

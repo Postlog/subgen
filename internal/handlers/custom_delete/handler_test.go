@@ -20,7 +20,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 		name string
 		req  *oas.CustomDeleteReq
 
-		buildConfigsMock func(m *MockconfigDeleter)
+		buildConfigsMock func(m *MockconfigsRepo)
 
 		result oas.CustomDeleteRes
 		err    error
@@ -28,7 +28,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.CustomDeleteReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigDeleter) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					DeleteUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(nil)
@@ -38,7 +38,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 		{
 			name: "error.missing",
 			req:  &oas.CustomDeleteReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigDeleter) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					DeleteUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(entity.ErrUserConfigNotFound)
@@ -48,7 +48,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.CustomDeleteReq{UserId: 7},
-			buildConfigsMock: func(m *MockconfigDeleter) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().
 					DeleteUserConfig(gomock.Any(), int64(7), entity.ConfigKindMihomo).
 					Return(internalErr)
@@ -64,7 +64,7 @@ func TestHandler_CustomDelete(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			configs := NewMockconfigDeleter(ctrl)
+			configs := NewMockconfigsRepo(ctrl)
 			if tc.buildConfigsMock != nil {
 				tc.buildConfigsMock(configs)
 			}

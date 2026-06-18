@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockconfigCreator is a mock of configCreator interface.
-type MockconfigCreator struct {
+// MockconfigsRepo is a mock of configsRepo interface.
+type MockconfigsRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockconfigCreatorMockRecorder
+	recorder *MockconfigsRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockconfigCreatorMockRecorder is the mock recorder for MockconfigCreator.
-type MockconfigCreatorMockRecorder struct {
-	mock *MockconfigCreator
+// MockconfigsRepoMockRecorder is the mock recorder for MockconfigsRepo.
+type MockconfigsRepoMockRecorder struct {
+	mock *MockconfigsRepo
 }
 
-// NewMockconfigCreator creates a new mock instance.
-func NewMockconfigCreator(ctrl *gomock.Controller) *MockconfigCreator {
-	mock := &MockconfigCreator{ctrl: ctrl}
-	mock.recorder = &MockconfigCreatorMockRecorder{mock}
+// NewMockconfigsRepo creates a new mock instance.
+func NewMockconfigsRepo(ctrl *gomock.Controller) *MockconfigsRepo {
+	mock := &MockconfigsRepo{ctrl: ctrl}
+	mock.recorder = &MockconfigsRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconfigCreator) EXPECT() *MockconfigCreatorMockRecorder {
+func (m *MockconfigsRepo) EXPECT() *MockconfigsRepoMockRecorder {
 	return m.recorder
 }
 
 // CreateUserConfig mocks base method.
-func (m *MockconfigCreator) CreateUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, error) {
+func (m *MockconfigsRepo) CreateUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateUserConfig", ctx, userID, kind)
 	ret0, _ := ret[0].(int64)
@@ -51,7 +51,7 @@ func (m *MockconfigCreator) CreateUserConfig(ctx context.Context, userID int64, 
 }
 
 // CreateUserConfig indicates an expected call of CreateUserConfig.
-func (mr *MockconfigCreatorMockRecorder) CreateUserConfig(ctx, userID, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) CreateUserConfig(ctx, userID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUserConfig", reflect.TypeOf((*MockconfigCreator)(nil).CreateUserConfig), ctx, userID, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUserConfig", reflect.TypeOf((*MockconfigsRepo)(nil).CreateUserConfig), ctx, userID, kind)
 }

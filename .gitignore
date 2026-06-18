@@ -19,6 +19,9 @@ db/
 coverage.out
 *.coverprofile
 
+# `make lint` Docker cache (go modules + build/analysis cache); CI persists it via cache action
+.lintcache/
+
 # Go workspace (local, per-machine)
 go.work
 go.work.sum

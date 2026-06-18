@@ -8,16 +8,16 @@ import (
 	"github.com/postlog/subgen/internal/mihomo"
 )
 
-// configResolver resolves the save scope to a config id: the base (created on first
+// configsRepo resolves the save scope to a config id: the base (created on first
 // save) or a user's existing custom config.
-type configResolver interface {
+type configsRepo interface {
 	EnsureBaseConfigID(ctx context.Context, kind entity.ConfigKind) (int64, error)
 	UserConfigID(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, bool, error)
 }
 
-// mihomoSaver persists one config's mihomo content (rules + proxy-groups + providers
+// routingRepo persists one config's mihomo content (rules + proxy-groups + providers
 // + base YAML + profile knobs) atomically, scoped by config id. It takes a ConfigDraft
 // — group/provider references are carried as array indices, resolved to ids on insert.
-type mihomoSaver interface {
+type routingRepo interface {
 	SaveMihomoConfig(ctx context.Context, configID int64, draft mihomo.ConfigDraft) error
 }

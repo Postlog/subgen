@@ -16,11 +16,11 @@ const msgConfigMissing = "У пользователя нет кастомног�
 
 // Handler drops a user's custom config.
 type Handler struct {
-	configs configDeleter
+	configs configsRepo
 }
 
 // New builds the handler.
-func New(configs configDeleter) *Handler { return &Handler{configs: configs} }
+func New(configs configsRepo) *Handler { return &Handler{configs: configs} }
 
 // CustomDelete implements oas.Handler: a user with no custom config is a 400; any
 // unexpected (store) failure is a 500.

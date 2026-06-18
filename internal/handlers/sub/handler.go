@@ -28,16 +28,16 @@ type RenderMeta struct {
 // Handler resolves a subscription token to a user, picks their config (custom or
 // base) for the requested engine, and delegates rendering to that engine's renderer.
 type Handler struct {
-	users     userResolver
-	fleet     fleetReader
-	configs   configResolver
+	users     usersRepo
+	fleet     fleetService
+	configs   configsRepo
 	renderers map[entity.ConfigKind]EngineRenderer
 
 	secret string
 }
 
 // New builds the handler. renderers maps each supported engine kind to its renderer.
-func New(users userResolver, fleet fleetReader, configs configResolver, renderers map[entity.ConfigKind]EngineRenderer, secret string) *Handler {
+func New(users usersRepo, fleet fleetService, configs configsRepo, renderers map[entity.ConfigKind]EngineRenderer, secret string) *Handler {
 	return &Handler{
 		users: users, fleet: fleet, configs: configs, renderers: renderers,
 		secret: secret,

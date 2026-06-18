@@ -60,6 +60,7 @@ import (
 	nodesService "github.com/postlog/subgen/internal/service/nodes"
 	"github.com/postlog/subgen/internal/service/provisioning"
 	"github.com/postlog/subgen/internal/service/ruleset"
+	"github.com/postlog/subgen/internal/service/sublinks"
 )
 
 func main() {
@@ -189,6 +190,10 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 
 	nodesSvc := nodesService.New(nodesRepo)
 
+	// Subscription-link catalog (raw sub URLs + app deeplinks) for the users list; it
+	// resolves each user's effective profile title for the deeplink name.
+	subLinksSvc := sublinks.New(cfg.Secret, cfg.PublicBase, configsRepo, routingRepo)
+
 	// The login handler serves both the sign-in action (POST /admin/api/login) and the
 	// login PAGE (GET /admin/login).
 	loginHandler := login.New(sess, cfg.AdminUser, cfg.AdminPassword, cfg.StaticDir)
@@ -205,7 +210,7 @@ func buildRouter(cfg config.Config, usersRepo *users.Repository, nodesRepo *node
 		Logout:     logout.New(sess),
 		AdminShell: adminShellHandler.New(sess, cfg.StaticDir),
 
-		UsersGet:     usersGetHandler.New(usersRepo, fleetSvc, cfg.Secret, cfg.PublicBase),
+		UsersGet:     usersGetHandler.New(usersRepo, fleetSvc, subLinksSvc),
 		UserCreate:   userCreateHandler.New(prov),
 		UserEdit:     userEditHandler.New(prov),
 		UserDelete:   userDeleteHandler.New(prov),

@@ -27,14 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      # Lint via `make lint` — the single source of truth (pinned golangci-lint Docker
+      # image), byte-identical to a developer's local run. No setup-go: golangci-lint runs
+      # inside the container. The cache holds go modules + build/analysis cache for speed.
+      - name: lint cache
+        uses: actions/cache@v4
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12.2 # pinned golangci-lint v2 — matches .golangci.yaml (version "2")
+          path: .lintcache
+          key: lint-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yaml', 'Makefile') }}
+          restore-keys: lint-${{ runner.os }}-
+      - name: make lint
+        run: make lint
 
   unit:
     name: unit

@@ -39,10 +39,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+      # Lint via `make lint` (pinned golangci-lint Docker image) — same single source of
+      # truth as CI and local; the cache holds go modules + build/analysis cache.
+      - name: lint cache
+        uses: actions/cache@v4
         with:
-          version: v2.12.2 # pinned — matches .golangci.yaml (version "2")
+          path: .lintcache
+          key: lint-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yaml', 'Makefile') }}
+          restore-keys: lint-${{ runner.os }}-
+      - name: lint (make lint)
+        run: make lint
       - name: unit tests (-race)
         run: make test
       - name: integration tests (real temp SQLite)

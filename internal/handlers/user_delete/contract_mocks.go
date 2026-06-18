@@ -16,32 +16,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockdeleter is a mock of deleter interface.
-type Mockdeleter struct {
+// MockprovisioningService is a mock of provisioningService interface.
+type MockprovisioningService struct {
 	ctrl     *gomock.Controller
-	recorder *MockdeleterMockRecorder
+	recorder *MockprovisioningServiceMockRecorder
 	isgomock struct{}
 }
 
-// MockdeleterMockRecorder is the mock recorder for Mockdeleter.
-type MockdeleterMockRecorder struct {
-	mock *Mockdeleter
+// MockprovisioningServiceMockRecorder is the mock recorder for MockprovisioningService.
+type MockprovisioningServiceMockRecorder struct {
+	mock *MockprovisioningService
 }
 
-// NewMockdeleter creates a new mock instance.
-func NewMockdeleter(ctrl *gomock.Controller) *Mockdeleter {
-	mock := &Mockdeleter{ctrl: ctrl}
-	mock.recorder = &MockdeleterMockRecorder{mock}
+// NewMockprovisioningService creates a new mock instance.
+func NewMockprovisioningService(ctrl *gomock.Controller) *MockprovisioningService {
+	mock := &MockprovisioningService{ctrl: ctrl}
+	mock.recorder = &MockprovisioningServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockdeleter) EXPECT() *MockdeleterMockRecorder {
+func (m *MockprovisioningService) EXPECT() *MockprovisioningServiceMockRecorder {
 	return m.recorder
 }
 
 // DeleteUser mocks base method.
-func (m *Mockdeleter) DeleteUser(ctx context.Context, id int64) error {
+func (m *MockprovisioningService) DeleteUser(ctx context.Context, id int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteUser", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -49,7 +49,7 @@ func (m *Mockdeleter) DeleteUser(ctx context.Context, id int64) error {
 }
 
 // DeleteUser indicates an expected call of DeleteUser.
-func (mr *MockdeleterMockRecorder) DeleteUser(ctx, id any) *gomock.Call {
+func (mr *MockprovisioningServiceMockRecorder) DeleteUser(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUser", reflect.TypeOf((*Mockdeleter)(nil).DeleteUser), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUser", reflect.TypeOf((*MockprovisioningService)(nil).DeleteUser), ctx, id)
 }

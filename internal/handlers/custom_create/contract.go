@@ -7,7 +7,7 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// configCreator creates a user's custom config as a snapshot of the engine's base.
-type configCreator interface {
+// configsRepo creates a user's custom config as a snapshot of the engine's base.
+type configsRepo interface {
 	CreateUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) (int64, error)
 }

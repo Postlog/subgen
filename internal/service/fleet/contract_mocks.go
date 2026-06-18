@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MocknodeLister is a mock of nodeLister interface.
-type MocknodeLister struct {
+// MocknodesRepo is a mock of nodesRepo interface.
+type MocknodesRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeListerMockRecorder
+	recorder *MocknodesRepoMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeListerMockRecorder is the mock recorder for MocknodeLister.
-type MocknodeListerMockRecorder struct {
-	mock *MocknodeLister
+// MocknodesRepoMockRecorder is the mock recorder for MocknodesRepo.
+type MocknodesRepoMockRecorder struct {
+	mock *MocknodesRepo
 }
 
-// NewMocknodeLister creates a new mock instance.
-func NewMocknodeLister(ctrl *gomock.Controller) *MocknodeLister {
-	mock := &MocknodeLister{ctrl: ctrl}
-	mock.recorder = &MocknodeListerMockRecorder{mock}
+// NewMocknodesRepo creates a new mock instance.
+func NewMocknodesRepo(ctrl *gomock.Controller) *MocknodesRepo {
+	mock := &MocknodesRepo{ctrl: ctrl}
+	mock.recorder = &MocknodesRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeLister) EXPECT() *MocknodeListerMockRecorder {
+func (m *MocknodesRepo) EXPECT() *MocknodesRepoMockRecorder {
 	return m.recorder
 }
 
 // List mocks base method.
-func (m *MocknodeLister) List(ctx context.Context) ([]entity.Node, error) {
+func (m *MocknodesRepo) List(ctx context.Context) ([]entity.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]entity.Node)
@@ -51,9 +51,9 @@ func (m *MocknodeLister) List(ctx context.Context) ([]entity.Node, error) {
 }
 
 // List indicates an expected call of List.
-func (mr *MocknodeListerMockRecorder) List(ctx any) *gomock.Call {
+func (mr *MocknodesRepoMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MocknodeLister)(nil).List), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MocknodesRepo)(nil).List), ctx)
 }
 
 // MockpanelClient is a mock of panelClient interface.

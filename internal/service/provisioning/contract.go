@@ -7,8 +7,8 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// userRepo is the users repository subset provisioning needs.
-type userRepo interface {
+// usersRepo is the users repository subset provisioning needs.
+type usersRepo interface {
 	Get(ctx context.Context, id int64) (*entity.User, error)
 	Create(ctx context.Context, u *entity.User) error
 	ReplaceConnections(ctx context.Context, userID int64, inboundIDs []int64) error
@@ -16,8 +16,8 @@ type userRepo interface {
 	Delete(ctx context.Context, id int64) error
 }
 
-// nodeRepo lists the node registry.
-type nodeRepo interface {
+// nodesRepo lists the node registry.
+type nodesRepo interface {
 	List(ctx context.Context) ([]entity.Node, error)
 }
 

@@ -22,8 +22,8 @@ func TestHandler_ConfigGet(t *testing.T) {
 		name   string
 		params oas.ConfigGetParams
 
-		buildConfigsMock func(m *MockconfigResolver)
-		buildRoutingMock func(m *MockmihomoReader)
+		buildConfigsMock func(m *MockconfigsRepo)
+		buildRoutingMock func(m *MockroutingRepo)
 
 		result oas.ConfigGetRes
 		err    error
@@ -31,7 +31,7 @@ func TestHandler_ConfigGet(t *testing.T) {
 		{
 			name:   "success.base_empty",
 			params: oas.ConfigGetParams{},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
 			// No config row yet → empty config means empty: profile knobs come back
@@ -45,10 +45,10 @@ func TestHandler_ConfigGet(t *testing.T) {
 		{
 			name:   "success.base_populated",
 			params: oas.ConfigGetParams{},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), true, nil)
 			},
-			buildRoutingMock: func(m *MockmihomoReader) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().Rules(gomock.Any(), int64(7)).Return([]mihomo.RoutingRule{
 					{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 				}, nil)
@@ -72,10 +72,10 @@ func TestHandler_ConfigGet(t *testing.T) {
 			// a RULE-SET sub-condition's provider id becomes its array index.
 			name:   "success.logical_rule",
 			params: oas.ConfigGetParams{},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), true, nil)
 			},
-			buildRoutingMock: func(m *MockmihomoReader) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().Rules(gomock.Any(), int64(7)).Return([]mihomo.RoutingRule{
 					{Type: mihomo.RuleAnd, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Children: []mihomo.RoutingRule{
 						{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
@@ -110,10 +110,10 @@ func TestHandler_ConfigGet(t *testing.T) {
 			// A content read that errors must surface (logged) as a 5xx, not be swallowed.
 			name:   "error.read_failed",
 			params: oas.ConfigGetParams{},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().BaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(7), true, nil)
 			},
-			buildRoutingMock: func(m *MockmihomoReader) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().Rules(gomock.Any(), int64(7)).Return(nil, internalErr)
 			},
 			err: internalErr,
@@ -121,7 +121,7 @@ func TestHandler_ConfigGet(t *testing.T) {
 		{
 			name:   "notfound.user_scope",
 			params: oas.ConfigGetParams{User: oas.NewOptInt64(5)},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigID(gomock.Any(), int64(5), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
 			result: &oas.ConfigGetNotFound{},
@@ -129,7 +129,7 @@ func TestHandler_ConfigGet(t *testing.T) {
 		{
 			name:   "error.internal",
 			params: oas.ConfigGetParams{User: oas.NewOptInt64(5)},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigID(gomock.Any(), int64(5), entity.ConfigKindMihomo).Return(int64(0), false, internalErr)
 			},
 			err: internalErr,
@@ -143,12 +143,12 @@ func TestHandler_ConfigGet(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			configs := NewMockconfigResolver(ctrl)
+			configs := NewMockconfigsRepo(ctrl)
 			if tc.buildConfigsMock != nil {
 				tc.buildConfigsMock(configs)
 			}
 
-			routing := NewMockmihomoReader(ctrl)
+			routing := NewMockroutingRepo(ctrl)
 			if tc.buildRoutingMock != nil {
 				tc.buildRoutingMock(routing)
 			}

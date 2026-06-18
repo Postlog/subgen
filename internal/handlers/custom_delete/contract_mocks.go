@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockconfigDeleter is a mock of configDeleter interface.
-type MockconfigDeleter struct {
+// MockconfigsRepo is a mock of configsRepo interface.
+type MockconfigsRepo struct {
 	ctrl     *gomock.Controller
-	recorder *MockconfigDeleterMockRecorder
+	recorder *MockconfigsRepoMockRecorder
 	isgomock struct{}
 }
 
-// MockconfigDeleterMockRecorder is the mock recorder for MockconfigDeleter.
-type MockconfigDeleterMockRecorder struct {
-	mock *MockconfigDeleter
+// MockconfigsRepoMockRecorder is the mock recorder for MockconfigsRepo.
+type MockconfigsRepoMockRecorder struct {
+	mock *MockconfigsRepo
 }
 
-// NewMockconfigDeleter creates a new mock instance.
-func NewMockconfigDeleter(ctrl *gomock.Controller) *MockconfigDeleter {
-	mock := &MockconfigDeleter{ctrl: ctrl}
-	mock.recorder = &MockconfigDeleterMockRecorder{mock}
+// NewMockconfigsRepo creates a new mock instance.
+func NewMockconfigsRepo(ctrl *gomock.Controller) *MockconfigsRepo {
+	mock := &MockconfigsRepo{ctrl: ctrl}
+	mock.recorder = &MockconfigsRepoMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockconfigDeleter) EXPECT() *MockconfigDeleterMockRecorder {
+func (m *MockconfigsRepo) EXPECT() *MockconfigsRepoMockRecorder {
 	return m.recorder
 }
 
 // DeleteUserConfig mocks base method.
-func (m *MockconfigDeleter) DeleteUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) error {
+func (m *MockconfigsRepo) DeleteUserConfig(ctx context.Context, userID int64, kind entity.ConfigKind) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteUserConfig", ctx, userID, kind)
 	ret0, _ := ret[0].(error)
@@ -50,7 +50,7 @@ func (m *MockconfigDeleter) DeleteUserConfig(ctx context.Context, userID int64, 
 }
 
 // DeleteUserConfig indicates an expected call of DeleteUserConfig.
-func (mr *MockconfigDeleterMockRecorder) DeleteUserConfig(ctx, userID, kind any) *gomock.Call {
+func (mr *MockconfigsRepoMockRecorder) DeleteUserConfig(ctx, userID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserConfig", reflect.TypeOf((*MockconfigDeleter)(nil).DeleteUserConfig), ctx, userID, kind)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserConfig", reflect.TypeOf((*MockconfigsRepo)(nil).DeleteUserConfig), ctx, userID, kind)
 }

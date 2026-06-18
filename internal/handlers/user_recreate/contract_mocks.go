@@ -16,32 +16,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockrecreator is a mock of recreator interface.
-type Mockrecreator struct {
+// MockprovisioningService is a mock of provisioningService interface.
+type MockprovisioningService struct {
 	ctrl     *gomock.Controller
-	recorder *MockrecreatorMockRecorder
+	recorder *MockprovisioningServiceMockRecorder
 	isgomock struct{}
 }
 
-// MockrecreatorMockRecorder is the mock recorder for Mockrecreator.
-type MockrecreatorMockRecorder struct {
-	mock *Mockrecreator
+// MockprovisioningServiceMockRecorder is the mock recorder for MockprovisioningService.
+type MockprovisioningServiceMockRecorder struct {
+	mock *MockprovisioningService
 }
 
-// NewMockrecreator creates a new mock instance.
-func NewMockrecreator(ctrl *gomock.Controller) *Mockrecreator {
-	mock := &Mockrecreator{ctrl: ctrl}
-	mock.recorder = &MockrecreatorMockRecorder{mock}
+// NewMockprovisioningService creates a new mock instance.
+func NewMockprovisioningService(ctrl *gomock.Controller) *MockprovisioningService {
+	mock := &MockprovisioningService{ctrl: ctrl}
+	mock.recorder = &MockprovisioningServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockrecreator) EXPECT() *MockrecreatorMockRecorder {
+func (m *MockprovisioningService) EXPECT() *MockprovisioningServiceMockRecorder {
 	return m.recorder
 }
 
 // RecreateUser mocks base method.
-func (m *Mockrecreator) RecreateUser(ctx context.Context, id int64) error {
+func (m *MockprovisioningService) RecreateUser(ctx context.Context, id int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RecreateUser", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -49,7 +49,7 @@ func (m *Mockrecreator) RecreateUser(ctx context.Context, id int64) error {
 }
 
 // RecreateUser indicates an expected call of RecreateUser.
-func (mr *MockrecreatorMockRecorder) RecreateUser(ctx, id any) *gomock.Call {
+func (mr *MockprovisioningServiceMockRecorder) RecreateUser(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecreateUser", reflect.TypeOf((*Mockrecreator)(nil).RecreateUser), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecreateUser", reflect.TypeOf((*MockprovisioningService)(nil).RecreateUser), ctx, id)
 }

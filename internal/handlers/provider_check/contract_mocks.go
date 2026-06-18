@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockproviderChecker is a mock of providerChecker interface.
-type MockproviderChecker struct {
+// MockrulesetChecker is a mock of rulesetChecker interface.
+type MockrulesetChecker struct {
 	ctrl     *gomock.Controller
-	recorder *MockproviderCheckerMockRecorder
+	recorder *MockrulesetCheckerMockRecorder
 	isgomock struct{}
 }
 
-// MockproviderCheckerMockRecorder is the mock recorder for MockproviderChecker.
-type MockproviderCheckerMockRecorder struct {
-	mock *MockproviderChecker
+// MockrulesetCheckerMockRecorder is the mock recorder for MockrulesetChecker.
+type MockrulesetCheckerMockRecorder struct {
+	mock *MockrulesetChecker
 }
 
-// NewMockproviderChecker creates a new mock instance.
-func NewMockproviderChecker(ctrl *gomock.Controller) *MockproviderChecker {
-	mock := &MockproviderChecker{ctrl: ctrl}
-	mock.recorder = &MockproviderCheckerMockRecorder{mock}
+// NewMockrulesetChecker creates a new mock instance.
+func NewMockrulesetChecker(ctrl *gomock.Controller) *MockrulesetChecker {
+	mock := &MockrulesetChecker{ctrl: ctrl}
+	mock.recorder = &MockrulesetCheckerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockproviderChecker) EXPECT() *MockproviderCheckerMockRecorder {
+func (m *MockrulesetChecker) EXPECT() *MockrulesetCheckerMockRecorder {
 	return m.recorder
 }
 
 // Check mocks base method.
-func (m *MockproviderChecker) Check(ctx context.Context, url, format string) entity.RulesetCheckResult {
+func (m *MockrulesetChecker) Check(ctx context.Context, url, format string) entity.RulesetCheckResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Check", ctx, url, format)
 	ret0, _ := ret[0].(entity.RulesetCheckResult)
@@ -50,7 +50,7 @@ func (m *MockproviderChecker) Check(ctx context.Context, url, format string) ent
 }
 
 // Check indicates an expected call of Check.
-func (mr *MockproviderCheckerMockRecorder) Check(ctx, url, format any) *gomock.Call {
+func (mr *MockrulesetCheckerMockRecorder) Check(ctx, url, format any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*MockproviderChecker)(nil).Check), ctx, url, format)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*MockrulesetChecker)(nil).Check), ctx, url, format)
 }

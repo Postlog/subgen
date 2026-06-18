@@ -50,8 +50,8 @@ func TestHandler_ConfigSave(t *testing.T) {
 		name string
 		req  *oas.ConfigSaveReq
 
-		buildConfigsMock func(m *MockconfigResolver)
-		buildRoutingMock func(m *MockmihomoSaver)
+		buildConfigsMock func(m *MockconfigsRepo)
+		buildRoutingMock func(m *MockroutingRepo)
 
 		result oas.ConfigSaveRes
 		err    error
@@ -59,10 +59,10 @@ func TestHandler_ConfigSave(t *testing.T) {
 		{
 			name: "success.base",
 			req:  validReq(0),
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(3), nil)
 			},
-			buildRoutingMock: func(m *MockmihomoSaver) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().
 					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(nil)
@@ -87,10 +87,10 @@ func TestHandler_ConfigSave(t *testing.T) {
 				Filename:              "my.yaml",
 				ProfileUpdateInterval: 6,
 			},
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(3), nil)
 			},
-			buildRoutingMock: func(m *MockmihomoSaver) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().SaveMihomoConfig(gomock.Any(), int64(3), mihomo.ConfigDraft{
 					Rules: []mihomo.RuleDraft{
 						{Type: mihomo.RuleAnd, Target: &mihomo.RefDraft{Kind: mihomo.PolicyRejectDrop}, Children: []mihomo.RuleDraft{
@@ -162,7 +162,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 		{
 			name: "error.user_config_not_found",
 			req:  validReq(5),
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().UserConfigID(gomock.Any(), int64(5), entity.ConfigKindMihomo).Return(int64(0), false, nil)
 			},
 			result: &oas.ConfigSaveBadRequest{ErrMessage: MsgUserConfigMissing},
@@ -170,10 +170,10 @@ func TestHandler_ConfigSave(t *testing.T) {
 		{
 			name: "error.save_provider_taken",
 			req:  validReq(0),
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(3), nil)
 			},
-			buildRoutingMock: func(m *MockmihomoSaver) {
+			buildRoutingMock: func(m *MockroutingRepo) {
 				m.EXPECT().
 					SaveMihomoConfig(gomock.Any(), int64(3), wantDraft).
 					Return(entity.ErrRuleProviderNameTaken)
@@ -183,7 +183,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 		{
 			name: "error.internal_resolve",
 			req:  validReq(0),
-			buildConfigsMock: func(m *MockconfigResolver) {
+			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(0), internalErr)
 			},
 			err: internalErr,
@@ -197,12 +197,12 @@ func TestHandler_ConfigSave(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			configs := NewMockconfigResolver(ctrl)
+			configs := NewMockconfigsRepo(ctrl)
 			if tc.buildConfigsMock != nil {
 				tc.buildConfigsMock(configs)
 			}
 
-			routing := NewMockmihomoSaver(ctrl)
+			routing := NewMockroutingRepo(ctrl)
 			if tc.buildRoutingMock != nil {
 				tc.buildRoutingMock(routing)
 			}

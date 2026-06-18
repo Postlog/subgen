@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MocknodeSaver is a mock of nodeSaver interface.
-type MocknodeSaver struct {
+// MocknodesService is a mock of nodesService interface.
+type MocknodesService struct {
 	ctrl     *gomock.Controller
-	recorder *MocknodeSaverMockRecorder
+	recorder *MocknodesServiceMockRecorder
 	isgomock struct{}
 }
 
-// MocknodeSaverMockRecorder is the mock recorder for MocknodeSaver.
-type MocknodeSaverMockRecorder struct {
-	mock *MocknodeSaver
+// MocknodesServiceMockRecorder is the mock recorder for MocknodesService.
+type MocknodesServiceMockRecorder struct {
+	mock *MocknodesService
 }
 
-// NewMocknodeSaver creates a new mock instance.
-func NewMocknodeSaver(ctrl *gomock.Controller) *MocknodeSaver {
-	mock := &MocknodeSaver{ctrl: ctrl}
-	mock.recorder = &MocknodeSaverMockRecorder{mock}
+// NewMocknodesService creates a new mock instance.
+func NewMocknodesService(ctrl *gomock.Controller) *MocknodesService {
+	mock := &MocknodesService{ctrl: ctrl}
+	mock.recorder = &MocknodesServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MocknodeSaver) EXPECT() *MocknodeSaverMockRecorder {
+func (m *MocknodesService) EXPECT() *MocknodesServiceMockRecorder {
 	return m.recorder
 }
 
 // Save mocks base method.
-func (m *MocknodeSaver) Save(ctx context.Context, n entity.Node) (int64, error) {
+func (m *MocknodesService) Save(ctx context.Context, n entity.Node) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, n)
 	ret0, _ := ret[0].(int64)
@@ -51,7 +51,7 @@ func (m *MocknodeSaver) Save(ctx context.Context, n entity.Node) (int64, error) 
 }
 
 // Save indicates an expected call of Save.
-func (mr *MocknodeSaverMockRecorder) Save(ctx, n any) *gomock.Call {
+func (mr *MocknodesServiceMockRecorder) Save(ctx, n any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MocknodeSaver)(nil).Save), ctx, n)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MocknodesService)(nil).Save), ctx, n)
 }

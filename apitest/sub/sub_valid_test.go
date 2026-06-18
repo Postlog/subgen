@@ -44,11 +44,13 @@ func (s *SubPanelSuite) TestSubValid() {
 	u, err := s.API().MustFindUser(name)
 	s.Require().NoError(err)
 	s.T().Cleanup(func() { _, _ = s.API().DeleteUser(u.ID) })
-	s.Require().NotEmpty(u.Sub.URL, "user must have a /sub URL")
 
-	resp, err := s.API().GetURL(u.Sub.URL)
+	subURL := u.Sub.SubURL()
+	s.Require().NotEmpty(subURL, "user must have a /sub URL")
+
+	resp, err := s.API().GetURL(subURL)
 	s.Require().NoError(err)
-	s.Require().Equal(http.StatusOK, resp.Status, "GET %s", u.Sub.URL)
+	s.Require().Equal(http.StatusOK, resp.Status, "GET %s", subURL)
 
 	s.Run("headers", func() {
 		s.Contains(resp.Headers.Get("Content-Type"), "text/yaml")

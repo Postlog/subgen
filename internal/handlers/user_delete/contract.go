@@ -3,7 +3,7 @@ package user_delete
 
 import "context"
 
-// deleter removes a user (the provisioning service satisfies it).
-type deleter interface {
+// provisioningService removes a user (the provisioning service satisfies it).
+type provisioningService interface {
 	DeleteUser(ctx context.Context, id int64) error
 }

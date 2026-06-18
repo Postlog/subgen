@@ -6,9 +6,9 @@ import (
 	"database/sql"
 )
 
-// cloner copies one engine's content from a source config to a destination config
+// routingRepo copies one engine's content from a source config to a destination config
 // within the caller's transaction (the engine-specific half of CreateUserConfig).
 // For mihomo this is routing.Repository.CloneConfig.
-type cloner interface {
+type routingRepo interface {
 	CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, dstConfigID int64) error
 }

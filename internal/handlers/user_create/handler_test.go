@@ -26,7 +26,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		name string
 		req  *oas.UserCreateReq
 
-		buildCreatorMock func(m *Mockcreator)
+		buildCreatorMock func(m *MockprovisioningService)
 
 		result oas.UserCreateRes
 		err    error
@@ -34,7 +34,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.UserCreateReq{Name: "alice", Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), entity.UserCreateParams{
 					Name: "alice", Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
 				}).Return(&entity.User{ID: 7}, nil)
@@ -44,7 +44,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.name_taken",
 			req:  &oas.UserCreateReq{Name: "bob", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("bob", 1)).Return(nil, entity.ErrNameTaken)
 			},
 			result: &oas.UserCreateConflict{ErrMessage: MsgNameTaken},
@@ -52,7 +52,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.panel_client_exists",
 			req:  &oas.UserCreateReq{Name: "bob", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("bob", 1)).Return(nil, entity.PanelClientExistsError{Node: "N1"})
 			},
 			result: &oas.UserCreateConflict{ErrMessage: "на панели «N1» уже есть клиент с таким именем — удалите его там вручную или выберите другое имя"},
@@ -60,7 +60,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.invalid_name",
 			req:  &oas.UserCreateReq{Name: "bad name", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("bad name", 1)).Return(nil, entity.ErrInvalidUserName)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgInvalidName},
@@ -68,7 +68,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.no_connection",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrNoConnectionSelected)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgNoConnection},
@@ -76,7 +76,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.description_too_long",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrDescriptionTooLong)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgDescTooLong},
@@ -84,7 +84,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.inbound_not_found",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{99}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("carol", 99)).Return(nil, entity.ErrInboundNotFound)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgInboundNotFound},
@@ -92,7 +92,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.node_not_found",
 			req:  &oas.UserCreateReq{Name: "carol", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("carol", 1)).Return(nil, entity.ErrNodeNotFound)
 			},
 			result: &oas.UserCreateBadRequest{ErrMessage: MsgNodeNotFound},
@@ -100,7 +100,7 @@ func TestHandler_UserCreate(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.UserCreateReq{Name: "dave", InboundIDs: []int64{1}},
-			buildCreatorMock: func(m *Mockcreator) {
+			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("dave", 1)).Return(nil, internalErr)
 			},
 			err: internalErr,
@@ -114,7 +114,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMockcreator(ctrl)
+			svc := NewMockprovisioningService(ctrl)
 			if tc.buildCreatorMock != nil {
 				tc.buildCreatorMock(svc)
 			}

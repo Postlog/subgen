@@ -21,11 +21,11 @@ const (
 
 // Handler re-binds a user to a new inbound set.
 type Handler struct {
-	svc editor
+	svc provisioningService
 }
 
 // New builds the handler.
-func New(svc editor) *Handler { return &Handler{svc: svc} }
+func New(svc provisioningService) *Handler { return &Handler{svc: svc} }
 
 // UserEdit implements oas.Handler: invalid input is a 400, any unexpected (infra)
 // failure is a 500.

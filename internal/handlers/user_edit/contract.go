@@ -7,8 +7,8 @@ import (
 	"github.com/postlog/subgen/internal/entity"
 )
 
-// editor updates a user's connections and description (the provisioning service
+// provisioningService updates a user's connections and description (the provisioning service
 // satisfies it).
-type editor interface {
+type provisioningService interface {
 	EditUser(ctx context.Context, p entity.UserEditParams) error
 }

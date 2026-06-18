@@ -3,7 +3,7 @@ package user_recreate
 
 import "context"
 
-// recreator re-provisions a user's panel clients (the provisioning service satisfies it).
-type recreator interface {
+// provisioningService re-provisions a user's panel clients (the provisioning service satisfies it).
+type provisioningService interface {
 	RecreateUser(ctx context.Context, id int64) error
 }

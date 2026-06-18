@@ -84,11 +84,12 @@ func (s *UserSuite) recreateUser(id int64) {
 // the users API reports) and parses the rendered mihomo YAML into a proxy name->uuid
 // map — the same ground truth fleet.Sub would give, obtained purely over HTTP.
 func (s *UserSuite) subProxies(u *api.User) map[string]string {
-	s.Require().NotEmpty(u.Sub.URL, "user must have a subscription URL")
+	subURL := u.Sub.SubURL()
+	s.Require().NotEmpty(subURL, "user must have a subscription URL")
 
-	resp, err := s.API().GetURL(u.Sub.URL)
+	resp, err := s.API().GetURL(subURL)
 	s.Require().NoError(err)
-	s.Require().Equal(200, resp.Status, "GET %s", u.Sub.URL)
+	s.Require().Equal(200, resp.Status, "GET %s", subURL)
 
 	px, err := api.SubProxies(resp.Body)
 	s.Require().NoError(err)

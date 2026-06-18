@@ -26,7 +26,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		name string
 		req  *oas.UserEditReq
 
-		buildEditorMock func(m *Mockeditor)
+		buildEditorMock func(m *MockprovisioningService)
 
 		result oas.UserEditRes
 		err    error
@@ -34,7 +34,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		{
 			name: "success",
 			req:  &oas.UserEditReq{ID: 7, Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
-			buildEditorMock: func(m *Mockeditor) {
+			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), entity.UserEditParams{
 					ID: 7, Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
 				}).Return(nil)
@@ -44,7 +44,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		{
 			name: "error.no_connection",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{}},
-			buildEditorMock: func(m *Mockeditor) {
+			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), entity.UserEditParams{ID: 7, InboundIDs: []int64{}}).Return(entity.ErrNoConnectionSelected)
 			},
 			result: &oas.UserEditBadRequest{ErrMessage: MsgNoConnection},
@@ -52,7 +52,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		{
 			name: "error.inbound_not_found",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{99}},
-			buildEditorMock: func(m *Mockeditor) {
+			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), editParams(7, 99)).Return(entity.ErrInboundNotFound)
 			},
 			result: &oas.UserEditBadRequest{ErrMessage: MsgInboundNotFound},
@@ -60,7 +60,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		{
 			name: "error.description_too_long",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{1}},
-			buildEditorMock: func(m *Mockeditor) {
+			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), editParams(7, 1)).Return(entity.ErrDescriptionTooLong)
 			},
 			result: &oas.UserEditBadRequest{ErrMessage: MsgDescTooLong},
@@ -68,7 +68,7 @@ func TestHandler_UserEdit(t *testing.T) {
 		{
 			name: "error.internal",
 			req:  &oas.UserEditReq{ID: 7, InboundIDs: []int64{1}},
-			buildEditorMock: func(m *Mockeditor) {
+			buildEditorMock: func(m *MockprovisioningService) {
 				m.EXPECT().EditUser(gomock.Any(), editParams(7, 1)).Return(internalErr)
 			},
 			err: internalErr,
@@ -82,7 +82,7 @@ func TestHandler_UserEdit(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			svc := NewMockeditor(ctrl)
+			svc := NewMockprovisioningService(ctrl)
 			if tc.buildEditorMock != nil {
 				tc.buildEditorMock(svc)
 			}

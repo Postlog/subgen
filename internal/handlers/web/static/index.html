@@ -77,7 +77,7 @@
                 <span v-else class="text-dim small">—</span>
               </td>
               <td class="traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
-              <td><button class="btn btn-sm btn-outline-secondary act" @click="copy(u.sub.url)">Mihomo</button></td>
+              <td><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Ссылки</button></td>
               <td class="actions">
                 <span v-if="actingId===u.id" class="spin me-2"></span>
                 <div class="act-group">
@@ -157,6 +157,27 @@
         <span>Кастомный конфиг — <b>{{ cfgScope.name }}</b></span>
         <button class="btn btn-sm btn-danger-soft ms-auto" :disabled="busy" @click="deleteCustom()">Удалить</button>
       </div>
+      <!-- subscription profile -->
+      <div class="card mb-3">
+        <div class="card-header">Параметры подписки</div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-3">
+            <label class="flex-fill">
+              <span class="text-dim small d-block mb-1">Profile title</span>
+              <input class="form-control form-control-sm" v-model="cfg.profileTitle" placeholder="Freedom">
+            </label>
+            <label class="flex-fill">
+              <span class="text-dim small d-block mb-1">Имя файла</span>
+              <input class="form-control form-control-sm" v-model="cfg.filename" placeholder="freedom.yaml">
+            </label>
+            <label style="max-width:200px">
+              <span class="text-dim small d-block mb-1">Интервал обновления, ч</span>
+              <input class="form-control form-control-sm" type="number" min="1" v-model.number="cfg.profileUpdateInterval" placeholder="1">
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- proxy-groups -->
       <div class="card mb-3">
         <div class="card-header">proxy-groups
@@ -247,27 +268,6 @@
             <button class="btn btn-sm btn-danger-soft act" @click="cfg.providers.splice(i,1)" title="удалить">✕</button>
           </div>
           <span v-if="!cfg.providers.length" class="text-dim small">провайдеров нет</span>
-        </div>
-      </div>
-
-      <!-- subscription profile -->
-      <div class="card mb-3">
-        <div class="card-header">Параметры подписки</div>
-        <div class="card-body">
-          <div class="d-flex flex-wrap gap-3">
-            <label class="flex-fill">
-              <span class="text-dim small d-block mb-1">Profile title</span>
-              <input class="form-control form-control-sm" v-model="cfg.profileTitle" placeholder="Freedom">
-            </label>
-            <label class="flex-fill">
-              <span class="text-dim small d-block mb-1">Имя файла</span>
-              <input class="form-control form-control-sm" v-model="cfg.filename" placeholder="freedom.yaml">
-            </label>
-            <label style="max-width:200px">
-              <span class="text-dim small d-block mb-1">Интервал обновления, ч</span>
-              <input class="form-control form-control-sm" type="number" min="1" v-model.number="cfg.profileUpdateInterval" placeholder="1">
-            </label>
-          </div>
         </div>
       </div>
 
@@ -372,6 +372,23 @@
         <button class="btn btn-primary" :disabled="busy" @click="submitUser()">
           <span v-if="busy" class="spin me-1"></span>{{ uForm.id ? 'Сохранить' : 'Создать' }}
         </button>
+      </template>
+    </modal>
+
+    <!-- ============ SUBSCRIPTION-LINKS MODAL ============ -->
+    <!-- The list of links comes entirely from the users API — nothing about which links
+         exist or their titles is hardcoded here. The value is private and not shown:
+         title + a copy button only. -->
+    <modal :open="subLinks.open" :title="'Подписка — ' + subLinks.name" @close="subLinks.open=false">
+      <div class="sublinks">
+        <div v-for="(l,i) in subLinks.links" :key="i" class="sublink">
+          <div class="sublink-title">{{ l.title }}</div>
+          <button class="btn btn-sm btn-outline-secondary sublink-copy" @click="copy(l.value)">Копировать</button>
+        </div>
+        <div v-if="!subLinks.links.length" class="inb-empty">ссылок нет</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline-secondary" @click="subLinks.open=false">Закрыть</button>
       </template>
     </modal>
 

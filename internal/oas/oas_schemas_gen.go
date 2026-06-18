@@ -1972,10 +1972,13 @@ type UsersGetOKUsersItem struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 	// Optional free-text note, shown only in the admin UI; omitted when unset.
-	Description OptString                         `json:"description"`
-	Sub         UsersGetOKUsersItemSub            `json:"sub"`
-	Inbounds    []UsersGetOKUsersItemInboundsItem `json:"inbounds"`
-	Stats       UsersGetOKUsersItemStats          `json:"stats"`
+	Description OptString `json:"description"`
+	// Subscription presentation: the ordered, copyable links for this user — the raw subscription URL
+	// plus app deeplinks that embed it. Titles and which links exist are decided by the backend; the UI
+	// renders the list verbatim and hardcodes neither.
+	Sub      UsersGetOKUsersItemSub            `json:"sub"`
+	Inbounds []UsersGetOKUsersItemInboundsItem `json:"inbounds"`
+	Stats    UsersGetOKUsersItemStats          `json:"stats"`
 }
 
 // GetID returns the value of ID.
@@ -2110,27 +2113,44 @@ func (s *UsersGetOKUsersItemStats) SetDown(val int64) {
 	s.Down = val
 }
 
+// Subscription presentation: the ordered, copyable links for this user — the raw subscription URL
+// plus app deeplinks that embed it. Titles and which links exist are decided by the backend; the UI
+// renders the list verbatim and hardcodes neither.
 type UsersGetOKUsersItemSub struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+	Links []UsersGetOKUsersItemSubLinksItem `json:"links"`
 }
 
-// GetID returns the value of ID.
-func (s *UsersGetOKUsersItemSub) GetID() string {
-	return s.ID
+// GetLinks returns the value of Links.
+func (s *UsersGetOKUsersItemSub) GetLinks() []UsersGetOKUsersItemSubLinksItem {
+	return s.Links
 }
 
-// GetURL returns the value of URL.
-func (s *UsersGetOKUsersItemSub) GetURL() string {
-	return s.URL
+// SetLinks sets the value of Links.
+func (s *UsersGetOKUsersItemSub) SetLinks(val []UsersGetOKUsersItemSubLinksItem) {
+	s.Links = val
 }
 
-// SetID sets the value of ID.
-func (s *UsersGetOKUsersItemSub) SetID(val string) {
-	s.ID = val
+type UsersGetOKUsersItemSubLinksItem struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
 }
 
-// SetURL sets the value of URL.
-func (s *UsersGetOKUsersItemSub) SetURL(val string) {
-	s.URL = val
+// GetTitle returns the value of Title.
+func (s *UsersGetOKUsersItemSubLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetValue returns the value of Value.
+func (s *UsersGetOKUsersItemSubLinksItem) GetValue() string {
+	return s.Value
+}
+
+// SetTitle sets the value of Title.
+func (s *UsersGetOKUsersItemSubLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetValue sets the value of Value.
+func (s *UsersGetOKUsersItemSubLinksItem) SetValue(val string) {
+	s.Value = val
 }

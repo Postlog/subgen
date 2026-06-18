@@ -15,11 +15,11 @@ const MsgRecreated = "Клиенты пересозданы"
 
 // Handler re-provisions a user's panel clients from the store.
 type Handler struct {
-	svc recreator
+	svc provisioningService
 }
 
 // New builds the handler.
-func New(svc recreator) *Handler { return &Handler{svc: svc} }
+func New(svc provisioningService) *Handler { return &Handler{svc: svc} }
 
 // UserRecreate implements oas.Handler. RecreateUser surfaces no domain (4xx) error — a
 // missing user or a panel/store failure is an internal condition — so any failure is a

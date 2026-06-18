@@ -11,11 +11,11 @@ import (
 
 // Handler serves mirrored rule-provider files from memory.
 type Handler struct {
-	mirror ruleFiles
+	mirror rulesetMirror
 }
 
 // New builds the handler.
-func New(mirror ruleFiles) *Handler { return &Handler{mirror: mirror} }
+func New(mirror rulesetMirror) *Handler { return &Handler{mirror: mirror} }
 
 // Rules implements oas.Handler. A missing/unknown file is a 404 (RulesNotFound); a hit
 // streams the mirrored bytes with nosniff.

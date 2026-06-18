@@ -24,11 +24,11 @@ const (
 
 // Handler provisions a new user.
 type Handler struct {
-	svc creator
+	svc provisioningService
 }
 
 // New builds the handler.
-func New(svc creator) *Handler { return &Handler{svc: svc} }
+func New(svc provisioningService) *Handler { return &Handler{svc: svc} }
 
 // UserCreate implements oas.Handler: a nickname clash (or a panel client clash) is a
 // 409, other invalid input is a 400, and any unexpected (infra) failure is a 500.

@@ -20,7 +20,7 @@ import (
 //   - noop                       — identical selection must NOT churn the panel (uuid stable).
 //   - err.no_connection          — edit with an absent inbound list (null) → generic 400 (kept `required`), no change.
 //   - err.unknown_user           — id with no user row → failure, technical error surfaced.
-//   - err.unknown_inbound        — selection includes a bad inbound id → "инбаунд не найден".
+//   - err.unknown_inbound        — selection includes a bad inbound id → "inbound not found".
 
 // TestEditReconcile covers the add/remove + same-node + swap reconciliations, asserting
 // the panel ends in the expected state and uuids are preserved where they should be.

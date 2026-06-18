@@ -22,8 +22,8 @@ import (
 //   - err.name_bad_chars         — spaces / "!" → friendly charset message (reaches the handler).
 //   - err.name_too_long          — >32 chars → friendly charset message (no maxLength in schema).
 //   - err.no_connections         — absent inbound-id list (null) → generic 400 (kept `required`).
-//   - err.unknown_inbound_id     — id with no node_inbounds row → "инбаунд не найден".
-//   - err.duplicate_name         — second create with same nickname → "имя занято" (store PK).
+//   - err.unknown_inbound_id     — id with no node_inbounds row → "inbound not found".
+//   - err.duplicate_name         — second create with same nickname → "name already taken" (store PK).
 //   - err.email_exists_on_panel  — a foreign client already owns the email on a target
 //                                  panel → PanelClientExistsError naming the node; the
 //                                  foreign client is left untouched.
@@ -81,7 +81,7 @@ func (s *UserSuite) TestCreateValidation() {
 	})
 
 	s.Run("name_bad_chars", func() {
-		for _, bad := range []string{"bad name", "bad!char", "Привет"} {
+		for _, bad := range []string{"bad name", "bad!char", "naïve"} {
 			res, err := s.API().CreateUser(bad, []int64{smartN1})
 			s.Require().NoError(err)
 			s.False(res.OK, "nickname %q must be rejected", bad)
@@ -99,7 +99,7 @@ func (s *UserSuite) TestCreateValidation() {
 
 	s.Run("no_connections", func() {
 		// An empty inbound-id list trips the schema's minItems:1 → 400 generic, before
-		// the handler's own "выберите подключение" check.
+		// the handler's own "select a connection" check.
 		name := s.userName()
 		res, err := s.API().CreateUser(name, nil)
 		s.Require().NoError(err)
@@ -124,7 +124,7 @@ func (s *UserSuite) TestCreateValidation() {
 
 		// Re-create the same nickname selecting an inbound on N2, where that email is NOT
 		// on the panel — so the panel pre-check passes and it's the users.name DB
-		// constraint that rejects it (→ "Имя занято"). The same-node panel-collision path
+		// constraint that rejects it (→ "Name already taken"). The same-node panel-collision path
 		// is covered separately by TestCreateRejectsExistingEmail.
 		res, err := s.API().CreateUser(u.Name, []int64{s.InboundID("N2", "force")})
 		s.Require().NoError(err)
@@ -165,7 +165,7 @@ func (s *UserSuite) TestCreateRejectsExistingEmail() {
 	s.Require().NoError(err)
 	s.False(res.OK, "create must be rejected when a foreign client owns the email")
 	s.Contains(res.Err, "N1", "rejection must name the offending panel")
-	s.Contains(res.Err, "уже есть клиент", "rejection must use the friendly panel-collision text")
+	s.Contains(res.Err, "already has a client", "rejection must use the friendly panel-collision text")
 
 	// …and the foreign client must be left intact (same uuid — not deleted/re-added).
 	s.Equal(orphan.String(), s.RequireClient(s.Pan1(), api.N1Smart, name), "foreign client must be untouched")

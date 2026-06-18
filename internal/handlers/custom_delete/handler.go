@@ -12,7 +12,7 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgConfigMissing = "У пользователя нет кастомного конфига"
+const msgConfigMissing = "The user has no custom config"
 
 // Handler drops a user's custom config.
 type Handler struct {
@@ -36,5 +36,5 @@ func (h *Handler) CustomDelete(ctx context.Context, req *oas.CustomDeleteReq) (o
 		return nil, err
 	}
 
-	return &oas.MessageResponse{Message: "Кастомный конфиг удалён"}, nil
+	return &oas.MessageResponse{Message: "Custom config deleted"}, nil
 }

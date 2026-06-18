@@ -17,19 +17,19 @@ import (
 // nodes service returns (400), and the FK refusal when an update drops a still-referenced
 // inbound (400). Exported so apitest can assert against them without duplicating the text.
 const (
-	MsgNodeNameTaken    = "Узел с таким именем уже существует"
-	MsgInboundDuplicate = "Имя или порт инбаунда уже заняты на этом узле"
+	MsgNodeNameTaken    = "A node with this name already exists"
+	MsgInboundDuplicate = "Inbound name or port already taken on this node"
 
-	MsgNodeName          = "Имя узла: разрешены a-z, 0-9, -, пробел и флаги стран"
-	MsgHost              = "Адрес VPN-хоста невалиден — ожидается хост или IP (без схемы и порта)"
-	MsgPanelURL          = "3x-ui base URL невалиден — ожидается https://host:port (без пути)"
-	MsgBasePath          = "Укажите base path панели (например /secret/)"
-	MsgNoInbounds        = "Укажите хотя бы один инбаунд"
-	MsgInboundName       = "Имя инбаунда: разрешены a-z, 0-9 и -"
-	MsgInboundPort       = "Порт инбаунда должен быть числом 1–65535"
-	MsgInboundNameUq     = "Повторяющееся имя инбаунда"
-	MsgInboundPortUq     = "Повторяющийся порт инбаунда"
-	MsgInboundReferenced = "Инбаунд используется — сначала отвяжите от него пользователей и правила"
+	MsgNodeName          = "Node name: allowed characters are a-z, 0-9, -, space and country flags"
+	MsgHost              = "VPN host address is invalid — expected a host or IP (no scheme or port)"
+	MsgPanelURL          = "3x-ui base URL is invalid — expected https://host:port (no path)"
+	MsgBasePath          = "Enter the panel base path (e.g. /secret/)"
+	MsgNoInbounds        = "Add at least one inbound"
+	MsgInboundName       = "Inbound name: allowed characters are a-z, 0-9 and -"
+	MsgInboundPort       = "Inbound port must be a number between 1 and 65535"
+	MsgInboundNameUq     = "Duplicate inbound name"
+	MsgInboundPortUq     = "Duplicate inbound port"
+	MsgInboundReferenced = "Inbound is in use — first detach users and rules from it"
 )
 
 // Handler creates or updates a node from the node form.
@@ -64,7 +64,7 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 		return h.mapErr(n.Name, err)
 	}
 
-	return &oas.MessageResponse{Message: "Узел сохранён: " + n.Name}, nil
+	return &oas.MessageResponse{Message: "Node saved: " + n.Name}, nil
 }
 
 // mapErr classifies a Save failure: name/inbound clash → 409; validation / still-referenced

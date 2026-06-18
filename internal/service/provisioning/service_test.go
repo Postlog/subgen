@@ -98,7 +98,7 @@ func TestService_CreateUser(t *testing.T) {
 		{
 			// Description is validated (length) before the registry is touched → no mocks.
 			name: "error.description_too_long",
-			in:   entity.UserCreateParams{Name: "postlog", Description: utils.Ptr(strings.Repeat("я", maxDescriptionLen+1)), InboundIDs: []int64{10}},
+			in:   entity.UserCreateParams{Name: "postlog", Description: utils.Ptr(strings.Repeat("a", maxDescriptionLen+1)), InboundIDs: []int64{10}},
 			err:  entity.ErrDescriptionTooLong,
 		},
 		{
@@ -157,11 +157,11 @@ func TestService_CreateUser(t *testing.T) {
 			// Description is trimmed before storage: the leading/trailing spaces are dropped,
 			// so Create receives the normalised value.
 			name:      "success.two_inbounds_same_node",
-			in:        entity.UserCreateParams{Name: "postlog", Description: utils.Ptr("  рабочий ноутбук  "), InboundIDs: []int64{10, 11}},
+			in:        entity.UserCreateParams{Name: "postlog", Description: utils.Ptr("  work laptop  "), InboundIDs: []int64{10, 11}},
 			wantConns: 2,
 			buildMocks: func(m *mocks) {
 				m.nodes.EXPECT().List(gomock.Any()).Return(n1(), nil)
-				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Description: utils.Ptr("рабочий ноутбук"), Connections: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
+				m.users.EXPECT().Create(gomock.Any(), &entity.User{Name: "postlog", SubID: fixedSubID, Description: utils.Ptr("work laptop"), Connections: []entity.Connection{{InboundID: 10}, {InboundID: 11}}}).Return(nil)
 				// ListInbounds twice: pre-flight email check + syncPanels lookup; the
 				// panel has no "postlog" client → free.
 				m.client.EXPECT().ListInbounds(gomock.Any(), n1Target()).Return(panelInbounds(), nil).Times(2)

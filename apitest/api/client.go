@@ -242,8 +242,8 @@ func (c *Client) getJSON(path string, out any) error {
 //     JSON, an empty required string, a non-positive id, an empty required array).
 //   - MsgUnauthorized — an absent/invalid admin session on a gated operation (401).
 const (
-	MsgBadRequest   = "Некорректный запрос"
-	MsgUnauthorized = "Требуется авторизация"
+	MsgBadRequest   = "Bad request"
+	MsgUnauthorized = "Authorization required"
 )
 
 // DecodeResult unmarshals a raw {message|errMessage} body into a Result (for the *Raw

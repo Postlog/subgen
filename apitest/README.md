@@ -1,25 +1,25 @@
-# subgen API-тесты (чёрный ящик: настоящий сервер + настоящий 3x-ui)
+# subgen API tests (black box: a real server + a real 3x-ui)
 
-Интеграционные тесты, которые гоняют **настоящий сервер subgen** через его HTTP-API и
-проверяют как ответы API, так и фактическое состояние клиентов на инбаундах **настоящих**
-панелей 3x-ui 3.2.6, поднятых в docker.
+Integration tests that drive the **real subgen server** through its HTTP API and
+check both the API responses and the actual state of clients on the inbounds of **real**
+3x-ui 3.2.6 panels brought up in docker.
 
-Это честный чёрный ящик: тест собирает бинарь subgen (`go build`), запускает его
-**отдельным процессом** (временная SQLite-БД, тестовые админ-креды, свободный
-loopback-порт, plain HTTP), логинится и дёргает реальные эндпоинты
-(`/admin/api/...`, `/sub/{kind}/{token}`, `/rules/{file}`, `/healthz`). Никакого доступа к
-сервисам/репозиториям изнутри — единственный вход тот же API, что у оператора и SPA.
-Так ловятся именно те баги, что unit-тесты поймать не могут (семантика `del/:email`,
-multi-inbound клиент, поведение хендлеров и контракт ответов — `2xx {message}` /
-`4xx {errMessage}` (ogen), статус-коды, точный текст ошибок и т.п.).
+This is an honest black box: the test builds the subgen binary (`go build`), starts it as a
+**separate process** (a temporary SQLite DB, test admin creds, a free
+loopback port, plain HTTP), logs in and hits the real endpoints
+(`/admin/api/...`, `/sub/{kind}/{token}`, `/rules/{file}`, `/healthz`). No access to the
+services/repositories from the inside — the only entry is the same API the operator and the SPA use.
+This way exactly those bugs are caught that unit tests cannot (the semantics of `del/:email`,
+a multi-inbound client, handler behavior and the response contract — `2xx {message}` /
+`4xx {errMessage}` (ogen), status codes, the exact error text, etc.).
 
-## Раскладка по пакетам
+## Layout by package
 
 ```
-apitest/api/        — общий support-пакет (НЕ _test, под тегом apitest):
-                      SDK Client + старт сервера + Base-суит + проверка «земли» 3x-ui.
-apitest/auth/       — POST /admin/api/login + GET /admin/login (страница), POST /admin/api/logout,
-                      гейт сессии (401), статика+SPA-shell.
+apitest/api/        — the shared support package (NOT _test, under the apitest tag):
+                      the SDK Client + server start + the Base suite + the 3x-ui «ground truth» check.
+apitest/auth/       — POST /admin/api/login + GET /admin/login (the page), POST /admin/api/logout,
+                      the session gate (401), static + the SPA shell.
 apitest/users/      — /admin/api/users/{create,edit,delete,recreate} + GET /admin/api/users.
 apitest/nodes/      — /admin/api/nodes/{save,delete} + GET /admin/api/nodes.
 apitest/config/     — /admin/api/config/mihomo (read / schema / save / provider/check;
@@ -27,118 +27,118 @@ apitest/config/     — /admin/api/config/mihomo (read / schema / save / provide
 apitest/sub/        — /healthz, /sub/{kind}/{token}, /rules/{file}.
 ```
 
-Каждый `apitest/<area>` — отдельный `*_test`-пакет, импортирующий `apitest/api`. Внутри —
-по файлу на эндпоинт/сценарий; угловые случаи (corner cases) — точечные сабтесты
-(`s.Run("dotted.case", …)`). В начале каждого файла — **чек-лист** всех рассмотренных
-угловых случаев, и на каждый написан тест (happy-path + все ошибки валидации, авторизация,
-not-found, нарушение constraint'ов, граничный ввод, идемпотентность).
+Each `apitest/<area>` is a separate `*_test` package importing `apitest/api`. Inside —
+one file per endpoint/scenario; corner cases — pinpoint subtests
+(`s.Run("dotted.case", …)`). At the start of each file — a **checklist** of all considered
+corner cases, and a test is written for each one (happy path + all validation errors, authorization,
+not-found, constraint violations, boundary input, idempotency).
 
-## Что нужно и не нужно docker
+## What docker is and is not needed for
 
-Часть областей **не требует панелей** — они поднимают subgen и работают сами; их можно
-гонять в обычном CI без docker:
+Some areas **do not require panels** — they bring up subgen and work on their own; they can be
+run in ordinary CI without docker:
 
-| Область | Нужны панели? | Что внутри |
+| Area | Need panels? | What is inside |
 |---|---|---|
-| `auth` | нет | логин/логаут/гейт/shell — панель не нужна |
-| `config` | нет | роутинг-конфиг в своём store; provider/check — против **локального** httptest-сервера в самом тесте |
-| `sub` (`SubSuite`) | нет | `/healthz`, `/sub` 404-пути, и **зеркало** `/rules/<file>` через локальный upstream |
-| `sub` (`SubPanelSuite`) | да | валидный `/sub` для реально заведённого пользователя |
-| `users` | да | провижининг клиентов на панели |
-| `nodes` | да | базовый флот N1/N2 заводится на панелях в `SetupSuite` |
+| `auth` | no | login/logout/gate/shell — the panel is not needed |
+| `config` | no | the routing config in its own store; provider/check — against a **local** httptest server in the test itself |
+| `sub` (`SubSuite`) | no | `/healthz`, the `/sub` 404 paths, and the **mirror** `/rules/<file>` via a local upstream |
+| `sub` (`SubPanelSuite`) | yes | a valid `/sub` for an actually provisioned user |
+| `users` | yes | provisioning clients on the panel |
+| `nodes` | yes | the basic fleet N1/N2 is set up on the panels in `SetupSuite` |
 
-Гейт — `api.SkipUnlessConfigured(t)` в раннере суита: без `SUBGEN_APITEST_PANEL1_URL`
-панель-зависимые суиты **скипаются**, а негейтнутые (auth/config/SubSuite) всё равно
-выполняются.
+The gate — `api.SkipUnlessConfigured(t)` in the suite runner: without `SUBGEN_APITEST_PANEL1_URL`
+the panel-dependent suites are **skipped**, while the ungated ones (auth/config/SubSuite) still
+run.
 
-## Запуск
+## Running
 
-**Без docker** (выполнит auth/config/SubSuite, остальное скипнет):
+**Without docker** (runs auth/config/SubSuite, skips the rest):
 
 ```
 go test -tags apitest -count=1 ./apitest/...
 ```
 
-**Под ключ** (с панелями — выполнит и панель-зависимые суиты):
+**Turnkey** (with panels — also runs the panel-dependent suites):
 
 ```
 make -C subgen/apitest test
 ```
 
-Цель `test`: `docker compose up -d` (две чистые панели) → ждёт готовности → забирает у
-каждой авто-сгенерированный API-токен (`x-ui setting -getApiToken`) → прокидывает в env →
-`go test -tags apitest ./apitest/...` → `docker compose down -v` (даже при падении).
-Требует docker + `docker compose` + свободные порты **13053/13054**. Сборку бинаря subgen и
-запуск процесса делает уже сам тест.
+The `test` target: `docker compose up -d` (two clean panels) → waits for readiness → grabs from
+each the auto-generated API token (`x-ui setting -getApiToken`) → forwards it into env →
+`go test -tags apitest ./apitest/...` → `docker compose down -v` (even on failure).
+It requires docker + `docker compose` + free ports **13053/13054**. Building the subgen binary and
+starting the process is done by the test itself.
 
-Ручной режим: `make -C subgen/apitest up`, затем тесты против любой готовой панели через env
+Manual mode: `make -C subgen/apitest up`, then the tests against any ready panel via env
 (`SUBGEN_APITEST_PANEL1_URL`, `_PANEL1_TOKEN`, `_PANEL2_URL`, `_PANEL2_TOKEN`);
-`make -C subgen/apitest down` для остановки. Без тега `apitest` обычный `go test ./...` эти
-пакеты не трогает вовсе.
+`make -C subgen/apitest down` to stop. Without the `apitest` tag, an ordinary `go test ./...` does not touch these
+packages at all.
 
-## `apitest/api` — общий support
+## `apitest/api` — the shared support
 
-- **`Client` (SDK)** — типизированный HTTP-SDK к запущенному серверу. Ядро
-  `do(method, path, reqBody, &out)` + куки-jar и **захват сессионной куки** из ответа
-  логина (кука `Secure`, поэтому jar не вернёт её по plain HTTP — SDK подставляет её сам;
-  продакшн при этом не трогается). На каждый эндпоинт — типизированный метод. **Тела
-  запросов строятся НЕ из generated-структур** (`internal/oas`), а из `map[string]any` /
-  hand-rolled структур / сырого JSON — это чёрный ящик: если бы тест слал тем же типом,
-  которым сервер декодит, ошибка в маппинге запроса (переименованное поле и т.п.) была бы
-  не видна (encode+decode одним типом дают согласованную, но неверную пару). Мутации
-  нормализуются в `Result{Status, OK, Msg, Err}` поверх ogen-контракта (`2xx {message}` →
-  `Msg`, `4xx {errMessage}` → `Err`), read-ручки декодятся в hand-rolled
-  `User`/`Node`/`Config`/`Schema`. Для угловых случаев есть «сырые» формы (`PostRaw`,
-  `LoginRaw`, `SaveConfigRaw`, `Get`/`GetURL`), отдающие статус/тело/заголовки. **Гочи
-  (схема ogen):** required-массивы (`groups`/`rules`/`providers`/`inbounds`/…) сервер
-  декодит строго — `null` (то, во что JSON-кодируется nil-слайс) отвергается, поэтому SDK
-  шлёт пустые массивы `[]`, а не `null`.
+- **`Client` (the SDK)** — a typed HTTP SDK to the running server. The core is
+  `do(method, path, reqBody, &out)` + a cookie jar and **capturing the session cookie** from the
+  login response (the cookie is `Secure`, so the jar will not return it over plain HTTP — the SDK substitutes it
+  itself; production is not touched by this). Per endpoint — a typed method. **Request
+  bodies are built NOT from generated structs** (`internal/oas`), but from `map[string]any` /
+  hand-rolled structs / raw JSON — this is a black box: if the test sent with the same type
+  the server decodes with, a bug in request mapping (a renamed field, etc.) would be
+  invisible (encode+decode with one type give a consistent but wrong pair). Mutations
+  are normalized into `Result{Status, OK, Msg, Err}` over the ogen contract (`2xx {message}` →
+  `Msg`, `4xx {errMessage}` → `Err`), read endpoints are decoded into hand-rolled
+  `User`/`Node`/`Config`/`Schema`. For corner cases there are «raw» forms (`PostRaw`,
+  `LoginRaw`, `SaveConfigRaw`, `Get`/`GetURL`) returning the status/body/headers. **A gotcha
+  (the ogen schema):** required arrays (`groups`/`rules`/`providers`/`inbounds`/…) are decoded
+  strictly by the server — `null` (what a nil slice is JSON-encoded into) is rejected, so the SDK
+  sends empty arrays `[]`, not `null`.
 
-- **Старт сервера** — `StartServer(t)` / `StartServerWith(t, Options)`: собирает бинарь
-  (`go build` в `t.TempDir()`), запускает процессом с временной БД, тестовыми кредами и
-  свободным портом, ждёт `/healthz`, вешает cleanup. `Options{DBPath}` позволяет переиспользовать
-  store между двумя стартами — это нужно для **зеркала** rule-provider'ов: набор отдаваемых
-  файлов фиксируется на старте, поэтому тест стартует сервер, сохраняет mirror-провайдер через
-  API, гасит, и стартует второй раз на той же БД.
+- **Server start** — `StartServer(t)` / `StartServerWith(t, Options)`: builds the binary
+  (`go build` in `t.TempDir()`), starts it as a process with a temporary DB, test creds and
+  a free port, waits for `/healthz`, hangs a cleanup. `Options{DBPath}` allows reusing the
+  store between two starts — this is needed for the **mirror** of rule-providers: the set of served
+  files is fixed at start, so the test starts the server, saves a mirror provider through the
+  API, shuts it down, and starts a second time on the same DB.
 
-- **`Base`-суит** — встраивается областями (`api.Base`): `SetupSuite` поднимает весь стек один
-  раз (сидит инбаунды на панелях, собирает+стартует сервер, логинится, регистрирует N1/N2 через
-  API). Отдаёт `API()` (SDK), `XC()` (прямой 3x-ui клиент для «земли»), `Pan1()/Pan2()`,
-  и инструментарий — `ClientUUID`/`RequireClient`/`RequireNoClient` (читают панель напрямую),
+- **The `Base` suite** — embedded by the areas (`api.Base`): `SetupSuite` brings up the whole stack once
+  (seeds inbounds on the panels, builds+starts the server, logs in, registers N1/N2 through
+  the API). It exposes `API()` (the SDK), `XC()` (a direct 3x-ui client for the «ground truth»), `Pan1()/Pan2()`,
+  and tooling — `ClientUUID`/`RequireClient`/`RequireNoClient` (they read the panel directly),
   `InboundID(node, inbound)`, `PanelInboundID`, `UniqueName(prefix)`.
 
-  Области, которым панель не нужна (auth/config/SubSuite), **не** встраивают `Base` — они сами
-  делают `api.StartServer(t)` + `api.New(...)` без регистрации узлов.
+  The areas that do not need a panel (auth/config/SubSuite) **do not** embed `Base` — they themselves
+  do `api.StartServer(t)` + `api.New(...)` without registering nodes.
 
-## Топология теста (для панель-зависимых суитов)
+## Test topology (for the panel-dependent suites)
 
-- **N1** (панель 1): smart-инбаунд :4433, force-инбаунд :8443.
-- **N2** (панель 2): smart-инбаунд :9443, force-инбаунд :9444.
+- **N1** (panel 1): a smart inbound :4433, a force inbound :8443.
+- **N2** (panel 2): a smart inbound :9443, a force inbound :9444.
 
-Инбаунды создаёт сам тест (`Base.SetupSuite`) через `POST /panel/api/inbounds/add`; узлы —
-через `POST /admin/api/nodes/save`. Пользователь = один 3x-ui клиент на панель (один uuid,
-email = nickname, общий subId), привязанный ко всем своим инбаундам этой панели.
+The inbounds are created by the test itself (`Base.SetupSuite`) via `POST /panel/api/inbounds/add`; the nodes —
+via `POST /admin/api/nodes/save`. A user = one 3x-ui client per panel (one uuid,
+email = nickname, shared subId), bound to all of its inbounds on this panel.
 
-## Текст ошибок
+## Error texts
 
-Тесты проверяют **точный** русский текст, который отдаёт API (`Result.Err`). Продакшн-строки
-живут на слое представления и не экспортируются, поэтому в каждой области рядом лежит
-`messages_test.go` с константами, зеркалящими эти строки, — это и есть шов между
-(неэкспортируемым) продакшн-текстом и ассертами. Интерполированные сообщения валидатора узла
-(`web.ValidateNode`) проверяются стабильной подстрокой.
+The tests check the **exact** text the API returns (`Result.Err`). The production strings
+live on the presentation layer and are not exported, so in each area there is a neighboring
+`messages_test.go` with constants mirroring those strings — this is the seam between
+the (unexported) production text and the assertions. The interpolated messages of the node validator
+(`web.ValidateNode`) are checked by a stable substring.
 
-## Изоляция
+## Isolation
 
-Панель-зависимые суиты переживают весь прогон; каждый кейс берёт уникальное имя и подчищает
-своих пользователей/узлы в `t.Cleanup`. Негейтнутые суиты поднимают **свой** процесс с чистой
-БД, поэтому записи конфига/мусор не мешают другим. Суиты не помечены `t.Parallel()` намеренно:
-внутри суита кейсы делят один сервер и один store, а codegen старта процесса не должен гоняться
-конкурентно (исключение из общего правила параллельности — как и в unit-стайле).
+The panel-dependent suites survive the whole run; each case takes a unique name and cleans up
+its own users/nodes in `t.Cleanup`. The ungated suites bring up **their own** process with a clean
+DB, so config records/garbage do not interfere with others. The suites are intentionally not marked `t.Parallel()`:
+within a suite the cases share one server and one store, and the codegen of the process start must not run
+concurrently (an exception to the general parallelism rule — as in the unit style).
 
-## Один нюанс с plain HTTP
+## One nuance with plain HTTP
 
-Сессионная кука админки помечена `Secure` (см. `internal/handlers/web/auth.go`), поэтому
-Go-шный cookie-jar **не отправит** её обратно по `http://`. Чтобы остаться на plain HTTP и **не
-менять продакшн**, SDK сам захватывает куку из ответа логина и подставляет её в каждый запрос —
-ровно то, что сделал бы браузер по HTTPS. Всё остальное (создание узлов, провижининг, подписка,
-зеркало правил) драйвится строго через публичный HTTP-API.
+The admin session cookie is marked `Secure` (see `internal/handlers/web/auth.go`), so the
+Go cookie jar **will not send** it back over `http://`. To stay on plain HTTP and **not
+change production**, the SDK captures the cookie from the login response itself and substitutes it into every request —
+exactly what a browser would do over HTTPS. Everything else (creating nodes, provisioning, the subscription,
+the rules mirror) is driven strictly through the public HTTP API.

@@ -200,17 +200,17 @@ func (s *Server) HandleAdminSession(ctx context.Context, _ oas.OperationName, t 
 // plain error a handler returned; the handler already logged it with its own operation
 // context, so it is NOT re-logged generically.
 func (s *Server) ErrorHandler(_ context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	status, msg := http.StatusInternalServerError, "Внутренняя ошибка"
+	status, msg := http.StatusInternalServerError, "Internal error"
 
 	var secErr *ogenerrors.SecurityError
 
 	switch {
 	case errors.Is(err, errUnauthorized), errors.As(err, &secErr):
-		status, msg = http.StatusUnauthorized, "Требуется авторизация"
+		status, msg = http.StatusUnauthorized, "Authorization required"
 
 		slog.Warn("api: unauthorized request", "path", r.URL.Path)
 	case isBadRequest(err):
-		status, msg = http.StatusBadRequest, "Некорректный запрос"
+		status, msg = http.StatusBadRequest, "Bad request"
 
 		slog.Warn("api: malformed request", "path", r.URL.Path, "err", err)
 	}

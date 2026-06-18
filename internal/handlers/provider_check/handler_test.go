@@ -33,7 +33,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckOK, Size: 1024})
 			},
-			result: &oas.MessageResponse{Message: "Доступен:  формат «yaml», 1.0 KB"},
+			result: &oas.MessageResponse{Message: "Available: format \"yaml\", 1.0 KB"},
 		},
 		{
 			name: "http_error",
@@ -42,7 +42,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckHTTPError, Status: 404})
 			},
-			result: &oas.ProviderCheckBadRequest{ErrMessage: "Сервер вернул HTTP 404 — файла нет или нет доступа"},
+			result: &oas.ProviderCheckBadRequest{ErrMessage: "The server returned HTTP 404 — no file or no access"},
 		},
 		{
 			name: "empty",
@@ -60,7 +60,7 @@ func TestHandler_ProviderCheck(t *testing.T) {
 				m.EXPECT().Check(gomock.Any(), url, format).
 					Return(entity.RulesetCheckResult{Outcome: entity.RulesetCheckFormatMismatch, Size: 512})
 			},
-			result: &oas.ProviderCheckBadRequest{ErrMessage: "Скачалось (512 B), но содержимое не похоже на формат «yaml»"},
+			result: &oas.ProviderCheckBadRequest{ErrMessage: "Downloaded (512 B), but the content does not look like the \"yaml\" format"},
 		},
 		{
 			name: "unreachable",

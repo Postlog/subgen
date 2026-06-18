@@ -1,389 +1,399 @@
-# AGENTS.md — стиль и правила кода subgen
+# AGENTS.md — subgen code style and rules
 
-Документ описывает структуру и стилистические правила сервиса `subgen`. Сервис
-**приведён** к этой раскладке (entity / clients / repository / service / handlers,
-`contract.go`+mockgen, table-driven тесты). Любой новый код пиши по этим правилам;
-трогаешь старый — подтягивай его к ним в том же изменении.
+This document describes the structure and stylistic rules of the `subgen` service. The
+service has been **brought** to this layout (entity / clients / repository / service / handlers,
+`contract.go`+mockgen, table-driven tests). Write any new code by these rules;
+if you touch old code — bring it up to them in the same change.
 
-Композиционный корень — `cmd/service/main.go`: загружает config, открывает
-репозитории, конструирует клиентов/сервисы и per-action хендлеры с их зависимостями,
-собирает их в композит `internal/handlers/api` и поднимает ogen-сервер (он же —
-единственный `http.Handler`; рядом на stdlib `http.ServeMux` только статика). **Оракула
-`App` нет** — данные идут снизу вверх
-(`repository`/`clients` → `service` → `handler`), кеш узкий (внутри конкретного
-сервиса), без глобальных atomic-снапшотов. HTTP-хендлеры — по пакету на действие в
-`internal/handlers/<action>`, общий HTTP-инструментарий — `internal/handlers/web`.
+The composition root is `cmd/service/main.go`: it loads config, opens
+repositories, constructs clients/services and per-action handlers with their dependencies,
+assembles them into the `internal/handlers/api` composite and brings up the ogen server (which is also
+the only `http.Handler`; on the stdlib `http.ServeMux` alongside it there is only static content). **There is no
+`App` oracle** — data flows bottom-up
+(`repository`/`clients` → `service` → `handler`), the cache is narrow (inside a specific
+service), without global atomic snapshots. HTTP handlers — one package per action in
+`internal/handlers/<action>`, shared HTTP tooling — `internal/handlers/web`.
 
-Дизайн и эксплуатация subgen — в [`docs/subgen.md`](docs/subgen.md) и
-[`README.md`](README.md). Инфраструктурные факты, от которых зависит **код** (контракт
-3x-ui API, секреты, dev-гочи) — в разделе «Инфраструктура, 3x-ui API и секреты» ниже.
-Остальной документ — про **код** Go-сервиса.
+The design and operation of subgen are in [`docs/subgen.md`](docs/subgen.md) and
+[`README.md`](README.md). Infrastructure facts that the **code** depends on (the
+3x-ui API contract, secrets, dev gotchas) are in the «Infrastructure, 3x-ui API and secrets» section below.
+The rest of the document is about the **code** of the Go service.
 
-> subgen — самостоятельный продукт (подписочный сервер mihomo/Clash.Meta), выделенный
-> из монорепо парка [`Postlog/vpn-toolchain`](https://github.com/Postlog/vpn-toolchain);
-> топология парка, узлы и наблюдаемость живут там.
+> subgen is a standalone product (a mihomo/Clash.Meta subscription server), split off
+> from the fleet monorepo [`Postlog/vpn-toolchain`](https://github.com/Postlog/vpn-toolchain);
+> the fleet topology, nodes and observability live there.
 
-Эталоны структуры (смотреть как образец):
+## Language — everything in English
+
+**All text in this repository is English, no exceptions.** This covers code identifiers and
+comments, log/error messages, user-facing strings and the admin UI, the docs (`README.md`,
+`AGENTS.md`, `docs/`, ADRs), the `CHANGELOG`, commit messages, and **pull-request titles and
+descriptions**. Non-English text (e.g. Cyrillic) must not appear anywhere in the tree — the
+only exception is operator-entered data that lives in the running store, not in the repo.
+Quick guard: `grep -rI '[А-Яа-я]'` over the tree comes back empty. See
+[ADR-0009](docs/decisions/0009-public-ready-and-english-docs.md).
+
+Structure references (look at as a model):
 `go.avito.ru/av/service-listing-admin`, `go.avito.ru/av/service-mnz-sf`.
 
-## Инфраструктура, 3x-ui API и секреты
+## Infrastructure, 3x-ui API and secrets
 
-Это не «про стиль», но код subgen завязан на эти факты — держи их в голове, правя
-клиента/провижининг/деплой. Полный дизайн — в [`docs/subgen.md`](docs/subgen.md).
+This is not «about style», but subgen's code is tied to these facts — keep them in mind when editing
+the client/provisioning/deploy. The full design is in [`docs/subgen.md`](docs/subgen.md).
 
-### Секреты — никогда в git
+### Secrets — never in git
 
-Пароли панелей, `SUBGEN_SECRET` (HMAC), админ-креды, client UUID/ключи и отрендеренные
-per-client конфиги **не коммитятся**. Bootstrap-секреты — в `.env` (gitignored, рядом с
-`.env.example`); `db/` (SQLite-стор) тоже gitignored. В git уходят только примеры.
+Panel passwords, `SUBGEN_SECRET` (HMAC), admin creds, client UUIDs/keys and the rendered
+per-client configs are **not committed**. Bootstrap secrets — in `.env` (gitignored, next to
+`.env.example`); `db/` (the SQLite store) is gitignored too. Only the examples go into git.
 
-### 3x-ui API (обе панели парка — 3.2.6) — `internal/clients/xui`
+### 3x-ui API (both fleet panels are 3.2.6) — `internal/clients/xui`
 
-- **Auth = Bearer API-токен.** `Authorization: Bearer <token>` (выдать: `x-ui setting
-  -getApiToken` или Settings → API tokens в панели). Токен-вызовы обходят CSRF, логин/кука
-  не нужны — это машинный путь subgen. Браузерный логин на 3.x требует CSRF-токен
-  (`<meta name="csrf-token">` → `X-CSRF-Token`) — для сервиса не используем.
-- **Управление клиентами переехало** в `/panel/api/clients/*` (`add`, `update/:email`,
-  `del/:email`). Старый `/panel/api/inbounds/addClient` на 3.2.x отдаёт **404**. Тело add:
-  `{"client":{…,"tgId":0},"inboundIds":[…]}` — `tgId` это **int** (0), не строка, иначе 400.
-- **Модель идентичности клиента (важно).** Клиент 3x-ui = один `uuid` (VLESS-credential);
-  `email` и `subId` — метки на этом uuid. **Один клиент может висеть на многих инбаундах** —
-  передай несколько id в `inboundIds`; uuid/email/subId остаются одни на все. Грабли,
-  набитые трудом: (a) `del/:email` резолвит email→один uuid и снимает его со всех инбаундов,
-  но если **один email на двух инбаундах с разными uuid** (провижинились отдельными `add`,
-  каждый минтил новый uuid) — падает `Client Not Found In Inbound For ID: <uuid>` и **не
-  удаляет ничего**; (b) `subId` привязан к одному email — переиспользование subId на двух
-  email → `subId already in use`. Поэтому пользователь провижинится как **один клиент на
-  панель** (один uuid, email = ник, общий subId), привязанный ко всем своим инбаундам
-  **одним** `add`; правка = ре-байнд того же клиента (сохраняем uuid). Per-inbound
-  delete-роута в этой сборке **нет** (`/panel/api/inbounds/:id/delClient/:id` → 404); только
+- **Auth = Bearer API token.** `Authorization: Bearer <token>` (issue it: `x-ui setting
+  -getApiToken` or Settings → API tokens in the panel). Token calls bypass CSRF, login/cookie
+  are not needed — this is subgen's machine path. A browser login on 3.x requires a CSRF token
+  (`<meta name="csrf-token">` → `X-CSRF-Token`) — we do not use it for the service.
+- **Client management has moved** to `/panel/api/clients/*` (`add`, `update/:email`,
+  `del/:email`). The old `/panel/api/inbounds/addClient` returns **404** on 3.2.x. The add body:
+  `{"client":{…,"tgId":0},"inboundIds":[…]}` — `tgId` is an **int** (0), not a string, otherwise 400.
+- **Client identity model (important).** A 3x-ui client = one `uuid` (VLESS credential);
+  `email` and `subId` are labels on that uuid. **One client can hang on many inbounds** —
+  pass several ids in `inboundIds`; the uuid/email/subId stay the same for all of them. Pitfalls
+  learned the hard way: (a) `del/:email` resolves email→one uuid and removes it from all inbounds,
+  but if **one email is on two inbounds with different uuids** (provisioned by separate `add` calls,
+  each minting a new uuid) — it fails with `Client Not Found In Inbound For ID: <uuid>` and **does
+  not delete anything**; (b) `subId` is bound to one email — reusing a subId across two
+  emails → `subId already in use`. So a user is provisioned as **one client per
+  panel** (one uuid, email = nickname, shared subId), bound to all of its inbounds
+  with a **single** `add`; an edit = a re-bind of the same client (we keep the uuid). There is **no**
+  per-inbound delete route in this build (`/panel/api/inbounds/:id/delClient/:id` → 404); only
   `del/:email`.
-- `settings`/`streamSettings` приходят как **JSON-объекты** (на 3.x; до 3.x были
-  JSON-строкой внутри JSON) — клиент разбирает оба через `json.RawMessage`.
-- Теги новых инбаундов — `in-<port>-<net>` (напр. `in-8443-tcp`).
-- DNS RU1 починен на уровне хоста — кастомный resolver-воркэраунд в xui-клиенте убран,
-  используется системный резолвер.
+- `settings`/`streamSettings` arrive as **JSON objects** (on 3.x; before 3.x they were
+  a JSON string inside JSON) — the client parses both via `json.RawMessage`.
+- Tags of new inbounds — `in-<port>-<net>` (e.g. `in-8443-tcp`).
+- DNS RU1 is fixed at the host level — the custom resolver workaround in the xui client has been removed,
+  the system resolver is used.
 
-### Dev-гочи (когда дёргаешь панели/узлы с Mac оператора)
+### Dev gotchas (when poking panels/nodes from the operator's Mac)
 
-- **На узлах нет `sqlite3`.** Чтобы заглянуть в `/etc/x-ui/x-ui.db` — копируй локально или
-  ходи по HTTP API 3x-ui.
-- **У Mac оператора есть HTTP(S)-прокси** (`HTTPS_PROXY`), рубящий нестандартные порты (напр.
-  61001). Для curl/go против панелей префикси
-  `env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy`. (subgen на узле не задет —
-  его HTTP-транспорт прокси не ставит.)
-- Прод-узел живой и общий с реальными юзерами: **сначала read-only разведка**, и
-  **подтверждай наружу-видимые/необратимые действия** (деплой, рестарт Xray, правки клиентов).
+- **There is no `sqlite3` on the nodes.** To peek into `/etc/x-ui/x-ui.db` — copy it locally or
+  go via the 3x-ui HTTP API.
+- **The operator's Mac has an HTTP(S) proxy** (`HTTPS_PROXY`) that kills non-standard ports (e.g.
+  61001). For curl/go against the panels, prefix with
+  `env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy`. (subgen on the node is not affected —
+  its HTTP transport does not set a proxy.)
+- The prod node is live and shared with real users: **read-only recon first**, and
+  **confirm externally-visible/irreversible actions** (deploy, Xray restart, client edits).
 
-### Деплой
+### Deploy
 
-Docker (не systemd). Прод-деплой — ручной GitHub Actions workflow
-(`.github/workflows/deploy.yml`, `workflow_dispatch`): образ собирается на runner'е (узел
-RAM-голодный — Go/реестр на узле не нужны), шлётся по SSH (`docker save | ssh | docker load`),
-`.env` рендерится из секретов Environment `production`, `docker compose up -d`. Подробности —
-`README.md` / `docs/subgen.md`. Legacy systemd-деплой удалён (был `systemd/`). SIGHUP-релоада нет —
-конфиг течёт снизу вверх из стора на каждый запрос. **Миграции БД — упорядоченный раннер
-на старте** (`migrations.Apply`: `0001-init.sql`-базлайн + `NNNN-*.sql` по имени, учёт в
-`schema_migrations`; см. [ADR-0002](docs/decisions/0002-ordered-migration-runner.md)).
+Docker (not systemd). Prod deploy — a manual GitHub Actions workflow
+(`.github/workflows/deploy.yml`, `workflow_dispatch`): the image is built on the runner (the node is
+RAM-starved — Go/registry are not needed on the node), shipped over SSH (`docker save | ssh | docker load`),
+`.env` is rendered from the `production` Environment secrets, `docker compose up -d`. Details —
+`README.md` / `docs/subgen.md`. The legacy systemd deploy has been removed (it was `systemd/`). There is no SIGHUP reload —
+the config flows bottom-up from the store on every request. **DB migrations — an ordered runner
+on start** (`migrations.Apply`: the `0001-init.sql` baseline + `NNNN-*.sql` by name, tracked in
+`schema_migrations`; see [ADR-0002](docs/decisions/0002-ordered-migration-runner.md)).
 
-## Целевые правила (инверсия слоёв)
+## Target rules (layer inversion)
 
-Ниже — жёсткие правила второго прохода. Они уточняют разделы ниже; при конфликте
-приоритет у этих формулировок. Любой новый код им следует; трогаешь старый — подтягивай.
+Below are the hard rules of the second pass. They refine the sections below; on conflict
+these formulations take priority. Any new code follows them; if you touch old code — bring it up.
 
-### Клиенты внешних API — тонкие адаптеры
+### External-API clients — thin adapters
 
-- Клиент = тонкая прослойка-адаптер к `entity`. **Ноль бизнес-логики.** Никакого
-  внутреннего состояния, кроме нужного для подключения к ресурсу (`http.Client`,
-  таймауты). Имя узла, публичный хост, конкретный токен — **не** состояние клиента.
-- Никаких «толстых» методов: метод не дергает общий список (`ListInbounds`) и не
-  вычисляет из него что-то под конкретную задачу (поиск id по порту, uuid по email) —
-  это бизнес-логика, её место в сервисе. Клиент отдаёт сырые доменные данные.
-- Если разные узлы задают разные креды подключения — **креды передаются параметром
-  метода**, не в конструктор. Один клиент на процесс, цель вызова — аргумент.
-- **Один метод — один `.go`-файл** (`list_inbounds.go`, `add_client.go`, `del_client.go`).
-- На каждый метод (= файл) — отдельный unit-тест; HTTP мокается (`httptest.Server` /
-  `http.RoundTripper`-мок), без живой сети.
+- A client = a thin adapter layer to `entity`. **Zero business logic.** No
+  internal state except what is needed to connect to the resource (`http.Client`,
+  timeouts). The node name, public host, a specific token — are **not** client state.
+- No «fat» methods: a method does not pull the general list (`ListInbounds`) and does not
+  compute something from it for a specific task (finding an id by port, a uuid by email) —
+  that is business logic, its place is in the service. The client returns raw domain data.
+- If different nodes specify different connection creds — **the creds are passed as a method
+  parameter**, not into the constructor. One client per process, the call target is an argument.
+- **One method — one `.go` file** (`list_inbounds.go`, `add_client.go`, `del_client.go`).
+- Per method (= file) — a separate unit test; HTTP is mocked (`httptest.Server` /
+  `http.RoundTripper` mock), without live network.
 
-### Config — только статика, не течёт по слоям
+### Config — static only, does not flow through layers
 
-- `config` = пакет с `Load() (Config, error)`: читает окружение/`.env` (через теги,
-  библиотекой) и валидирует. Точка.
-- У `Config` — 0 методов (максимум простые геттеры). Она «особая»: в `entity` её можно
-  не класть.
-- `Config` **не прокидывается** по слоям. В конструкторы сервисов/хендлеров идут только
-  конкретные примитивные поля (никакого `New(cfg *config.Config)`). Взаимодействие со
-  структурой `Config` — максимум в `main`.
-- **Никакого конфига из БД** (`FromStore`-подобного кода быть не должно — это нарушение
-  data-flow: операционные данные идут снизу вверх из репозиториев).
-- **Никакого seed.** Нет данных в хранилище — значит нет данных; дефолтных
-  конфигов/правил/провайдеров в коде нет.
+- `config` = a package with `Load() (Config, error)`: it reads the environment/`.env` (via tags,
+  with a library) and validates. Period.
+- `Config` has 0 methods (at most simple getters). It is «special»: you may leave it out
+  of `entity`.
+- `Config` is **not passed** through layers. Only the
+  concrete primitive fields go into the constructors of services/handlers (no `New(cfg *config.Config)`). Interacting with the
+  `Config` struct — at most in `main`.
+- **No config from the DB** (`FromStore`-like code must not exist — it is a data-flow
+  violation: operational data flows bottom-up from the repositories).
+- **No seed.** No data in the store means no data; there are no default
+  configs/rules/providers in the code.
 
-### entity — самодокументируемые типы
+### entity — self-documenting types
 
-- Признаки — типами и константами, не «магическими» строками.
-  Эталон — `mihomo.PolicyRef`/`PolicyKind` и `RuleType`/
-  `ProxyGroupType` (в пакете `internal/mihomo`): цель роутинга резолвится по
-  типизированному `Kind`, **никогда** по подстроке вроде
+- Traits — via types and constants, not «magic» strings.
+  The reference is `mihomo.PolicyRef`/`PolicyKind` and `RuleType`/
+  `ProxyGroupType` (in the `internal/mihomo` package): the routing target is resolved by a
+  typed `Kind`, **never** by a substring like
   `strings.HasPrefix(name, "<...>")`.
-- Сильная типизация: client id → `github.com/google/uuid.UUID`. Где встроенный тип
-  неудобен — обосновать в комментарии (напр. `Node.PanelBaseURL` остаётся `string`:
-  гоняется через SQLite-текст/HTML-формы и только конкатенируется с path — `url.URL`
-  тут ничего не даёт).
-- **Ссылки на сущности — по числовому id, не по имени/порту.** Имя (узла и т.п.)
-  мутабельно и годится только для отображения и label-имён (`<node>-<inbound>`). Всё, что
-  пересекает границу (API ↔ фронт) или используется как ключ поиска/диффа — это id
-  (`node_inbounds.id` для выбора подключения, `node.id` для группировки). Исключение —
-  сопоставление `inbound_port` с **внешним** 3x-ui инбаундом: порт — идентификатор на
-  стороне 3x-ui, не наш id.
-- **Сравнение содержимого строк запрещено** (`strings.Contains(name, "...")` и т.п.).
-  Нужен признак — заводи булев флаг или типизированную константу. Исключения допустимы,
-  но только с обоснованием в комментарии.
+- Strong typing: client id → `github.com/google/uuid.UUID`. Where a built-in type
+  is inconvenient — justify it in a comment (e.g. `Node.PanelBaseURL` stays a `string`:
+  it travels through SQLite text/HTML forms and is only concatenated with a path — `url.URL`
+  buys nothing here).
+- **References to entities — by numeric id, not by name/port.** A name (of a node, etc.) is
+  mutable and is good only for display and label names (`<node>-<inbound>`). Everything that
+  crosses a boundary (API ↔ frontend) or is used as a search/diff key is an id
+  (`node_inbounds.id` for selecting a connection, `node.id` for grouping). The exception is
+  matching `inbound_port` to an **external** 3x-ui inbound: the port is an identifier on the
+  3x-ui side, not our id.
+- **Comparing string contents is forbidden** (`strings.Contains(name, "...")` and the like).
+  If you need a trait — introduce a boolean flag or a typed constant. Exceptions are allowed,
+  but only with a justification in a comment.
 
-### Ошибки — sentinel, без интерполяции
+### Errors — sentinel, without interpolation
 
-- Доменные ошибки — sentinel-константы в `entity`:
-  `var ErrNameTaken = errors.New("name already taken")`. Возвращай их
-  (`return entity.ErrNameTaken`), **не** подставляй имя/значение в текст ошибки — оно уже
-  есть в контексте вызывающего.
-- Нижние слои — обёрнутые технические ошибки (`fmt.Errorf("dep.Method: %w", err)`), без
-  человеко-читаемого текста.
-- **Ни одного `fmt.Errorf` с русским/человеко-текстом в `repository`/`service`/`clients`.**
-  Понятные сообщения (в т.ч. русские) — только константы на слое хендлера.
-- **Классификация ошибки — в самом хендлере, по конкретным sentinel'ам.** Хендлер знает,
-  что он вызывает и какие типизированные ошибки оно возвращает: на них — явный
-  `errors.Is`/`switch`. Известный доменный sentinel → типизированный 4xx-ответ с
-  **локальной текст-константой этого хендлера** (`slog.Warn`); **всё остальное**
-  (БД/панель/marshal — инфраструктура) → `return nil, err` (станет 5xx) + `slog.Error` с
-  контекстом. **Ошибку БД нельзя отдавать как 400.** Никакого общего «маппера»
-  `UserMessage(err) → текст` на все хендлеры: тексты живут константами в каждом хендлере,
-  по месту проверки.
-- **Уникальность — из ответа БД, без пред-чек SELECT-ов.** Дубль ловится по типизированному
-  коду констрейнта (`internal/repository/dberr.IsUniqueViolation`: `errors.As` →
+- Domain errors — sentinel constants in `entity`:
+  `var ErrNameTaken = errors.New("name already taken")`. Return them
+  (`return entity.ErrNameTaken`), **do not** substitute the name/value into the error text — it is already
+  in the caller's context.
+- Lower layers — wrapped technical errors (`fmt.Errorf("dep.Method: %w", err)`), without
+  human-readable text.
+- **Not a single `fmt.Errorf` with Russian/human text in `repository`/`service`/`clients`.**
+  Understandable messages (including Russian ones) — only constants on the handler layer.
+- **Error classification — in the handler itself, by specific sentinels.** The handler knows
+  what it calls and which typed errors it returns: against them — an explicit
+  `errors.Is`/`switch`. A known domain sentinel → a typed 4xx response with a
+  **local text constant of this handler** (`slog.Warn`); **everything else**
+  (DB/panel/marshal — infrastructure) → `return nil, err` (becomes a 5xx) + `slog.Error` with
+  context. **A DB error must not be returned as 400.** No general «mapper»
+  `UserMessage(err) → text` across all handlers: the texts live as constants in each handler,
+  at the place of the check.
+- **Uniqueness — from the DB response, without pre-check SELECTs.** A duplicate is caught by a typed
+  constraint code (`internal/repository/dberr.IsUniqueViolation`: `errors.As` →
   `*sqlite.Error.Code()` ∈ {`SQLITE_CONSTRAINT_UNIQUE` 2067, `SQLITE_CONSTRAINT_PRIMARYKEY`
-  1555}; modernc включает extended-коды на каждом соединении — **никакого сравнения строк**),
-  и репозиторий переводит его в доменный sentinel (`entity.ErrNameTaken` / `ErrNodeNameTaken` /
-  `ErrInboundDuplicate` / `ErrRuleProviderNameTaken`). `users.NameTaken`-подобных пред-проверок
-  быть не должно. PK даёт 1555, обычный UNIQUE — 2067; детектор матчит оба.
+  1555}; modernc enables extended codes on every connection — **no string comparison**),
+  and the repository translates it into a domain sentinel (`entity.ErrNameTaken` / `ErrNodeNameTaken` /
+  `ErrInboundDuplicate` / `ErrRuleProviderNameTaken`). `users.NameTaken`-like pre-checks
+  must not exist. A PK gives 1555, an ordinary UNIQUE — 2067; the detector matches both.
 
-### Handlers — ogen из openapi, типизированные зависимости, структурный лог
+### Handlers — ogen from openapi, typed dependencies, structured log
 
-- **Контракт ручек описывается в OpenAPI-схеме (`openapi/`), код генерится ogen
-  (`internal/oas`).** Добавить/изменить ручку = править спеку (`openapi/<endpoint>.yaml`
-  + `$ref` в `openapi/openapi.yaml`), затем `go generate ./internal/oas/`, затем писать
-  хендлер под сгенерённый интерфейс. **Руками роуты не регистрируем** — маппинг
-  path+method→операция владеет сгенерённый роутер. Один пакет на операцию в
-  `internal/handlers/<action>`, реализующий метод `oas.Handler`; тонкий композит
-  `internal/handlers/api` форвардит каждую операцию её хендлеру (без
-  `UnimplementedHandler` — компилятор следит за полнотой) и держит общий
-  `SecurityHandler` (cookie `subgen_admin`) и `ErrorHandler`.
-- **ogen-сервер — единственный `http.Handler` (корень).** В `cmd/service` он монтируется
-  в `/` на stdlib `http.ServeMux`; рядом — **единственный** внешний роут `/admin/static/*`
-  (файловый хендлер, не типизированная ручка — по гайду ogen про static router).
-  **`gorilla/mux` не используется.** Даже браузерные страницы (login-страница
-  `GET /admin/login`, SPA-shell `GET /admin` и `GET /admin/{view}`) — это ogen-операции,
-  отдающие сырой HTML или `302`; сессионная кука у них — **ogen-параметр** (`in: cookie`),
-  валидируется `web.Session.Valid` (для страниц нужен redirect, а не 401 от security-схемы).
-- **Контракт ответов идиоматичный:** мутации — `2xx {message}` / `4xx {errMessage}`
-  (`common.yaml`: `MessageResponse`/`ErrorResponse`); read-ручки — типизированный JSON.
-  Гейт `/admin/api/*` → `401` через ogen-`SecurityHandler`. **Admin всегда включён**
-  (`SUBGEN_ADMIN_PASSWORD` обязателен в конфиге; `AdminEnabled`/опциональной панели нет).
-  Логин — `POST /admin/api/login` (200 + `Set-Cookie`), логаут — `POST /admin/api/logout`
-  (204). Никаких `{ok,msg|err}`-конвертов и серверных редиректов на JSON-путях.
-- **Валидация значений — в сервисе, не в схеме.** В OpenAPI кладём только форму контракта —
-  `required`/`type`/`format` (ogen генерит по ним декод/типы и проверку присутствия). А
-  **value-constraints** (`minLength`/`minItems`/`minimum`/`maxLength`/`pattern`/…) в схему
-  **не** кладём: ogen на них отдаёт общий невнятный `400 "Некорректный запрос"`. Вместо
-  этого валидируем в **сервисном слое** sentinel-ошибками (`entity.ErrValidation*`); хендлер
-  тонкий — мапит sentinel в типизированный 4xx с локальной текст-константой. Нет сервиса —
-  заводим (`internal/service/nodes` владеет валидацией узла). **Суррогатные id (PK) не
-  валидируем** — несуществующий id (хоть отрицательный, хоть валидный-но-отсутствующий)
-  одинаково даёт not-found, отдельная проверка `id≥1` бессмысленна. См.
+- **The endpoints' contract is described in the OpenAPI schema (`openapi/`), the code is generated by ogen
+  (`internal/oas`).** Adding/changing an endpoint = editing the spec (`openapi/<endpoint>.yaml`
+  + `$ref` in `openapi/openapi.yaml`), then `go generate ./internal/oas/`, then writing
+  a handler against the generated interface. **We do not register routes by hand** — the
+  path+method→operation mapping is owned by the generated router. One package per operation in
+  `internal/handlers/<action>`, implementing the `oas.Handler` method; a thin composite
+  `internal/handlers/api` forwards each operation to its handler (without
+  `UnimplementedHandler` — the compiler enforces completeness) and holds the shared
+  `SecurityHandler` (cookie `subgen_admin`) and `ErrorHandler`.
+- **The ogen server is the only `http.Handler` (the root).** In `cmd/service` it is mounted
+  at `/` on a stdlib `http.ServeMux`; alongside it — the **only** external route `/admin/static/*`
+  (a file handler, not a typed endpoint — per the ogen guide on the static router).
+  **`gorilla/mux` is not used.** Even browser pages (the login page
+  `GET /admin/login`, the SPA shell `GET /admin` and `GET /admin/{view}`) are ogen operations
+  that return raw HTML or `302`; their session cookie is an **ogen parameter** (`in: cookie`),
+  validated by `web.Session.Valid` (pages need a redirect, not a 401 from the security scheme).
+- **The response contract is idiomatic:** mutations — `2xx {message}` / `4xx {errMessage}`
+  (`common.yaml`: `MessageResponse`/`ErrorResponse`); read endpoints — typed JSON.
+  The `/admin/api/*` gate → `401` via the ogen `SecurityHandler`. **Admin is always on**
+  (`SUBGEN_ADMIN_PASSWORD` is mandatory in the config; there is no `AdminEnabled`/optional panel).
+  Login — `POST /admin/api/login` (200 + `Set-Cookie`), logout — `POST /admin/api/logout`
+  (204). No `{ok,msg|err}` envelopes and no server redirects on JSON paths.
+- **Value validation — in the service, not in the schema.** Into OpenAPI we put only the shape of the contract —
+  `required`/`type`/`format` (ogen generates decode/types and a presence check from them). But
+  **value constraints** (`minLength`/`minItems`/`minimum`/`maxLength`/`pattern`/…) we do **not**
+  put into the schema: on them ogen returns a generic vague `400 "Bad request"`. Instead
+  we validate in the **service layer** with sentinel errors (`entity.ErrValidation*`); the handler is
+  thin — it maps the sentinel into a typed 4xx with a local text constant. No service —
+  we create one (`internal/service/nodes` owns node validation). **Surrogate ids (PK) we do not
+  validate** — a non-existent id (whether negative or valid-but-absent)
+  yields not-found either way, a separate `id≥1` check is meaningless. See
   [ADR-0003](docs/decisions/0003-validation-in-code.md).
-- Зависимость хендлера — конкретный интерфейс на нужные данные.
-  **Анти-паттерн `cfgReader{ Cfg() *config.Config }` запрещён** — нужно конкретное поле,
-  прокидывай конкретное поле.
-- `slog` на уровне хендлера: сообщение в форме `"handler <name>: <event>"`; переменные —
-  **только полями** лога, не в тексте сообщения
-  (`slog.Warn("handler node_delete: delete failed", "id", id, "err", err)`). Доменный
-  4xx — `Warn`, инфраструктурный 5xx — `Error` (см. «Ошибки»). Нижние слои не логируют.
-  **Центральный `ErrorHandler` (`internal/handlers/api`) логирует только то, что прошло
-  мимо хендлеров** — ошибки security/декодинга запроса; handler-овые 5xx он не
-  перелогирует (их уже залогировал сам хендлер с контекстом операции).
-- Бэк — **чистые JSON-ручки** (`/admin/api/*`) + отдача статики; серверных шаблонов
-  нет. Фронт — минимальный SPA на Vue 3 (global build, без сборки) в
-  `internal/handlers/web/static/` (`index.html` + `app.js` + `app.css`), данные
-  тянутся фетчем. **Отдача статики (`render.go`):** по умолчанию из **embed**-копии
-  (`//go:embed static`, самодостаточный прод-образ), либо **живьём с диска**, если задан
-  `SUBGEN_STATIC_DIR` (путь к каталогу относительно cwd) — тогда правки CSS/JS видны по
-  reload без пересборки Go (локальная разработка; `assetFS()` выбирает источник).
-  **Либы:** локально-вшитые (`vue.global.prod.js`, `Sortable.min.js`, `js-yaml.min.js`)
-  + **с CDN** — Monaco (`monaco-editor@0.52.2`, AMD-loader). Внимание к порядку скриптов: UMD-либы (`js-yaml`) грузятся **до**
-  Monaco-loader'а, иначе их UMD увидит `define.amd` и зарегистрируется модулем вместо
-  выставления глобала. Поле base-YAML — компонент `yaml-editor` на **Monaco**
-  (`loadMonaco()` лениво поднимает движок с CDN, `defineSubgenTheme` — тёмная тема под
-  палитру; язык `yaml`, подсветка/Tab/текущая строка из коробки). **Валидация синтаксиса
-  на лету — `jsyaml.load`** с debounce: ошибка кладётся маркером в Monaco
-  (`setModelMarkers`, squiggle+hover) + строка статуса (line:col + reason).
-  **Тема админки повторяет 3x-ui v3+** (React + Ant Design 6 dark) — это «скин» Ant-токенов
-  поверх Bootstrap в `app.css`: bg `#1a1b1f` / card `#23252b` (radius 12) / header `#15161a`
-  / modal `#2d2f37`, primary Ant-blue `#1668dc`, бордеры `rgba(255,255,255,.06–.12)`,
-  **системные шрифты** (никаких webfont'ов). Любой новый UI держи в этих токенах.
-  Read-ручки (`users_get`/`nodes_get`/`config_get`) отдают типизированный JSON;
-  мутации (`user_*`/`node_*`/`config_save`) принимают JSON и отвечают `2xx {message}` /
-  `4xx {errMessage}` (фронт читает по статусу + полю).
+- A handler's dependency — a concrete interface for the data it needs.
+  **The anti-pattern `cfgReader{ Cfg() *config.Config }` is forbidden** — if you need a concrete field,
+  pass the concrete field.
+- `slog` at the handler level: the message in the form `"handler <name>: <event>"`; variables —
+  **only as log fields**, not in the message text
+  (`slog.Warn("handler node_delete: delete failed", "id", id, "err", err)`). A domain
+  4xx — `Warn`, an infrastructure 5xx — `Error` (see «Errors»). Lower layers do not log.
+  **The central `ErrorHandler` (`internal/handlers/api`) logs only what slipped past the
+  handlers** — security/request-decoding errors; it does not re-log
+  handler-level 5xx (those were already logged by the handler itself with the operation context).
+- The backend — **pure JSON endpoints** (`/admin/api/*`) + serving static content; there are no server templates.
+  The frontend — a minimal SPA on Vue 3 (global build, no bundler) in
+  `internal/handlers/web/static/` (`index.html` + `app.js` + `app.css`), data is
+  pulled by fetch. **Serving static content (`render.go`):** by default from the **embed** copy
+  (`//go:embed static`, a self-contained prod image), or **live from disk** if
+  `SUBGEN_STATIC_DIR` is set (a path to the directory relative to cwd) — then CSS/JS edits are visible on
+  reload without rebuilding Go (local development; `assetFS()` picks the source).
+  **Libs:** locally vendored (`vue.global.prod.js`, `Sortable.min.js`, `js-yaml.min.js`)
+  + **from a CDN** — Monaco (`monaco-editor@0.52.2`, AMD loader). Mind the script order: UMD libs (`js-yaml`) load **before**
+  the Monaco loader, otherwise their UMD sees `define.amd` and registers itself as a module instead of
+  exposing the global. The base-YAML field — a `yaml-editor` component on **Monaco**
+  (`loadMonaco()` lazily brings up the engine from the CDN, `defineSubgenTheme` — a dark theme matching the
+  palette; language `yaml`, highlighting/Tab/current-line out of the box). **Live syntax
+  validation — `jsyaml.load`** with debounce: the error is placed as a marker in Monaco
+  (`setModelMarkers`, squiggle+hover) + a status line (line:col + reason).
+  **The admin theme mirrors 3x-ui v3+** (React + Ant Design 6 dark) — it is a «skin» of Ant tokens
+  over Bootstrap in `app.css`: bg `#1a1b1f` / card `#23252b` (radius 12) / header `#15161a`
+  / modal `#2d2f37`, primary Ant-blue `#1668dc`, borders `rgba(255,255,255,.06–.12)`,
+  **system fonts** (no webfonts). Keep any new UI within these tokens.
+  Read endpoints (`users_get`/`nodes_get`/`config_get`) return typed JSON;
+  mutations (`user_*`/`node_*`/`config_save`) accept JSON and respond with `2xx {message}` /
+  `4xx {errMessage}` (the frontend reads by status + field).
 
-### Композиция и слои
+### Composition and layers
 
-- **Нет оракула `App`.** Композиция зависимостей и сборка роутера — в `cmd/service`.
-- Данные идут **снизу вверх**: `repository`/`clients` → `service` → `handler`. Нижний
-  слой не знает о верхнем.
-- **Кеш — узкий слой** вокруг конкретного репозитория/клиента (или внутри конкретного
-  сервиса), не глобальный снапшот всего.
-- `ruleset/mirror`, `fleet/build` и подобная логика — это сервисный слой
-  (`internal/service/*`); генерация mihomo-YAML (резолв `PolicyRef`, сборка
-  proxy-groups/rules) — `internal/mihomo/render`. Не «магия сбоку».
+- **No `App` oracle.** Dependency composition and router assembly — in `cmd/service`.
+- Data flows **bottom-up**: `repository`/`clients` → `service` → `handler`. The lower
+  layer does not know about the upper one.
+- **The cache is a narrow layer** around a specific repository/client (or inside a specific
+  service), not a global snapshot of everything.
+- `ruleset/mirror`, `fleet/build` and similar logic is the service layer
+  (`internal/service/*`); generating mihomo YAML (resolving `PolicyRef`, assembling
+  proxy-groups/rules) — `internal/mihomo/render`. Not «magic on the side».
 
-### Инфраструктура
+### Infrastructure
 
-- Рейтлимита нет (отказались). TLS-cert-релоадер — `internal/cert`. Деплой — Docker
-  (не systemd).
+- There is no rate limit (dropped). The TLS cert reloader — `internal/cert`. Deploy — Docker
+  (not systemd).
 
-## Структура каталогов
+## Directory structure
 
 ```
-cmd/service/main.go            — сам сервис (entrypoint)
-cmd/<tool>/main.go             — прочие бинари (CLI-утилиты, воркеры, cron)
-internal/config/               — загрузка/валидация конфига (env + .env)
-internal/clients/<dep>/        — клиенты к внешним сетевым зависимостям (xui, …)
-internal/repository/<entity>/  — репозитории, разбиты по сущностям (users, nodes, …)
-internal/service/<area>/       — сервисный слой (бизнес-логика)
-internal/handlers/<do_some>/handler.go — HTTP-хендлеры (один пакет на действие)
-internal/entity/               — общие kernel-типы домена (вход/выход слоёв), без I/O
-internal/mihomo/               — поддомен mihomo-конфига (схема + decode/validate), без I/O и net/http
-internal/mihomo/render/        — генерация mihomo-YAML из схемы + subscriber
-migrations/0001-init.sql       — базлайн схемы (первая миграция; CREATE … IF NOT EXISTS)
-migrations/NNNN-*.sql          — последующие миграции (ALTER/CREATE), по имени = по порядку
-migrations/{embed,run}.go      — раннер Apply(): накат по имени, учёт в schema_migrations
+cmd/service/main.go            — the service itself (entrypoint)
+cmd/<tool>/main.go             — other binaries (CLI utilities, workers, cron)
+internal/config/               — loading/validating the config (env + .env)
+internal/clients/<dep>/        — clients to external network dependencies (xui, …)
+internal/repository/<entity>/  — repositories, split by entity (users, nodes, …)
+internal/service/<area>/       — the service layer (business logic)
+internal/handlers/<do_some>/handler.go — HTTP handlers (one package per action)
+internal/entity/               — shared domain kernel types (layer in/out), without I/O
+internal/mihomo/               — the mihomo-config subdomain (schema + decode/validate), without I/O and net/http
+internal/mihomo/render/        — generating mihomo YAML from the schema + subscriber
+migrations/0001-init.sql       — the schema baseline (the first migration; CREATE … IF NOT EXISTS)
+migrations/NNNN-*.sql          — subsequent migrations (ALTER/CREATE), by name = by order
+migrations/{embed,run}.go      — the Apply() runner: applying by name, tracking in schema_migrations
 ```
 
-Правила слоёв:
-- **Поток зависимостей сверху вниз:** `handlers → service → repository | clients`.
-  Нижний слой не знает о верхнем. Хендлер зависит от сервиса, сервис — от
-  репозиториев/клиентов.
-- **Один пакет на действие/сущность.** Хендлер действия — отдельный пакет
-  `internal/handlers/do_some/`; репозиторий сущности — `internal/repository/users/`.
-- **Кеш — это слой репозитория** для конкретной сущности (тот же контракт, что и
-  у «настоящего» репозитория; кеш оборачивает/реализует его). Не отдельная
-  «магия» сбоку.
-- **`internal/entity`** — общие kernel-структуры домена (`Node`, `Inbound`, `User`,
-  `Proxy`, `Subscriber`, `Panel*`, `Fleet`, `Connection`); без сетевых вызовов и без I/O.
-- **`internal/mihomo`** — выделенный поддомен mihomo-конфига: модель схемы
-  (`RoutingRule`/`ProxyGroup`/`PolicyRef`/`RuleProvider` + каталоги), её
-  decode/validate (форма→типы, sentinel-ошибки) и `render/` (YAML). Это
-  **осознанное исключение** из «единого плоского `entity`»: схема mihomo-конфига —
-  отдельный связный домен, который притекает и в БД (`mihomo_`-таблицы), и в
-  admin-схему, и в рендер. Жёсткие правила пакета: `mihomo` **не импортирует**
-  `entity` и `net/http`; ссылки на инбаунд/группу — только по `int64`-id (поэтому
-  цикла нет); человеко-текста ошибок в `mihomo` нет — только sentinel-константы
-  (`ErrGroupCycle`, `ErrMatchNotLast`, …), маппинг в русский текст — на хендлере
-  (`web.UserMessage`). `render/` — единственный, кому можно импортировать и
-  `entity` (Proxy/Subscriber), и `mihomo`.
+Layer rules:
+- **Dependency flow top-down:** `handlers → service → repository | clients`.
+  The lower layer does not know about the upper one. The handler depends on the service, the service — on
+  the repositories/clients.
+- **One package per action/entity.** An action's handler is a separate package
+  `internal/handlers/do_some/`; an entity's repository — `internal/repository/users/`.
+- **The cache is a repository layer** for a specific entity (the same contract as
+  the «real» repository; the cache wraps/implements it). Not separate
+  «magic» on the side.
+- **`internal/entity`** — shared domain kernel structs (`Node`, `Inbound`, `User`,
+  `Proxy`, `Subscriber`, `Panel*`, `Fleet`, `Connection`); without network calls and without I/O.
+- **`internal/mihomo`** — a carved-out mihomo-config subdomain: the schema model
+  (`RoutingRule`/`ProxyGroup`/`PolicyRef`/`RuleProvider` + catalogs), its
+  decode/validate (form→types, sentinel errors) and `render/` (YAML). This is a
+  **deliberate exception** to the «single flat `entity`»: the mihomo-config schema is a
+  separate cohesive domain that flows both into the DB (`mihomo_` tables), into the
+  admin schema, and into the render. The package's hard rules: `mihomo` does **not import**
+  `entity` and `net/http`; references to an inbound/group — only by `int64` id (hence
+  no cycle); there is no human error text in `mihomo` — only sentinel constants
+  (`ErrGroupCycle`, `ErrMatchNotLast`, …), the mapping into Russian text — on the handler
+  (`web.UserMessage`). `render/` — the only one allowed to import both
+  `entity` (Proxy/Subscriber) and `mihomo`.
 
-Раскладка уже приведена к этой цели: клиенты — `internal/clients/xui` (тонкий
-адаптер, один метод — один файл); репозитории —
-`internal/repository/{users,nodes,routing,configs}` (один метод — один файл; `configs`
-— тип-агностичный якорь владения конфигом, см. ниже); сервисы —
+The layout has already been brought to this target: clients — `internal/clients/xui` (a thin
+adapter, one method — one file); repositories —
+`internal/repository/{users,nodes,routing,configs}` (one method — one file; `configs`
+— a type-agnostic config-ownership anchor, see below); services —
 `internal/service/{fleet,ruleset,provisioning}`
-(`fleet` владеет TTL-кешем флита; `ruleset` — миррор провайдеров); хендлеры —
-`internal/handlers/<action>`; TLS-релоадер — `internal/cert`; композиция (ogen-сервер
-из `internal/oas` + статика на stdlib `http.ServeMux`) — в `cmd/service`. Пакетов
-`internal/server`/`App`, `internal/{model,cache,ruleset}` и `config.FromStore`/seed больше нет.
-**Бандла `repository.Store` тоже нет** — `repository.Open()` возвращает `*sql.DB`,
-а per-entity репозитории (`users.New(db)`, …) собираются в композиционном корне.
+(`fleet` owns the fleet TTL cache; `ruleset` — the provider mirror); handlers —
+`internal/handlers/<action>`; the TLS reloader — `internal/cert`; composition (the ogen server
+from `internal/oas` + static content on the stdlib `http.ServeMux`) — in `cmd/service`. The packages
+`internal/server`/`App`, `internal/{model,cache,ruleset}` and `config.FromStore`/seed no longer exist.
+**There is no `repository.Store` bundle either** — `repository.Open()` returns a `*sql.DB`,
+and the per-entity repositories (`users.New(db)`, …) are assembled in the composition root.
 
-**mihomo-конфиг (роутинг) — структурные данные, не строки.** Доменные типы в
-`internal/mihomo`: `RoutingRule`, `ProxyGroup`(добавить элемент), и единый типизированный
+**The mihomo config (routing) — structured data, not strings.** The domain types are in
+`internal/mihomo`: `RoutingRule`, `ProxyGroup`(an added element), and a single typed
 **`PolicyRef`** {`PolicyKind` direct|reject|…|inbound|group, `InboundID`,
-`GroupID`} — общий для цели правила и элемента группы; `RuleType`/`ProxyGroupType` —
-типы-константы. **Никаких магических строк** — резолв в имя прокси
-по типу/id делает per-subscriber резолвер `internal/mihomo/render/policy.go`
-(проставляет `entity.Proxy.InboundID` в `fleet/build.go`); недоступные клиенту
-инбаунды выкидываются, пустая группа → `DIRECT`. `repository/routing` пишет всё
-атомарно (`SaveMihomoConfig(configID, …)`: группы+элементы+правила+провайдеры+base);
-таблицы mihomo-конфига — с префиксом `mihomo_`, **скоупятся по `config_id`** (FK на
-`subscription_configs` CASCADE; на `node_inbounds` — RESTRICT). Ссылки на
-группу на границе HTTP/save — по **индексу массива** (реальные id наружу не выходят);
-decode формы (`mihomo.DecodeConfig(raw json.RawMessage)` — хендлер достаёт сырой
-body) и её валидация (вкл. ацикличность графа групп) живут в `internal/mihomo`
-(`decode.go`/`validate.go`) и возвращают sentinel-ошибки.
-Фронт — два визуальных конструктора (группы добавить правила) с общим `policy-picker` и
-drag-n-drop (вендорный SortableJS) в `internal/handlers/web/static`. **Фронт ничего
-не хардкодит** — включая **таксономию ссылок**: на что может указывать цель
-правила / элемент группы, объявляет схема per-type. Каталоги живут в `mihomo`
+`GroupID`} — shared by the rule target and the group element; `RuleType`/`ProxyGroupType` —
+type-constants. **No magic strings** — the resolution into a proxy name
+by type/id is done by the per-subscriber resolver `internal/mihomo/render/policy.go`
+(it sets `entity.Proxy.InboundID` in `fleet/build.go`); inbounds unavailable to the
+client are dropped, an empty group → `DIRECT`. `repository/routing` writes everything
+atomically (`SaveMihomoConfig(configID, …)`: groups+elements+rules+providers+base);
+the mihomo-config tables — with a `mihomo_` prefix, **scoped by `config_id`** (FK to
+`subscription_configs` CASCADE; to `node_inbounds` — RESTRICT). References to a
+group at the HTTP/save boundary — by **array index** (real ids do not leak outside);
+decoding the form (`mihomo.DecodeConfig(raw json.RawMessage)` — the handler extracts the raw
+body) and validating it (incl. the acyclicity of the group graph) live in `internal/mihomo`
+(`decode.go`/`validate.go`) and return sentinel errors.
+The frontend — two visual builders (groups and rules) with a shared `policy-picker` and
+drag-n-drop (vendored SortableJS) in `internal/handlers/web/static`. **The frontend hardcodes
+nothing** — including the **reference taxonomy**: what the rule target / group element
+can point to is declared by the schema per-type. The catalogs live in `mihomo`
 (`RuleTypeCatalog`/`ProxyGroupTypeCatalog`/`BuiltinPolicyKinds`/`RuleProviderBehaviors`/
-`RuleProviderFormats`/`GeneratedKeys` + `PolicyCategory`/`PolicyCategories` — единый
-источник) и отдаются хендлером `config_schema` (`GET /admin/api/config/mihomo/schema`,
-сортировка опций по имени — в хендлере) по секциям: `actions` (built-in
-с лейблами), `ruleProvider`,
-`proxyGroup.types[]` (опции + `items` — категории элементов), `rules.types[]` (опции +
-`destinations` — категории цели), `generatedKeys`. **Категория ссылки** —
-`actions`/`inbounds`/`groups`; `policy-picker` рисует только объявленные (категория
-`inbounds` = все инбаунды флита, с лейблами).
-Все mihomo-ручки — под `/admin/api/config/mihomo` (read / `…/schema` / `…/save` /
+`RuleProviderFormats`/`GeneratedKeys` + `PolicyCategory`/`PolicyCategories` — a single
+source) and are served by the `config_schema` handler (`GET /admin/api/config/mihomo/schema`,
+sorting the options by name — in the handler) by sections: `actions` (built-in
+with labels), `ruleProvider`,
+`proxyGroup.types[]` (options + `items` — element categories), `rules.types[]` (options +
+`destinations` — target categories), `generatedKeys`. **A reference category** is
+`actions`/`inbounds`/`groups`; `policy-picker` draws only the declared ones (the `inbounds`
+category = all fleet inbounds, with labels).
+All mihomo endpoints — under `/admin/api/config/mihomo` (read / `…/schema` / `…/save` /
 `…/customs` / `…/custom/create` / `…/custom/delete`).
 
-**Базовый + per-user кастомные конфиги; движок — типизированный, не предполагается
-единственным.** Владение конфигом — обобщённый якорь `subscription_configs(id,
-user_id, kind, created_at)`: `user_id NULL` = базовый (на всех), иначе персональный
-кастом; `kind` — `entity.ConfigKind` (движок: `mihomo` сейчас, далее xray/sing-box) —
-**типизированная константа, не магическая строка**. На каждый `kind` свой базовый +
-максимум один кастом на юзера (unique-индекс `COALESCE(user_id,0), kind`). Контент
-движка (`mihomo_*`) висит на якоре через `config_id`. Слои:
-- **`internal/repository/configs`** — тип-агностичный якорь (Base/User ConfigID,
-  Ensure, List, Create, Delete), параметризован `entity.ConfigKind`, **ничего про
-  mihomo не знает**. Клон контента базового в новый кастом — делегируется
-  content-репозиторию через узкий `cloner`-контракт (`routing.CloneConfig`,
-  в общей tx). Кастом = **снимок**: после клона независим, правки базового не долетают.
-- **`internal/repository/routing`** — контент mihomo, все чтения/`SaveMihomoConfig`
-  скоупятся `configID`; `AllRuleProviders` (по всем конфигам) — для миррора.
-- **Подписка** — маршрут `/sub/{kind}/{token}`; `kind` валидируется по реестру
-  рендереров `map[entity.ConfigKind]sub.EngineRenderer` (собирается в `cmd/service`,
-  сейчас зарегистрирован mihomo). Хендлер: токен → юзер (`users.IDBySubID`) → его
-  кастом для `kind`, иначе базовый → `EngineRenderer.Render(sub, configID)`. Чтения
-  mihomo-контента спрятаны **внутрь** `sub.MihomoRenderer`, общий хендлер
-  engine-generic. Добавить xray = новый `EngineRenderer` + `xray_*` таблицы +
-  content-репозиторий + одна строка регистрации; якорь/роутер/admin-API не меняются.
-- **Admin** — вкладка Config несёт область (`?user=<id>` на read; `userId` в save-теле);
-  фронт — селектор «Пользователи: Все | <ник>» + «Добавить кастомный конфиг…» (клон),
-  баннер кастома с «Удалить». URL движка в пути (`/config/mihomo/*`).
+**A base + per-user custom configs; the engine is typed, not assumed to be the
+only one.** Config ownership — a generalized anchor `subscription_configs(id,
+user_id, kind, created_at)`: `user_id NULL` = base (for everyone), otherwise a personal
+custom; `kind` — `entity.ConfigKind` (the engine: `mihomo` now, later xray/sing-box) —
+**a typed constant, not a magic string**. Each `kind` has its own base +
+at most one custom per user (the unique index `COALESCE(user_id,0), kind`). The engine's
+content (`mihomo_*`) hangs on the anchor via `config_id`. The layers:
+- **`internal/repository/configs`** — a type-agnostic anchor (Base/User ConfigID,
+  Ensure, List, Create, Delete), parameterized by `entity.ConfigKind`, **knowing nothing about
+  mihomo**. Cloning the base content into a new custom — is delegated to the
+  content repository via a narrow `cloner` contract (`routing.CloneConfig`,
+  in a shared tx). A custom = a **snapshot**: after the clone it is independent, edits to the base do not reach it.
+- **`internal/repository/routing`** — the mihomo content, all reads/`SaveMihomoConfig`
+  scoped by `configID`; `AllRuleProviders` (across all configs) — for the mirror.
+- **Subscription** — the route `/sub/{kind}/{token}`; `kind` is validated against the renderer registry
+  `map[entity.ConfigKind]sub.EngineRenderer` (assembled in `cmd/service`,
+  currently mihomo is registered). The handler: token → user (`users.IDBySubID`) → its
+  custom for `kind`, otherwise the base → `EngineRenderer.Render(sub, configID)`. The reads of
+  mihomo content are hidden **inside** `sub.MihomoRenderer`, the shared handler is
+  engine-generic. Adding xray = a new `EngineRenderer` + `xray_*` tables +
+  a content repository + one registration line; the anchor/router/admin API do not change.
+- **Admin** — the Config tab carries a scope (`?user=<id>` on read; `userId` in the save body);
+  the frontend — a selector «Users: All | <nickname>» + «Add custom config…» (clone),
+  a custom banner with «Delete». The engine URL is in the path (`/config/mihomo/*`).
 
-**Миграции БД — упорядоченный раннер, не вручную.** `migrations.Apply(ctx, db)` (пакет
-`migrations`: `embed.go` + `run.go`) зовётся из `repository.Open` на старте: `0001-init.sql`
-— иммутабельный **базлайн**, далее `0002-*.sql`, …; все файлы `NNNN-`-префиксные, так что
-обычная сортировка имени = порядок наката (без спец-логики). Каждый файл применяется ровно
-раз (учёт в `schema_migrations`), в своей транзакции, при ошибке — `slog` + падение
-(`main` делает `log.Fatal`). Структурное изменение схемы = **новый `NNNN-*.sql`** — не
-правка базлайна (иначе разъедется с уже усыновлёнными базами), не in-code миграции, не
-`*.manual.sql` (паттерн удалён). Миграции — **чистый DDL**: connection-PRAGMA
-(`journal_mode=WAL`, `foreign_keys`, `busy_timeout`) живут в DSN (`open.go`), т.к. `PRAGMA
-journal_mode` нельзя выполнить внутри транзакции раннера. Откатов нет (forward-only). Если
-миграция перестраивает таблицу через RENAME — ставь `PRAGMA legacy_alter_table=ON` перед
-RENAME (иначе SQLite переписывает FK в чужих таблицах и оставляет висячие ссылки). См.
+**DB migrations — an ordered runner, not by hand.** `migrations.Apply(ctx, db)` (the package
+`migrations`: `embed.go` + `run.go`) is called from `repository.Open` on start: `0001-init.sql`
+— an immutable **baseline**, then `0002-*.sql`, …; all files are `NNNN-`-prefixed, so
+an ordinary name sort = the apply order (without special logic). Each file is applied exactly
+once (tracked in `schema_migrations`), in its own transaction; on error — `slog` + crash
+(`main` does `log.Fatal`). A structural schema change = a **new `NNNN-*.sql`** — not an
+edit of the baseline (otherwise it diverges from already-adopted bases), not in-code migrations, not
+`*.manual.sql` (the pattern was removed). Migrations are **pure DDL**: connection PRAGMA
+(`journal_mode=WAL`, `foreign_keys`, `busy_timeout`) live in the DSN (`open.go`), since `PRAGMA
+journal_mode` cannot be executed inside the runner's transaction. There are no rollbacks (forward-only). If
+a migration rebuilds a table via RENAME — set `PRAGMA legacy_alter_table=ON` before the
+RENAME (otherwise SQLite rewrites FKs in other tables and leaves dangling references). See
 [ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
 
-## Зависимости: `contract.go` + mockgen
+## Dependencies: `contract.go` + mockgen
 
-Зависимости сущности (хендлера, сервиса, …) объявляются **приватным интерфейсом
-в том пакете, где используются**, в файле `contract.go`, с директивой генерации
-мока. Интерфейс описывает ровно те методы, что нужны этому пакету (interface
-segregation), и **именуется по конкретной зависимости, на которую ссылается** (а не по
-абстрактной роли). По имени должно быть видно, что это: репозиторий → `<сущность>Repo`
-(`usersRepo`, `nodesRepo`, `configsRepo`, `routingRepo`), сервис → `<сущность>Service`
-(`fleetService`, `provisioningService`, `sublinksService`), клиент → `<сущность>Client`
-(`panelClient`, `itemPlatformClient`). Роль-имена, по которым не видно repo/service/client
-(`subLinker`, `configResolver`, `mihomoReader`, `creator`, `deleter`), **запрещены** —
-они усложняют чтение.
+An entity's (handler's, service's, …) dependencies are declared as a **private interface
+in the package where they are used**, in a `contract.go` file, with a mock-generation
+directive. The interface describes exactly the methods this package needs (interface
+segregation), and is **named after the concrete dependency it points at** (not an abstract
+role). The name must make clear what it is: a repository → `<entity>Repo` (`usersRepo`,
+`nodesRepo`, `configsRepo`, `routingRepo`), a service → `<entity>Service` (`fleetService`,
+`provisioningService`, `sublinksService`), a client → `<entity>Client` (`panelClient`,
+`itemPlatformClient`). Role names that don't reveal repo/service/client (`subLinker`,
+`configResolver`, `mihomoReader`, `creator`, `deleter`) are **forbidden** — they make the
+code harder to read.
 
 ```go
 // contract.go
@@ -405,51 +415,51 @@ type curlService interface {
 }
 ```
 
-- `contract.go` + mockgen — для **сервисов, entity и клиентов** (клиент — по
-  своему generated SDK). Моки лежат рядом (`contract_mocks.go`), генерируются
-  `go generate ./...` (mockgen подключается как `go tool`).
-- В тестах сервиса/entity используются **только локальные `Mock*`** из своего
-  `contract.go`. **Не** тащить `clients.MockClient` / `clients.New(mock)` чужого
-  пакета в тест сервиса — у сервиса свой приватный контракт на клиента.
-- Конструктор принимает зависимости интерфейсами: `func New(c itemPlatformClient, …) *Service`.
+- `contract.go` + mockgen — for **services, entity and clients** (a client — by
+  its generated SDK). The mocks lie alongside (`contract_mocks.go`), generated by
+  `go generate ./...` (mockgen is wired in as a `go tool`).
+- In service/entity tests, **only the local `Mock*`** from one's own
+  `contract.go` are used. **Do not** drag another package's `clients.MockClient` / `clients.New(mock)`
+  into a service test — the service has its own private contract for the client.
+- The constructor takes dependencies as interfaces: `func New(c itemPlatformClient, …) *Service`.
 
-## Клиенты внешних API: DTO → domain
+## External-API clients: DTO → domain
 
-Клиент в `internal/clients/<dep>/` держит **приватные wire-DTO** с json-тегами под
-ответ зависимости «как есть» (со всеми квирками: вложенность, строко-в-строке,
-чужие имена полей) и **маппит их в доменные типы** (`internal/entity`) на выходе.
-Наружу клиент отдаёт только `entity.*`, а DTO/декодинг — приватная деталь пакета
-(anti-corruption boundary). Пример: `clients/xui` анмаршалит в приватный
-`inbound`/`streamSettings` (settings приходят JSON-строкой внутри JSON — `decode()`
-их разворачивает) и конвертит в `entity.PanelInbound`. Так домен не знает про
-формат панели, а сервис-слой тривиально мокается по `contract.go`.
+A client in `internal/clients/<dep>/` holds **private wire DTOs** with json tags matching the
+dependency's response «as is» (with all its quirks: nesting, string-in-string,
+foreign field names) and **maps them into domain types** (`internal/entity`) on output.
+Outward, the client returns only `entity.*`, while the DTOs/decoding are a private detail of the package
+(anti-corruption boundary). Example: `clients/xui` unmarshals into private
+`inbound`/`streamSettings` (settings arrive as a JSON string inside JSON — `decode()`
+unwraps them) and converts to `entity.PanelInbound`. This way the domain does not know about the
+panel's format, and the service layer is trivially mocked via `contract.go`.
 
-## Публичный API
+## Public API
 
-- Тестируются и вызываются снаружи **только экспортируемые методы**. Приватные
-  хелперы/рендеры проверяются **через** публичный метод, который их использует.
+- Only exported methods are **tested and called from the outside**. Private
+  helpers/renderers are checked **through** the public method that uses them.
 
-## Врапинг ошибок и логирование
+## Error wrapping and logging
 
-- **Врапинг — всегда.** При вызове зависимости оборачивай:
-  `fmt.Errorf("<имя поля/зависимости>.<Метод>: %w", err)` — напр.
-  `fmt.Errorf("economicEntitiesClient.GetByUserIDs: %w", err)`. Так стек читается
-  по цепочке вызовов.
-- Ошибки **приватных методов того же пакета** пробрасывай **без повторного**
-  wrap (они уже обёрнуты внутри).
-- **Тексты ошибок для пользователя формируются только на слое представления
-  (handler).** Репозиторий/сервис возвращают «технические» обёрнутые ошибки и
-  **не** генерируют человеко-читаемых текстов. Понятные сообщения — константы в
-  пакете хендлеров (см. `error_messages.go` у эталонов:
+- **Wrapping — always.** When calling a dependency, wrap:
+  `fmt.Errorf("<field/dependency name>.<Method>: %w", err)` — e.g.
+  `fmt.Errorf("economicEntitiesClient.GetByUserIDs: %w", err)`. This way the stack reads
+  along the call chain.
+- Errors from **private methods of the same package** propagate **without re-wrapping**
+  (they are already wrapped inside).
+- **User-facing error texts are formed only on the presentation layer
+  (handler).** The repository/service return «technical» wrapped errors and
+  do **not** generate human-readable texts. Understandable messages — constants in
+  the handlers package (see `error_messages.go` in the references:
   `MessageEntityNotFound`, `MessageInternalError`, …).
-- **Логирование — `slog`, на уровне хендлера.** Хендлер логирует ошибку (с
-  контекстом запроса) и отдаёт пользователю понятный текст. Нижние слои не
-  логируют — только возвращают обёрнутую ошибку.
+- **Logging — `slog`, at the handler level.** The handler logs the error (with
+  the request context) and returns an understandable text to the user. Lower layers do not
+  log — they only return a wrapped error.
 
-## Юнит-тесты
+## Unit tests
 
-Строгая table-driven структура. Один `Test{Type}_{Method}` на **метод** (не
-дробить на `Test*_Success` / `Test*_Error`).
+A strict table-driven structure. One `Test{Type}_{Method}` per **method** (do not
+split into `Test*_Success` / `Test*_Error`).
 
 ```go
 func TestClient_Method(t *testing.T) {
@@ -457,11 +467,11 @@ func TestClient_Method(t *testing.T) {
 
 	tt := []struct {
 		name string
-		// вход
-		buildMock func(mock *MockClient) // buildMocks(...) если зависимостей несколько
+		// input
+		buildMock func(mock *MockClient) // buildMocks(...) if there are several dependencies
 		result    SomeOut
 		err       error
-		wantErr   bool // только если err — не sentinel
+		wantErr   bool // only if err is not a sentinel
 	}{
 		{name: "empty"},
 		{name: "success.one_user", buildMock: func(m *MockClient) { /* EXPECT */ }, result: SomeOut{ /*…*/ }},
@@ -489,47 +499,47 @@ func TestClient_Method(t *testing.T) {
 }
 ```
 
-| Правило | Суть |
+| Rule | Essence |
 |---|---|
-| `contract.go` + mockgen | Интерфейсы зависимостей — в `contract.go` пакета; `//go:generate go tool mockgen -source=contract.go` для сервисов, entity и клиентов |
-| Публичный API | Тестируем только экспортируемые методы; приватные хелперы — через публичный |
-| Table-driven | Один `Test{Type}_{Method}` на метод; `tt []struct{ name, … }`; **не** дробить на `*_Success`/`*_Error` |
-| Именование кейсов | `name` **без пробелов**: `success.one_user`, `error.invalid_user_id`, `empty_fields` |
-| Параллельность | `t.Parallel()` на таблице **и** в `t.Run`. Исключение: если codegen зависимостей не потокобезопасен (data race в сгенерированном `New()`/декларации) — без параллельного конструирования |
-| Ветки | Минимум: `empty` (если применимо), `success` с проверкой маппинга, `error` от downstream; доменные edge-кейсы — по смыслу |
-| Моки | `mockgen` по `contract.go` своего пакета → `Mock*`; **не** тянуть чужой `clients.MockClient` в тест сервиса/entity |
-| Проверки | `require.ErrorIs` / `ErrorAs` / `NoError` для ошибок; `assert.Equal` для результата; `wantErr` / `ErrorContains` — только когда нет конкретного sentinel |
+| `contract.go` + mockgen | Dependency interfaces — in the package's `contract.go`; `//go:generate go tool mockgen -source=contract.go` for services, entity and clients |
+| Public API | We test only exported methods; private helpers — through the public one |
+| Table-driven | One `Test{Type}_{Method}` per method; `tt []struct{ name, … }`; do **not** split into `*_Success`/`*_Error` |
+| Case naming | `name` **without spaces**: `success.one_user`, `error.invalid_user_id`, `empty_fields` |
+| Parallelism | `t.Parallel()` on the table **and** in `t.Run`. Exception: if the dependency codegen is not thread-safe (a data race in the generated `New()`/declaration) — without parallel construction |
+| Branches | At a minimum: `empty` (if applicable), `success` with a mapping check, `error` from downstream; domain edge cases — by sense |
+| Mocks | `mockgen` by one's own package `contract.go` → `Mock*`; do **not** drag a foreign `clients.MockClient` into a service/entity test |
+| Assertions | `require.ErrorIs` / `ErrorAs` / `NoError` for errors; `assert.Equal` for the result; `wantErr` / `ErrorContains` — only when there is no specific sentinel |
 
-## Интеграционные / API-тесты
+## Integration / API tests
 
-Живут отдельно в `apitest/` (см. `apitest/README.md`): testify-suite против
-настоящего 3x-ui в docker, под build-тегом `apitest`, переиспользуемый `Base` +
-суит на область (`UserSuite`, далее `NodeSuite`/`ConfigSuite`), по файлу на
-сценарий. Запуск «под ключ»: `make -C apitest test`.
+They live separately in `apitest/` (see `apitest/README.md`): a testify suite against
+a real 3x-ui in docker, under the `apitest` build tag, a reusable `Base` +
+a suite per area (`UserSuite`, then `NodeSuite`/`ConfigSuite`), one file per
+scenario. Turnkey run: `make -C apitest test`.
 
-- **Это чёрный ящик — тела запросов НЕ строятся из generated-структур (`internal/oas`).**
-  Только `map[string]any` / hand-rolled структуры / сырой JSON. Иначе тест слал бы тем же
-  типом, которым сервер декодит, и баг в маппинге запроса (переименованное поле, неверный
-  тег) был бы не виден — encode+decode одним типом дают согласованную, но неверную пару.
-  Так apitest проверяет реальный wire-контракт (имена полей, статус-коды, тексты ошибок).
-- Required-массивы (`groups`/`rules`/`providers`/`inbounds`/…) сервер декодит строго: `null`
-  (во что JSON-кодируется nil-слайс) отвергается — слать пустые `[]`.
+- **This is a black box — request bodies are NOT built from generated structs (`internal/oas`).**
+  Only `map[string]any` / hand-rolled structs / raw JSON. Otherwise the test would send with the same
+  type the server decodes with, and a bug in request mapping (a renamed field, a wrong
+  tag) would be invisible — encode+decode with one type give a consistent but wrong pair.
+  This way apitest checks the real wire contract (field names, status codes, error texts).
+- Required arrays (`groups`/`rules`/`providers`/`inbounds`/…) are decoded strictly by the server: `null`
+  (what a nil slice is JSON-encoded into) is rejected — send empty `[]`.
 
-## Документирование изменений — CHANGELOG + ADR
+## Documenting changes — CHANGELOG + ADR
 
-Каждый PR оставляет след, чтобы «что и почему поменяли» не терялось в истории
-git/GitHub. Это правило репозитория, не опция:
+Every PR leaves a trace, so that «what and why we changed» does not get lost in the
+git/GitHub history. This is a repository rule, not an option:
 
-- **`CHANGELOG.md`** (корень) — **одна запись на каждый PR**, обратно-хронологически.
-  Формат: `## YYYY-MM-DD — <короткий заголовок> (#<PR>)` + 1–2 строки сути + ссылка на
-  ADR, если он есть. **Без секций-версий** — у сервиса нет релизов/тегов, деплой
-  непрерывный. Запись добавляется в том же PR, что и изменение.
-- **ADR** — для **нетривиальных** изменений (есть проектное решение, выбор между
-  вариантами, неочевидный trade-off): `docs/decisions/NNNN-<slug>.md`, сквозная
-  4-значная нумерация, по шаблону `docs/decisions/0000-template.md` (секции **Context /
-  Considered Options / Decision / Consequences**) — проблема, рассмотренные варианты,
-  обоснование выбора. Запись в CHANGELOG ссылается на ADR.
-- **Тривиальные** изменения (опечатка, бамп зависимости, мелочь без развилок) — только
-  строка в CHANGELOG, без ADR.
-- ADR **иммутабелен после мёрджа**. Решение, отменяющее прежнее, — это новый ADR со
-  ссылкой `Supersedes 000X`; у старого статус меняется на `Superseded by 000Y`.
+- **`CHANGELOG.md`** (root) — **one entry per PR**, reverse-chronologically.
+  Format: `## YYYY-MM-DD — <short title> (#<PR>)` + 1–2 lines of essence + a link to
+  an ADR, if there is one. **No version sections** — the service has no releases/tags, the deploy is
+  continuous. The entry is added in the same PR as the change.
+- **ADR** — for **non-trivial** changes (there is a design decision, a choice between
+  options, a non-obvious trade-off): `docs/decisions/NNNN-<slug>.md`, a continuous
+  4-digit numbering, by the template `docs/decisions/0000-template.md` (sections **Context /
+  Considered Options / Decision / Consequences**) — the problem, the considered options,
+  the rationale for the choice. The CHANGELOG entry links to the ADR.
+- **Trivial** changes (a typo, a dependency bump, a small thing without forks) — only
+  a line in CHANGELOG, without an ADR.
+- An ADR is **immutable after merge**. A decision that cancels a previous one is a new ADR with a
+  `Supersedes 000X` link; the old one's status changes to `Superseded by 000Y`.

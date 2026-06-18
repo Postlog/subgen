@@ -1,58 +1,58 @@
-# 0008 — Каталог ссылок подписки на бэкенде
+# 0008 — Subscription-link catalog on the backend
 
-- **Статус:** Accepted
-- **Дата:** 2026-06-17
+- **Status:** Accepted
+- **Date:** 2026-06-17
 - **PR:** #116
 
 ## Context
 
-В списке пользователей колонка «Подписка» была одной кнопкой «Mihomo», копирующей единственный
-URL подписки (`sub.url` в ответе `GET /admin/api/users`). Нужно копировать **несколько**
-вещей на одного пользователя: сам URL подписки Mihomo и диплинк приложения Clashmi
-(`clashmi://install-config?url=<enc>&name=<title>&overwrite=false`), а в будущем — и другие
-(новые движки, новые приложения-клиенты).
+In the users list the "Subscription" column was a single "Mihomo" button that copied the one
+subscription URL (`sub.url` in the `GET /admin/api/users` response). We need to copy **several**
+things per user: the Mihomo subscription URL itself and the Clashmi app deeplink
+(`clashmi://install-config?url=<enc>&name=<title>&overwrite=false`), and in the future others
+(new engines, new client apps).
 
-Жёсткое требование: **фронт не должен хардкодить, какие ссылки бывают и какие у них тайтлы** —
-иначе каждый новый клиент/движок тянет правку SPA. Это противоречит и общему стилю репозитория
-(никаких магических строк, признаки — типами/каталогами на бэке).
+Hard requirement: **the frontend must not hardcode which links exist or what their titles are** —
+otherwise every new client/engine drags a SPA edit. That also conflicts with the repo's general
+style (no magic strings; signals expressed as types/catalogs on the backend).
 
 ## Considered Options
 
-- **A. Хардкод на фронте.** SPA сам строит clashmi-диплинк из `sub.url` и знает тайтлы.
-  Минусы: прямое нарушение требования; формат диплинка и список ссылок живут в JS; каждый
-  новый клиент = правка фронта; дубль логики экранирования.
-- **B. `sub.url` + параллельное поле `deeplinks`.** Оставить URL, добавить рядом список
-  диплинков. Минусы: фронт всё равно знает форму каждого спец-поля; не единообразно;
-  добавление вида ссылки не каталог-driven — снова правки контракта и фронта.
-- **C. Плоский список `sub.links: [{title, value}]`, каталог — в сервисе на бэке (выбрано).**
-  Ответ несёт готовый упорядоченный список копируемых пар «тайтл → значение»; фронт рендерит
-  его как есть. Каталог (какие ссылки, их тайтлы, формат диплинка) — в новом
+- **A. Hardcode on the frontend.** The SPA builds the clashmi deeplink from `sub.url` itself and
+  knows the titles. Cons: a direct violation of the requirement; the deeplink format and the link
+  list live in JS; every new client = a frontend edit; duplicated escaping logic.
+- **B. `sub.url` + a parallel `deeplinks` field.** Keep the URL, add a list of deeplinks beside it.
+  Cons: the frontend still knows the shape of each special field; not uniform; adding a link kind
+  isn't catalog-driven — again contract and frontend edits.
+- **C. A flat `sub.links: [{title, value}]` list, the catalog in a backend service (chosen).** The
+  response carries a ready, ordered list of copyable "title → value" pairs; the frontend renders it
+  as is. The catalog (which links, their titles, the deeplink format) lives in a new
   `internal/service/sublinks`.
-- Источник `name` для clashmi-диплинка: **(i) profile title эффективного конфига (выбрано)**,
-  (ii) отдельное env-поле сервиса, (iii) ник пользователя. (i) семантически совпадает с тем,
-  что подписка уже отдаёт в заголовке `Profile-Title`, и не плодит новой конфигурации.
+- Source of the clashmi deeplink's `name`: **(i) the profile title of the effective config (chosen)**,
+  (ii) a separate service env field, (iii) the user's nickname. (i) matches semantically what the
+  subscription already returns in the `Profile-Title` header and adds no new configuration.
 
 ## Decision
 
-Выбран вариант **C**. Новый сервис `internal/service/sublinks` владеет упорядоченным каталогом
-`[]linkSpec{ title, kind, build(subURL, profileTitle) }`: для Mihomo `build` — тождество
-(сам URL), для Clashmi — формат диплинка с `url.QueryEscape`. `Links(users)` строит на каждого
-пользователя его URL (`base + /sub/<kind>/<token>`) и, для диплинков, подставляет `name` =
-profile title **эффективного** конфига пользователя (кастомный, иначе базовый). Резолв тайтлов
-эффективен: базовый title читается один раз на движок, кастомные — только у тех, у кого они есть.
+Option **C** was chosen. A new `internal/service/sublinks` service owns an ordered catalog
+`[]linkSpec{ title, kind, build(subURL, profileTitle) }`: for Mihomo `build` is the identity (the
+URL itself), for Clashmi it is the deeplink format with `url.QueryEscape`. `Links(users)` builds
+each user's URL (`base + /sub/<kind>/<token>`) and, for deeplinks, substitutes `name` = the profile
+title of the user's **effective** config (custom, else base). Title resolution is efficient: the
+base title is read once per engine, custom ones only for users who have them.
 
-Контракт `sub` в `GET /admin/api/users` меняется с `{id, url}` на `{links: [{title, value}]}`
-(`id`/`url` убраны — `id` фронтом не использовался, `url` заменён списком). Хендлер `users_get`
-делегирует сборку сервису и больше не строит URL сам.
+The `sub` contract in `GET /admin/api/users` changes from `{id, url}` to `{links: [{title, value}]}`
+(`id`/`url` removed — `id` was unused by the frontend, `url` is replaced by the list). The
+`users_get` handler delegates assembly to the service and no longer builds the URL itself.
 
 ## Consequences
 
-- **Добавить движок/приложение = одна строка в `catalog`** — без правок фронта, контракта и
-  admin-API. Фронт рендерит `sub.links` вербатим (тайтл + кнопка «Копировать»).
-- `sub.id`/`sub.url` исчезли из ответа. apitest (чёрный ящик) выбирает «сырой» URL подписки по
-  схеме (`http…`), а не по тайтлу (`UserSub.SubURL()`), оставаясь агностичным к составу ссылок.
-- Резолв тайтлов на страницу — несколько чтений (база + кастомы), не одно-на-пользователя; для
-  admin-страницы это незаметно.
-- Сегодня каталог завязан на mihomo (диплинк Clashmi — это клиент Clash; `sublinks` импортирует
-  `mihomo.Profile` ради title). Это осознанно: при добавлении xray/sing-box каталог и его
-  зависимости расширяются явно, без скрытой «магии».
+- **Adding an engine/app = one line in the `catalog`** — no frontend, contract, or admin-API edits.
+  The frontend renders `sub.links` verbatim (title + a "Copy" button).
+- `sub.id`/`sub.url` are gone from the response. apitest (black box) selects the "raw" subscription
+  URL by scheme (`http…`), not by title (`UserSub.SubURL()`), staying agnostic to the link set.
+- Title resolution per page is several reads (base + customs), not one-per-user; for an admin page
+  that is unnoticeable.
+- Today the catalog is tied to mihomo (the Clashmi deeplink is a Clash client; `sublinks` imports
+  `mihomo.Profile` for the title). This is deliberate: when xray/sing-box are added, the catalog and
+  its dependencies expand explicitly, without hidden "magic".

@@ -10,7 +10,7 @@ import (
 
 // MsgDeleted is the success message. Exported so apitest can assert against it without
 // duplicating the text.
-const MsgDeleted = "Пользователь удалён"
+const MsgDeleted = "User deleted"
 
 // Handler deletes a user and deprovisions its panel clients.
 type Handler struct {

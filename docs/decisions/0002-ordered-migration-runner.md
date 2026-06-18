@@ -1,66 +1,66 @@
-# 0002 — Упорядоченный раннер миграций вместо ручных
+# 0002 — An ordered migration runner instead of manual ones
 
-- **Статус:** Accepted
-- **Дата:** 2026-06-11
+- **Status:** Accepted
+- **Date:** 2026-06-11
 - **PR:** #18
 
 ## Context
 
-Схема БД накатывалась одним embedded `init.sql` (`migrations.Schema`,
-`CREATE … IF NOT EXISTS`) на старте, а структурные изменения существующих таблиц
-(`ALTER TABLE …`) делались **руками**: разовый файл `*.manual.sql`, который никакой код
-не запускает — оператор должен вспомнить и выполнить его на проде. Это хрупко: легко
-забыть, нет следа «что уже накатано», порядок и атомичность — на совести человека.
-Нужен механизм, который сам и в правильном порядке доводит любую базу (свежую и
-существующую) до актуальной схемы, падая громко при ошибке.
+The DB schema was applied with a single embedded `init.sql` (`migrations.Schema`,
+`CREATE … IF NOT EXISTS`) on start, while structural changes to existing tables
+(`ALTER TABLE …`) were done **by hand**: a one-off `*.manual.sql` file that no code
+runs — the operator must remember to execute it on prod. This is fragile: easy to
+forget, there is no trace of «what is already applied», ordering and atomicity are on the human's
+conscience. We need a mechanism that itself, and in the right order, brings any base (fresh or
+existing) up to the current schema, failing loudly on error.
 
 ## Considered Options
 
-- **Оставить ручные миграции** (`init.sql` + `*.manual.sql`) — минимум кода, но ровно та
-  хрупкость, что чиним: ручной шаг, нет учёта применённого, легко словить дрейф схемы.
-- **`CREATE/ALTER … IF NOT EXISTS`, гонять всё каждый старт** — без таблицы учёта. Но
-  SQLite не умеет `ADD COLUMN IF NOT EXISTS`, так что `ALTER` на повторном старте падал
-  бы; пришлось бы «прощупывать» `PRAGMA table_info` — самодельный недо-мигратор.
-- **Внешняя библиотека миграций** (goose / golang-migrate) — функционально, но тянет
-  зависимость и свою модель файлов/CLI ради нескольких файлов; для embedded-схемы из
-  одного бинаря избыточно.
-- **Свой раннер упорядоченных файлов + таблица учёта** *(выбрано)* — `0001-init.sql` как
-  базлайн, далее `NNNN-*.sql`; применяются по имени-порядку, каждый в транзакции, факт
-  применения пишется в `schema_migrations`. Идемпотентно, без зависимостей.
+- **Keep manual migrations** (`init.sql` + `*.manual.sql`) — minimal code, but exactly the
+  fragility we are fixing: a manual step, no record of what was applied, easy to get schema drift.
+- **`CREATE/ALTER … IF NOT EXISTS`, run everything every start** — without a tracking table. But
+  SQLite cannot do `ADD COLUMN IF NOT EXISTS`, so an `ALTER` on a repeat start would fail;
+  one would have to «probe» `PRAGMA table_info` — a homemade half-migrator.
+- **An external migration library** (goose / golang-migrate) — functional, but pulls in a
+  dependency and its own model of files/CLI for the sake of a few files; for an embedded schema in
+  a single binary it is overkill.
+- **Our own runner of ordered files + a tracking table** *(chosen)* — `0001-init.sql` as the
+  baseline, then `NNNN-*.sql`; applied by name order, each in a transaction, the fact
+  of application written to `schema_migrations`. Idempotent, without dependencies.
 
 ## Decision
 
-Вводим раннер `migrations.Apply(ctx, db)` (пакет `migrations`, файлы `embed.go` +
-`run.go`), который `repository.Open` вызывает вместо `ExecContext(Schema)`:
+We introduce a runner `migrations.Apply(ctx, db)` (the package `migrations`, files `embed.go` +
+`run.go`), which `repository.Open` calls instead of `ExecContext(Schema)`:
 
-- `0001-init.sql` — **базлайн** (полная схема-на-сейчас); далее `0002-*.sql`, …. Все файлы
-  `NNNN-`-префиксные, поэтому обычная лексикографическая сортировка имени = порядок наката
-  (без спец-логики и пина базлайна).
-- Таблица `schema_migrations(name PRIMARY KEY, applied_at)` хранит применённое; каждый
-  файл применяется **один раз**, повторный старт — no-op.
-- Каждая миграция — в **своей транзакции** вместе с записью в `schema_migrations`
-  (атомарно: краш посреди файла не оставляет «полупримененного» и не пишет факт).
-- При ошибке `Apply` возвращает её → `main` падает (`log.Fatal`); каждый накат
-  логируется (`slog.Info`).
-- **Connection-PRAGMA переехали в DSN** (`open.go`: `busy_timeout`, `foreign_keys`,
-  `journal_mode=WAL`), а не в `0001-init.sql` — `PRAGMA journal_mode=WAL` нельзя выполнить
-  внутри транзакции, в которую раннер оборачивает файл, поэтому миграции — чистый DDL.
+- `0001-init.sql` — the **baseline** (the full schema-as-of-now); then `0002-*.sql`, …. All files are
+  `NNNN-`-prefixed, so the ordinary lexicographic name sort = the apply order
+  (without special logic and without pinning the baseline).
+- The table `schema_migrations(name PRIMARY KEY, applied_at)` stores what was applied; each
+  file is applied **once**, a repeat start is a no-op.
+- Each migration — in **its own transaction** together with the write to `schema_migrations`
+  (atomically: a crash mid-file leaves no «half-applied» state and does not write the fact).
+- On error `Apply` returns it → `main` crashes (`log.Fatal`); each apply is
+  logged (`slog.Info`).
+- **The connection PRAGMA have moved to the DSN** (`open.go`: `busy_timeout`, `foreign_keys`,
+  `journal_mode=WAL`), not into `0001-init.sql` — `PRAGMA journal_mode=WAL` cannot be executed
+  inside the transaction the runner wraps the file in, therefore migrations are pure DDL.
 
-Это **отменяет** прежнее «миграции БД — только вручную» (раздел в `AGENTS.md` переписан).
-Своё, а не библиотека — потому что объём (embedded-схема одного бинаря) не оправдывает
-зависимость, а семантика тривиальна.
+This **cancels** the prior «DB migrations — by hand only» (the section in `AGENTS.md` was rewritten).
+Our own, not a library — because the volume (an embedded schema of a single binary) does not justify a
+dependency, and the semantics are trivial.
 
 ## Consequences
 
-- Любая база доводится до актуальной схемы автоматически и в порядке; `*.manual.sql`
-  больше не нужны (паттерн удалён из правил). Структурное изменение = новый
-  `NNNN-*.sql`, и всё.
-- Существующая прод-база усыновляется безопасно: `schema_migrations` создаётся пустой,
-  базлайн (`CREATE … IF NOT EXISTS`) повторно — no-op и помечается применённым, далее
-  `NNNN-*.sql` ложатся сверху. Отдельный «бэкофилл учёта» не нужен.
-- `0001-init.sql` теперь **иммутабельный базлайн**: правки схемы идут только новыми
-  файлами, не редактированием базлайна (иначе разъедется с уже усыновлёнными базами).
-- PRAGMA — единым местом в DSN; миграции обязаны быть чистым DDL (PRAGMA, меняющие режим
-  журнала, в файл миграции класть нельзя).
-- Откат миграций не реализуем (forward-only) — осознанно: для непрерывного деплоя
-  «вперёд + новый фикс-файл» проще и безопаснее down-скриптов.
+- Any base is brought up to the current schema automatically and in order; `*.manual.sql`
+  are no longer needed (the pattern was removed from the rules). A structural change = a new
+  `NNNN-*.sql`, and that is all.
+- An existing prod base is adopted safely: `schema_migrations` is created empty, the
+  baseline (`CREATE … IF NOT EXISTS`) is a no-op on a repeat run and is marked as applied, then
+  `NNNN-*.sql` land on top. A separate «tracking backfill» is not needed.
+- `0001-init.sql` is now an **immutable baseline**: schema edits go only via new
+  files, not by editing the baseline (otherwise it diverges from already-adopted bases).
+- PRAGMA — in one place, in the DSN; migrations are obliged to be pure DDL (PRAGMA that change the
+  journal mode must not be put into a migration file).
+- Rolling back migrations is not implemented (forward-only) — deliberately: for a continuous deploy
+  «forward + a new fix file» is simpler and safer than down scripts.

@@ -1,42 +1,43 @@
-# 0001 — Конвенция документирования: CHANGELOG + ADR
+# 0001 — Documentation convention: CHANGELOG + ADR
 
-- **Статус:** Accepted
-- **Дата:** 2026-06-11
+- **Status:** Accepted
+- **Date:** 2026-06-11
 - **PR:** #16
 
 ## Context
 
-«Почему так решили» в subgen терялось: контекст изменения жил только в обсуждении PR и
-в голове автора, а в репозитории оставались лишь диффы и однострочные сообщения
-коммитов. Через пару месяцев мотивацию архитектурного выбора восстановить уже трудно.
-Нужен лёгкий, но обязательный механизм, фиксирующий и *что* поменялось, и *почему*.
+«Why we decided this way» was getting lost in subgen: the context of a change lived only in the PR
+discussion and in the author's head, while only diffs and one-line commit messages remained in the
+repository. A couple of months later it is already hard to reconstruct the motivation of an
+architectural choice. We need a lightweight but mandatory mechanism that records both *what*
+changed and *why*.
 
 ## Considered Options
 
-- **Только CHANGELOG (Keep a Changelog)** — стандарт keepachangelog.com: секции
-  `[Unreleased]` + `Added/Changed/Fixed/Removed`, привязка к версиям. Узнаваемо, но
-  рассчитано на версионированные релизы, которых у subgen нет (непрерывный деплой, без
-  тегов), и не место для развёрнутого «почему» с разбором вариантов.
-- **Только ADR** — детальные решения в `docs/decisions/`, но без сводного списка
-  изменений: нет быстрого «что вообще произошло за последнее время».
-- **CHANGELOG (по-PR, без версий) + ADR на нетривиальное** *(выбрано)* — короткая
-  запись на каждый PR как индекс изменений плюс отдельный ADR с проблемой/вариантами/
-  обоснованием там, где есть проектное решение. CHANGELOG ссылается на ADR.
-- **Оставить как есть** — полагаться на историю PR. Ровно эту потерю контекста и чиним.
+- **CHANGELOG only (Keep a Changelog)** — the keepachangelog.com standard: `[Unreleased]` +
+  `Added/Changed/Fixed/Removed` sections, tied to versions. Recognizable, but
+  designed for versioned releases, which subgen does not have (continuous deploy, without
+  tags), and it is not the place for an elaborate «why» with an analysis of options.
+- **ADR only** — detailed decisions in `docs/decisions/`, but without a consolidated list
+  of changes: there is no quick «what even happened recently».
+- **CHANGELOG (per-PR, without versions) + ADR for the non-trivial** *(chosen)* — a short
+  entry per PR as an index of changes plus a separate ADR with the problem/options/
+  rationale wherever there is a design decision. The CHANGELOG links to the ADR.
+- **Leave it as is** — rely on the PR history. This is exactly the loss of context we are fixing.
 
 ## Decision
 
-Вводим **оба** артефакта: `CHANGELOG.md` (одна запись на PR, обратно-хронологически,
-без секций-версий) и каталог ADR `docs/decisions/NNNN-slug.md` (Context / Considered
-Options / Decision / Consequences) для нетривиальных изменений. Правило — в `AGENTS.md`.
-Формат «по-PR без версий» выбран потому, что деплой непрерывный и привязывать
-версионные секции Keep a Changelog не к чему.
+We introduce **both** artifacts: `CHANGELOG.md` (one entry per PR, reverse-chronologically,
+without version sections) and an ADR catalog `docs/decisions/NNNN-slug.md` (Context / Considered
+Options / Decision / Consequences) for non-trivial changes. The rule is in `AGENTS.md`.
+The «per-PR without versions» format was chosen because the deploy is continuous and there is nothing
+to tie the version sections of Keep a Changelog to.
 
 ## Consequences
 
-- Каждый PR обязан добавлять запись в CHANGELOG; нетривиальный — ещё и ADR. Небольшой
-  постоянный оверхед, окупающийся сохранённым контекстом.
-- Появляется стабильная ссылочная единица решения (`ADR-NNNN`), на которую ссылаются
-  CHANGELOG, код-ревью и последующие ADR.
-- ADR иммутабельны: пересмотр — новый ADR со `Supersedes`, а не правка старого.
-- Этот PR — первый по конвенции и сам ей следует (запись в CHANGELOG + данный ADR).
+- Every PR is obliged to add a CHANGELOG entry; a non-trivial one — also an ADR. A small
+  constant overhead, paid back by the preserved context.
+- A stable referenceable unit of a decision appears (`ADR-NNNN`), referenced by the
+  CHANGELOG, code reviews and subsequent ADRs.
+- ADRs are immutable: a revision is a new ADR with `Supersedes`, not an edit of the old one.
+- This PR is the first one under the convention and follows it itself (a CHANGELOG entry + this ADR).

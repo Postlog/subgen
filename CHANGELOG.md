@@ -1,93 +1,102 @@
 # Changelog
 
-Изменения subgen — одна запись на PR, обратно-хронологически. Нетривиальные изменения
-ссылаются на ADR в [`docs/decisions/`](docs/decisions/). Правило и формат —
-в [`AGENTS.md`](AGENTS.md) (раздел «Документирование изменений»). Версий/тегов нет:
-сервис не релизится, деплой непрерывный.
+subgen changes — one entry per PR, reverse-chronological. Non-trivial changes
+link to an ADR in [`docs/decisions/`](docs/decisions/). The rule and format are
+in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
+the service is not released, deploy is continuous.
 
-## 2026-06-17 — Подписка: попап со ссылками из бэкенда (raw URL + clashmi-диплинк) (#116)
+## 2026-06-18 — public-ready: README overhaul, MIT license, English docs & UI (#117)
 
-Колонка «Подписка» в списке пользователей теперь открывает попап со списком копируемых
-ссылок, а не одну кнопку Mihomo: сейчас это сырой URL подписки Mihomo и диплинк
-`clashmi://install-config?url=<enc>&name=<title>&overwrite=false`. Состав ссылок и их
-тайтлы целиком приходят с бэка — новый сервис `internal/service/sublinks` владеет
-каталогом, фронт ничего не хардкодит (добавить движок/приложение = одна строка каталога);
-в попапе показываются только тайтл и кнопка «Копировать» (значение приватное). Форма `sub`
-в `GET /admin/api/users` сменилась с `{id,url}` на `{links:[{title,value}]}`; `name`
-clashmi-диплинка = profile title эффективного (кастомного, иначе базового) конфига
-пользователя. См. [ADR-0008](docs/decisions/0008-subscription-link-catalog.md).
+Prepared the repository for a public release. Rewrote `README.md` for newcomers (a clear
+"what/why" hook, a Features list, a screenshot gallery, an env-var table) and fixed a stale
+`gorilla/mux` mention. Added a `LICENSE` (MIT) and `CONTRIBUTING.md`. Translated everything
+human-facing to English — `AGENTS.md`, `CHANGELOG.md`, all ADRs, `apitest/README.md`,
+`docs/subgen.md`, the admin UI (`internal/handlers/web/static/`), and all user-facing
+handler/error messages (unit tests and `apitest` assertions updated in lockstep). See
+[ADR-0009](docs/decisions/0009-public-ready-and-english-docs.md).
 
-Заодно в этом PR: блок «Параметры подписки» поднят первым на вкладке «Конфиг Mihomo»;
-убраны остатки githooks (таргет `make hooks` и локальный `core.hooksPath` — каталог
-`.githooks/` был удалён ранее); по ревью — нейминг интерфейсов во всех `contract.go`
-приведён к имени конкретной зависимости (repo → `<сущность>Repo`, service →
-`<сущность>Service`, client → `<сущность>Client`) вместо ролевых имён
-(`subLinker`/`configResolver`/`creator`/…); правило закреплено в `AGENTS.md`. Линтинг
-сведён к единому источнику правды: `make lint` гоняет golangci-lint в pinned Docker-образе
-`golangci/golangci-lint`, и **CI (`ci.yml`/`deploy.yml`) теперь вызывает тот же `make lint`**
-вместо `golangci-lint-action` — локальный и CI-линт не расходятся. Платформа — нативная для
-хоста (CI amd64 / Apple Silicon arm64): все включённые линтеры арх-независимы на 64-бит, так
-что результат идентичный без эмуляции (максимум скорости); кэш модулей/анализа лежит в
-gitignored `.lintcache/` (на CI — через `actions/cache`). Это и закрыло прежний рассинхрон
-по `wsl_v5`.
+## 2026-06-17 — Subscription: a popup of links from the backend (raw URL + clashmi deeplink) (#116)
 
-## 2026-06-16 — Логические правила mihomo (AND/OR/NOT) с рекурсивным tree-UI (#114)
+The "Subscription" column in the users list now opens a popup with a list of copyable links
+instead of a single Mihomo button: currently the raw Mihomo subscription URL and the deeplink
+`clashmi://install-config?url=<enc>&name=<title>&overwrite=false`. The set of links and their
+titles come entirely from the backend — a new `internal/service/sublinks` service owns the
+catalog and the frontend hardcodes nothing (adding an engine/app = one catalog line); the popup
+shows only the title and a "Copy" button (the value is private). The `sub` shape in
+`GET /admin/api/users` changed from `{id,url}` to `{links:[{title,value}]}`; the clashmi
+deeplink's `name` = the profile title of the user's effective (custom, else base) config. See
+[ADR-0008](docs/decisions/0008-subscription-link-catalog.md).
 
-Маршрутное правило теперь умеет логические операторы `AND`/`OR`/`NOT` с произвольно
-вложенными под-правилами. Правило сделано рекурсивным (`RoutingRule.Children` — той же
-структуры, `Target` опционален: у под-правила его нет), без отдельной сущности «условие»;
-хранение — самоссылочная `mihomo_routing_rules` (`parent_id`), не JSON-блоб. Рендер выдаёт
-вложенный синтаксис дословно (`AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP`). Добавлены
-четыре матчера паритета с вики (`SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`,
-`PROCESS-NAME-WILDCARD`) и `sub-rules` в `GeneratedKeys` (оператор больше не может задать
-секцию в base YAML). Под-правила не несут `no-resolve` (mihomo их не парсит). UI —
-рекурсивный конструктор-дерево; SUB-RULE не реализован. Схема — миграция
-`migrations/0004-mihomo-rule-children.notx.sql`. См.
+Also in this PR: the "Subscription settings" block was moved to the top of the "Mihomo config"
+tab; leftover githooks were removed (the `make hooks` target and the local `core.hooksPath` — the
+`.githooks/` directory was deleted earlier); per review, the interface naming in every
+`contract.go` was aligned with the concrete dependency (repo → `<entity>Repo`, service →
+`<entity>Service`, client → `<entity>Client`) instead of role names
+(`subLinker`/`configResolver`/`creator`/…); the rule is recorded in `AGENTS.md`. Linting was
+reduced to a single source of truth: `make lint` runs golangci-lint in the pinned Docker image
+`golangci/golangci-lint`, and **CI (`ci.yml`/`deploy.yml`) now calls the same `make lint`**
+instead of `golangci-lint-action`, so local and CI lint don't drift. The platform is host-native
+(CI amd64 / Apple Silicon arm64): all enabled linters are arch-independent on 64-bit, so the
+result is identical without emulation (max speed); the module/analysis cache lives in the
+gitignored `.lintcache/` (on CI via `actions/cache`). This closed the previous `wsl_v5` mismatch.
+
+## 2026-06-16 — mihomo logical rules (AND/OR/NOT) with a recursive tree UI (#114)
+
+A routing rule can now use the logical operators `AND`/`OR`/`NOT` with arbitrarily
+nested sub-rules. The rule was made recursive (`RoutingRule.Children` — of the same
+structure, `Target` optional: a sub-rule has none), without a separate "condition" entity;
+storage is the self-referential `mihomo_routing_rules` (`parent_id`), not a JSON blob. The renderer emits the
+nested syntax verbatim (`AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP`). Four
+matchers were added for parity with the wiki (`SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PROCESS-PATH-WILDCARD`,
+`PROCESS-NAME-WILDCARD`) and `sub-rules` in `GeneratedKeys` (the operator can no longer set this
+section in the base YAML). Sub-rules carry no `no-resolve` (mihomo does not parse it for them). UI —
+a recursive tree constructor; SUB-RULE is not implemented. Schema — migration
+`migrations/0004-mihomo-rule-children.notx.sql`. See
 [ADR-0006](docs/decisions/0006-recursive-routing-rules.md).
 
-## 2026-06-11 — Строгие ссылки mihomo: RULE-SET → rule-provider по id (#17)
+## 2026-06-11 — Strict mihomo references: RULE-SET → rule-provider by id (#17)
 
-`RoutingRule` больше не хранит имя провайдера строкой в `value` — `RULE-SET` ссылается на
-rule-provider по суррогатному id (`provider_id` FK); save-вход и domain/read разведены на
-отдельные типы (draft с индексами vs domain с реальными id), что убирает двойной смысл
-`PolicyRef.GroupID`. Опциональные поля (`value`/`interval`/`tolerance`/`lazy`/`noResolve`) —
-указатели. Схема мигрируется раннером (`migrations/0003-strict-mihomo-refs.notx.sql` —
-rebuild с FK off вне транзакции). См. [ADR-0005](docs/decisions/0005-strict-mihomo-refs.md).
+`RoutingRule` no longer stores the provider name as a string in `value` — `RULE-SET` references a
+rule-provider by surrogate id (`provider_id` FK); the save input and domain/read were split into
+separate types (a draft with indices vs a domain with real ids), which removes the double meaning of
+`PolicyRef.GroupID`. Optional fields (`value`/`interval`/`tolerance`/`lazy`/`noResolve`) are
+pointers. The schema is migrated by the runner (`migrations/0003-strict-mihomo-refs.notx.sql` —
+rebuild with FK off outside a transaction). See [ADR-0005](docs/decisions/0005-strict-mihomo-refs.md).
 
-## 2026-06-11 — Пользователь: опциональное описание для админки (#15)
+## 2026-06-11 — User: optional description for the admin panel (#15)
 
-У пользователя появилось опциональное свободнотекстовое описание (`*string`, nillable;
-видно только в админ-UI): задаётся при создании/редактировании, показывается иконкой с
-тултипом в таблице. Колонка `users.description` (nullable) добавляется миграцией
-`migrations/0002-users-description.sql` через раннер. Сервисные входы вынесены в структуры
-`entity.UserCreateParams` / `entity.UserEditParams` (убрал `entity.ConnectionSelection`).
-См. [ADR-0004](docs/decisions/0004-optional-user-description.md).
+A user gained an optional free-text description (`*string`, nillable;
+visible only in the admin UI): set on create/edit, shown as an icon with a
+tooltip in the table. The `users.description` column (nullable) is added by migration
+`migrations/0002-users-description.sql` via the runner. Service inputs were moved into the structs
+`entity.UserCreateParams` / `entity.UserEditParams` (removed `entity.ConnectionSelection`).
+See [ADR-0004](docs/decisions/0004-optional-user-description.md).
 
-## 2026-06-11 — Валидация запросов — в сервисном слое, не в OpenAPI (#19)
+## 2026-06-11 — Request validation — in the service layer, not in OpenAPI (#19)
 
-Из `openapi/*.yaml` убраны все value-constraints (`minLength`/`minItems`/`minimum`) —
-ogen больше не генерит серверные валидаторы значений (общий невнятный 400). Валидация —
-в сервисном слое sentinel-ошибками (`entity.ErrValidation*`), хендлеры тонкие. Заведён
-`internal/service/nodes` (валидация узла + save/delete); node-валидация и `web.ValidateNode`
-переехали туда. Ссылочную целостность инбаунда **не предчекаем** — её держит FK БД
-(RESTRICT), репозиторий переводит нарушение в `entity.ErrInboundReferenced`. Пустой URL
-provider-check — не спец-кейс (как и кривой URL → `RulesetCheckUnreachable`). Суррогатные id
-(PK) **не** валидируем (несуществующий id → not-found). Тексты сообщений хендлеров сделаны
-публичными и импортируются в apitest (без дублирования). В тестах `gomock.Any()` оставлен
-только для контекста — остальные аргументы проверяются точно (матчеры для random uuid/subId).
-`required`/`type`/`format` оставлены (форма контракта). См.
+All value-constraints (`minLength`/`minItems`/`minimum`) were removed from `openapi/*.yaml` —
+ogen no longer generates server-side value validators (the generic, vague 400). Validation is
+in the service layer via sentinel errors (`entity.ErrValidation*`), the handlers are thin. A
+`internal/service/nodes` was introduced (node validation + save/delete); node validation and `web.ValidateNode`
+moved there. Inbound referential integrity is **not pre-checked** — it is held by the DB FK
+(RESTRICT), the repository translates a violation into `entity.ErrInboundReferenced`. An empty
+provider-check URL is not a special case (nor is a malformed URL → `RulesetCheckUnreachable`). Surrogate ids
+(PK) are **not** validated (a nonexistent id → not-found). Handler message texts were made
+public and are imported in apitest (no duplication). In tests `gomock.Any()` was kept
+only for the context — the other arguments are checked exactly (matchers for random uuid/subId).
+`required`/`type`/`format` were kept (the contract shape). See
 [ADR-0003](docs/decisions/0003-validation-in-code.md).
 
-## 2026-06-11 — Упорядоченный раннер миграций (#18)
+## 2026-06-11 — Ordered migration runner (#18)
 
-Ручные `*.manual.sql` заменены раннером `migrations.Apply` (`repository.Open` зовёт его
-вместо `ExecContext(Schema)`): `0001-init.sql` — иммутабельный базлайн, далее `NNNN-*.sql`
-по имени, факт применения — в `schema_migrations`, каждая миграция в транзакции,
-fail-fast + лог. Connection-PRAGMA (вкл. `journal_mode=WAL`) переехали в DSN. Раздел про
-миграции в `AGENTS.md` переписан. См. [ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
+Manual `*.manual.sql` was replaced by the runner `migrations.Apply` (`repository.Open` calls it
+instead of `ExecContext(Schema)`): `0001-init.sql` — the immutable baseline, then `NNNN-*.sql`
+by name, the application fact — in `schema_migrations`, each migration in a transaction,
+fail-fast + log. Connection PRAGMA (incl. `journal_mode=WAL`) moved into the DSN. The section on
+migrations in `AGENTS.md` was rewritten. See [ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
 
-## 2026-06-11 — Конвенция документирования: CHANGELOG + ADR (#16)
+## 2026-06-11 — Documenting convention: CHANGELOG + ADR (#16)
 
-Заведены `CHANGELOG.md` (этот файл) и каталог ADR `docs/decisions/`; правило записано в
-`AGENTS.md`. Выбран формат «одна запись на PR, без версий».
-См. [ADR-0001](docs/decisions/0001-adopt-changelog-and-adr.md).
+Introduced `CHANGELOG.md` (this file) and the ADR catalog `docs/decisions/`; the rule is recorded in
+`AGENTS.md`. The format "one entry per PR, no versions" was chosen.
+See [ADR-0001](docs/decisions/0001-adopt-changelog-and-adr.md).

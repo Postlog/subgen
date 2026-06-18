@@ -18,7 +18,7 @@ import (
 // Exported so apitest can assert against it without duplicating the text.
 //
 //nolint:gosec // G101 false positive: a user-facing message, not a hardcoded credential.
-const MsgBadCredentials = "Неверный логин или пароль"
+const MsgBadCredentials = "Invalid username or password"
 
 // Handler renders the login page (GET) and processes the sign-in action (POST).
 type Handler struct {

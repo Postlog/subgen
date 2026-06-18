@@ -52,7 +52,7 @@ client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  res
 - **Auth:** Bearer API token per panel (3x-ui >= 3.2). `Authorization: Bearer
   <token>` — no login/cookie/CSRF. Issue with `x-ui setting -getApiToken`.
 - **Routing is operator-defined, typed, per-subscriber:** the operator builds
-  mihomo **proxy-groups** (e.g. a `select` switcher `🎯 Подключение`) and **routing
+  mihomo **proxy-groups** (e.g. a `select` switcher `🎯 Proxy`) and **routing
   rules** in the panel. A rule's target and a group's members are the **same typed
   `PolicyRef`** — a built-in policy, an **inbound** (by id), or another group (no
   magic strings; resolved by typed `PolicyKind`). `render` resolves each ref
@@ -85,7 +85,7 @@ client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  res
   rule-provider has **two independent TTLs**: `interval` (the mihomo client's ruleset
   auto-update, always rendered into the YAML) and `mirror_interval` (subgen's mirror
   refresh, used only when mirroring is on) — both edited in the per-provider **edit
-  modal** on the Конфиг Mihomo page. A **«проверить»** button there probes the URL
+  modal** on the Mihomo config page. A **"check"** button there probes the URL
   (`POST /admin/api/config/mihomo/provider/check`, saves nothing): reachable? file
   present? content matches the declared format? — `.mrs` is detected by the **zstd**
   frame magic `28 B5 2F FD` (an `.mrs` is a zstd container, so no zstd dependency is
@@ -110,7 +110,7 @@ client GET /sub/{kind}/{token} ──(token = HMAC(secret, subId))──►  res
   from `db/`, TLS via the acme cert mounted read-only, public port `2097/tcp`). The
   legacy systemd unit is stopped/disabled (its `systemd/` dir was removed from the repo).
 - **Edit routing/nodes/users:** all in the `/admin` panel (see below). A single
-  Save on the Конфиг Mihomo page persists proxy-groups + rules + providers + base
+  Save on the Mihomo config page persists proxy-groups + rules + providers + base
   YAML in one transaction, for the **selected scope** (the shared base, or a user's
   custom config); it takes effect on the next `/sub` request (the store is read live).
   Node/user actions invalidate the fleet cache so proxies refresh immediately.
@@ -142,44 +142,44 @@ set). The backend serves a static shell (`index.html`) + pure JSON read endpoint
 under `/admin/api/*`; the SPA fetches them and posts mutations back as JSON. Login
 over the same TLS; session is a 12h HMAC-signed cookie. Three sections:
 
-- **Пользователи** — list (nickname, `subId`, connections, traffic, subscription
-  link, health). **Новый пользователь** is a collapsed panel (click to expand): a
+- **Users** — list (nickname, `subId`, connections, traffic, subscription
+  link, health). **New user** is a collapsed panel (click to expand): a
   unique nickname (`^[a-z0-9_-]{1,32}$`, also the 3x-ui client email) + any number
-  of inbounds (checkboxes, ≥1). **Изменить** opens a modal to re-assign connections —
+  of inbounds (checkboxes, ≥1). **Edit** opens a modal to re-assign connections —
   `EditUser` reconciles per panel and re-binds that panel's single client to the
   new inbound set (preserving its uuid). **Delete** removes the user's client from
   every panel (by email = nickname) then the store row. Drifted clients get a
-  **Пересоздать** button (full per-panel re-bind). **Collision guard:** if a target
+  **Recreate** button (full per-panel re-bind). **Collision guard:** if a target
   panel already has a client with this nickname (`email`) — an orphan, or a foreign/
   manual client — on a panel the user doesn't yet own, create/edit **abort and change
   nothing** (no store row, no panel write) with an error naming the panel; subgen
   **never deletes a client it doesn't own**, so resolve it on that panel. We only
-  delete-and-re-add on panels the user already owns (re-bind / Пересоздать).
+  delete-and-re-add on panels the user already owns (re-bind / Recreate).
   `subId`/`uuid` are random per user and never collide in practice.
-- **Узлы** — the node registry (CRUD): name, 3x-ui base URL + path, Bearer token
+- **Nodes** — the node registry (CRUD): name, 3x-ui base URL + path, Bearer token
   (write-only), and an **inbound editor** — add **any number** of
   inbounds, each a `name` + `port` row (`name` is an ASCII `[a-z0-9-]` label like
   `force`/`smart`, unique within the node; the port is likewise unique within the
-  node). **Новый узел** / **Изменить**
+  node). **New node** / **Edit**
   open in a **modal popup**. Existing inbounds round-trip by `node_inbounds.id`
   (the form sends it back), so editing a port keeps the id stable and the bound
-  users intact. The **Панель** column is a link to the panel UI. Fields are
+  users intact. The **Panel** column is a link to the panel UI. Fields are
   validated server-side (`validateNode`): host for clients = bare host **or IP**
   (no scheme/port), base URL = `https://host:port` only (host may be IP; no path),
   ports 1–65535, ≥1 inbound required. Deleting a node — or removing an inbound from
   it — is **blocked while that inbound is still referenced**: by a user connection
   **or** by a mihomo rule / proxy-group member (FK RESTRICT + a pre-check returns a
   clear error naming the node/inbound and the reason); detach those first. A new
-  node's inbounds become available as **inbound PolicyRef options** in the Конфиг
-  Mihomo constructors (wire them into a group/rule to route to them).
-- **Конфиг Mihomo** — two visual **constructors** plus rule-providers and base YAML:
+  node's inbounds become available as **inbound PolicyRef options** in the Mihomo
+  config constructors (wire them into a group/rule to route to them).
+- **Mihomo config** — two visual **constructors** plus rule-providers and base YAML:
   - **Proxy-groups** — operator-defined mihomo proxy-groups (the former hardcoded
     group and the connection selector are now ordinary rows). Each group has
     a name, a type (`select`/`url-test`/`fallback`/`load-balance`/`relay`, with
     health-check url/interval/tolerance shown by type) and an **ordered list of
     members**, each a typed **PolicyRef** (a built-in policy / an inbound /
     another group). Drag-to-reorder (SortableJS).
-  - **Правила** — ordered rule rows: a **type** select (mihomo matcher, grouped),
+  - **Rules** — ordered rule rows: a **type** select (mihomo matcher, grouped),
     a **value** (a rule-provider select for `RULE-SET`, hidden for `MATCH`, else a
     text input), a **no-resolve** toggle (IP matchers / `RULE-SET`), and a **target**
     PolicyRef picker. Drag-to-reorder; inline hints flag a missing/misplaced `MATCH`,
@@ -207,11 +207,11 @@ over the same TLS; session is a 12h HMAC-signed cookie. Three sections:
   all fleet inbounds, with labels), so the taxonomy isn't baked into the UI. The
   mihomo-config endpoints live under **`/admin/api/config/mihomo`** (read), `…/schema`,
   `…/save`.
-  - **Scope selector (base vs per-user custom):** a **Пользователи** dropdown at the
-    top of the page picks the edited config — **Все** (the shared base) or a specific
-    user's custom config; **Добавить кастомный конфиг…** opens a user picker and
+  - **Scope selector (base vs per-user custom):** a **Users** dropdown at the
+    top of the page picks the edited config — **All** (the shared base) or a specific
+    user's custom config; **Add custom config…** opens a user picker and
     **clones the base** into a new custom config bound to that user (a snapshot —
-    independent thereafter). A banner on a custom scope offers **Удалить** (drop it; the
+    independent thereafter). A banner on a custom scope offers **Delete** (drop it; the
     user falls back to the base). Read/save carry the scope (`?user=<id>` /
     `userId` in the save body); management is `…/customs` (list users with a custom
     config), `…/custom/create`, `…/custom/delete`. The engine is the URL segment
@@ -235,21 +235,21 @@ YAML editor (Monaco) loads from a CDN. Rotate the admin password by editing
 
 ## Issuing a subscription to a client
 
-1. `/admin` → **Пользователи** → create (name + one or more inbounds) → **Копировать**
+1. `/admin` → **Users** → create (name + one or more inbounds) → **Copy**
    the link, or read it from the row.
 2. Hand them `https://ru1.freedom.postlog.ru:2097/sub/mihomo/<token>`.
 3. They add it as a subscription in ClashMi (see [clash-clients.md](https://github.com/Postlog/vpn-toolchain/blob/main/docs/clash-clients.md)).
 
-**Пересоздать** keeps the same `subId` (it only re-binds the panel clients), so
+**Recreate** keeps the same `subId` (it only re-binds the panel clients), so
 the subscription link stays valid. Only deleting and creating a new user mints a
 new `subId` → a new link.
 
 ## Adding a node to the subscription
 
-1. `/admin` → **Узлы** → add the panel (base URL + secret path + Bearer token) and
+1. `/admin` → **Nodes** → add the panel (base URL + secret path + Bearer token) and
    one or more inbounds (`name` + `port`).
-2. `/admin` → **Конфиг Mihomo** → reference the new inbound where you want it: as an
-   **inbound** member of your `🎯 Подключение` switcher group, and/or as a rule target.
+2. `/admin` → **Mihomo config** → reference the new inbound where you want it: as an
+   **inbound** member of your `🎯 Proxy` switcher group, and/or as a rule target.
    (Unlike the old auto-built selector, group membership is now explicit data.)
 3. Save — it takes effect on the next `/sub` request; no file edits, no restart. The
    proxy's wire-name is the inbound's label `<node>-<inbound>`, unique across the fleet.

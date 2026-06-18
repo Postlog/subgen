@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="dark">
+<html lang="en" data-bs-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,11 +13,11 @@
     <div class="container">
       <span class="navbar-brand mb-0">sub<span class="dot">gen</span></span>
       <ul class="navbar-nav me-auto gap-1 flex-row">
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='users'}" @click="go('users')">Пользователи</a></li>
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='nodes'}" @click="go('nodes')">Узлы</a></li>
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='config'}" @click="go('config')">Конфиг Mihomo</a></li>
+        <li class="nav-item"><a class="nav-link" :class="{active:tab==='users'}" @click="go('users')">Users</a></li>
+        <li class="nav-item"><a class="nav-link" :class="{active:tab==='nodes'}" @click="go('nodes')">Nodes</a></li>
+        <li class="nav-item"><a class="nav-link" :class="{active:tab==='config'}" @click="go('config')">Mihomo config</a></li>
       </ul>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="logout">Выйти</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @click="logout">Log out</button>
     </div>
   </nav>
 
@@ -26,50 +26,50 @@
     <!-- ============ USERS ============ -->
     <section v-if="tab==='users'">
       <div class="page-head">
-        <h1 class="page-title">Пользователи</h1>
-        <button class="btn btn-primary btn-add" @click="openCreateUser()"><span class="plus">+</span> Новый пользователь</button>
+        <h1 class="page-title">Users</h1>
+        <button class="btn btn-primary btn-add" @click="openCreateUser()"><span class="plus">+</span> New user</button>
       </div>
 
       <div class="users-toolbar">
-        <input class="form-control form-control-sm tb-search" v-model="userSearch" @input="onUserSearch" placeholder="Поиск по имени…">
+        <input class="form-control form-control-sm tb-search" v-model="userSearch" @input="onUserSearch" placeholder="Search by name…">
         <div class="tb-filter">
           <button class="btn btn-sm btn-outline-secondary" @click="inboundFilterOpen=!inboundFilterOpen">
-            Подключения: <b v-if="userInboundFilter.length">{{ userInboundFilter.length }}</b><span v-else>все</span> <span class="caret">▾</span>
+            Connections: <b v-if="userInboundFilter.length">{{ userInboundFilter.length }}</b><span v-else>all</span> <span class="caret">▾</span>
           </button>
           <div v-if="inboundFilterOpen" class="filter-backdrop" @click="inboundFilterOpen=false"></div>
           <div v-if="inboundFilterOpen" class="filter-pop">
             <div class="filter-pop-head">
-              <span class="text-dim small">Фильтр по подключениям</span>
-              <span v-if="userInboundFilter.length" class="reset" @click="clearInboundFilter()">сбросить</span>
+              <span class="text-dim small">Filter by connection</span>
+              <span v-if="userInboundFilter.length" class="reset" @click="clearInboundFilter()">reset</span>
             </div>
             <div class="pick-list">
               <label v-for="o in inboundOptions" :key="o.id" class="pick" :class="{on: userInboundFilter.includes(o.id)}">
                 <input class="form-check-input" type="checkbox" :checked="userInboundFilter.includes(o.id)" @change="toggleInboundFilter(o.id)">
                 <span class="pname">{{ o.label }}</span><span class="pport">:{{ o.port }}</span>
               </label>
-              <span v-if="!inboundOptions.length" class="inb-empty">нет инбаундов</span>
+              <span v-if="!inboundOptions.length" class="inb-empty">no inbounds</span>
             </div>
           </div>
         </div>
-        <span class="tb-count text-dim small">Всего: {{ userTotal }}</span>
+        <span class="tb-count text-dim small">Total: {{ userTotal }}</span>
       </div>
 
       <div class="card">
         <table class="table table-hover">
           <colgroup><col style="width:23%"><col style="width:21%"><col style="width:15%"><col style="width:11%"><col style="width:30%"></colgroup>
-          <thead><tr><th>Имя</th><th>Подключения</th><th>Трафик</th><th>Подписка</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Connections</th><th>Traffic</th><th>Subscription</th><th></th></tr></thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" :class="{acting:actingId===u.id}">
               <td class="uname">{{ u.name }}<span v-if="u.description" class="udesc"><svg class="udesc-ic" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity=".16"></circle><circle cx="8" cy="4.7" r="1" fill="currentColor"></circle><rect x="7" y="6.7" width="2" height="5" rx="1" fill="currentColor"></rect></svg><span class="udesc-pop">{{ u.description }}</span></span></td>
               <td>
                 <div v-if="u.inbounds.length" class="conn">
                   <span class="badge tag" :class="u.inbounds[0].missing ? 'miss' : 'inb'">
-                    <span v-if="u.inbounds[0].missing" title="нет клиента на панели">⚠</span>{{ u.inbounds[0].label }}<span class="port">:{{ u.inbounds[0].port }}</span>
+                    <span v-if="u.inbounds[0].missing" title="no client on the panel">⚠</span>{{ u.inbounds[0].label }}<span class="port">:{{ u.inbounds[0].port }}</span>
                   </span>
                   <span v-if="u.inbounds.length>1" class="badge tag more">+{{ u.inbounds.length-1 }}</span>
                   <div v-if="u.inbounds.length>1" class="conn-pop">
                     <div v-for="i in u.inbounds" :key="i.id" class="conn-pop-row">
-                      <span v-if="i.missing" class="cp-warn" title="нет клиента на панели">⚠</span>
+                      <span v-if="i.missing" class="cp-warn" title="no client on the panel">⚠</span>
                       <span class="cp-label">{{ i.label }}</span><span class="cp-port">:{{ i.port }}</span>
                     </div>
                   </div>
@@ -77,17 +77,17 @@
                 <span v-else class="text-dim small">—</span>
               </td>
               <td class="traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
-              <td><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Ссылки</button></td>
+              <td><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Links</button></td>
               <td class="actions">
                 <span v-if="actingId===u.id" class="spin me-2"></span>
                 <div class="act-group">
-                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="openEdit(u)">Изменить</button>
-                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="recreateUser(u)">Пересоздать</button>
-                  <button class="btn btn-sm btn-danger-soft act" :disabled="busy" @click="deleteUser(u)">Удалить</button>
+                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="openEdit(u)">Edit</button>
+                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="recreateUser(u)">Recreate</button>
+                  <button class="btn btn-sm btn-danger-soft act" :disabled="busy" @click="deleteUser(u)">Delete</button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!users.length"><td colspan="5" class="text-dim text-center py-4">{{ (userSearch.trim() || userInboundFilter.length) ? 'Ничего не найдено' : 'Пользователей нет' }}</td></tr>
+            <tr v-if="!users.length"><td colspan="5" class="text-dim text-center py-4">{{ (userSearch.trim() || userInboundFilter.length) ? 'Nothing found' : 'No users' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -105,19 +105,19 @@
     <!-- ============ NODES ============ -->
     <section v-if="tab==='nodes'">
       <div class="page-head">
-        <h1 class="page-title">Узлы</h1>
-        <button class="btn btn-primary btn-add" @click="openCreateNode()"><span class="plus">+</span> Новый узел</button>
+        <h1 class="page-title">Nodes</h1>
+        <button class="btn btn-primary btn-add" @click="openCreateNode()"><span class="plus">+</span> New node</button>
       </div>
 
       <div class="card">
         <table class="table table-hover">
           <colgroup><col style="width:16%"><col style="width:23%"><col style="width:12%"><col style="width:31%"><col style="width:18%"></colgroup>
-          <thead><tr><th>Имя</th><th>Домен</th><th>Панель</th><th>Инбаунды</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Domain</th><th>Panel</th><th>Inbounds</th><th></th></tr></thead>
           <tbody>
             <tr v-for="n in nodes" :key="n.id">
               <td class="uname cell-ellipsis">{{ n.name }}</td>
               <td class="mono small cell-ellipsis">{{ n.vpnHost }}</td>
-              <td><a class="panel-link" :href="n.panelBaseURL + n.panelBasePath" target="_blank" rel="noopener" :title="n.panelBaseURL + n.panelBasePath">Панель ↗</a></td>
+              <td><a class="panel-link" :href="n.panelBaseURL + n.panelBasePath" target="_blank" rel="noopener" :title="n.panelBaseURL + n.panelBasePath">Panel ↗</a></td>
               <td>
                 <div class="chips">
                   <span v-for="i in n.inbounds" :key="i.id" class="badge tag inb">{{ i.name }}<span class="port">:{{ i.port }}</span></span>
@@ -126,12 +126,12 @@
               </td>
               <td class="actions">
                 <div class="act-group">
-                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="openNode(n)">Изменить</button>
-                  <button class="btn btn-sm btn-danger-soft act" :disabled="busy" @click="deleteNode(n)">Удалить</button>
+                  <button class="btn btn-sm btn-outline-secondary act" :disabled="busy" @click="openNode(n)">Edit</button>
+                  <button class="btn btn-sm btn-danger-soft act" :disabled="busy" @click="deleteNode(n)">Delete</button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!nodes.length"><td colspan="5" class="text-dim text-center py-4">Узлов нет</td></tr>
+            <tr v-if="!nodes.length"><td colspan="5" class="text-dim text-center py-4">No nodes</td></tr>
           </tbody>
         </table>
       </div>
@@ -140,26 +140,26 @@
     <!-- ============ CONFIG ============ -->
     <section v-if="tab==='config'">
       <div class="page-head">
-        <h1 class="page-title">Конфиг</h1>
+        <h1 class="page-title">Config</h1>
         <div class="scope-pick ms-auto">
-          <label class="text-dim small me-1">Пользователи:</label>
+          <label class="text-dim small me-1">Users:</label>
           <select class="form-select form-select-sm" :value="cfgScope.kind==='base' ? 'base' : ('user:'+cfgScope.userId)"
                   @change="onScopeChange($event.target.value)">
-            <option value="base">Все</option>
-            <optgroup label="Кастомные" v-if="customs.length">
+            <option value="base">All</option>
+            <optgroup label="Custom" v-if="customs.length">
               <option v-for="c in customs" :key="c.userId" :value="'user:'+c.userId">{{ c.name }}</option>
             </optgroup>
-            <option value="+new">Добавить кастомный конфиг…</option>
+            <option value="+new">Add custom config…</option>
           </select>
         </div>
       </div>
       <div v-if="cfgScope.kind==='user'" class="scope-banner">
-        <span>Кастомный конфиг — <b>{{ cfgScope.name }}</b></span>
-        <button class="btn btn-sm btn-danger-soft ms-auto" :disabled="busy" @click="deleteCustom()">Удалить</button>
+        <span>Custom config — <b>{{ cfgScope.name }}</b></span>
+        <button class="btn btn-sm btn-danger-soft ms-auto" :disabled="busy" @click="deleteCustom()">Delete</button>
       </div>
       <!-- subscription profile -->
       <div class="card mb-3">
-        <div class="card-header">Параметры подписки</div>
+        <div class="card-header">Subscription settings</div>
         <div class="card-body">
           <div class="d-flex flex-wrap gap-3">
             <label class="flex-fill">
@@ -167,11 +167,11 @@
               <input class="form-control form-control-sm" v-model="cfg.profileTitle" placeholder="Freedom">
             </label>
             <label class="flex-fill">
-              <span class="text-dim small d-block mb-1">Имя файла</span>
+              <span class="text-dim small d-block mb-1">Filename</span>
               <input class="form-control form-control-sm" v-model="cfg.filename" placeholder="freedom.yaml">
             </label>
             <label style="max-width:200px">
-              <span class="text-dim small d-block mb-1">Интервал обновления, ч</span>
+              <span class="text-dim small d-block mb-1">Update interval, h</span>
               <input class="form-control form-control-sm" type="number" min="1" v-model.number="cfg.profileUpdateInterval" placeholder="1">
             </label>
           </div>
@@ -181,14 +181,14 @@
       <!-- proxy-groups -->
       <div class="card mb-3">
         <div class="card-header">proxy-groups
-          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addGroup()">Добавить группу</button>
+          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addGroup()">Add group</button>
         </div>
         <div class="card-body">
           <div v-sortable="{handle:'.h-grp', item:'.grp-card', end:(o,n)=>reorder(cfg.groups,o,n)}">
             <div v-for="(g,gi) in cfg.groups" :key="g._uid" class="grp-card">
               <div class="grp-head">
-                <span class="drag h-grp" title="перетащить">⋮⋮</span>
-                <input class="form-control form-control-sm grow" v-model="g.name" placeholder="имя группы">
+                <span class="drag h-grp" title="drag">⋮⋮</span>
+                <input class="form-control form-control-sm grow" v-model="g.name" placeholder="group name">
                 <select class="form-select form-select-sm" style="max-width:140px" v-model="g.type">
                   <option v-for="gt in (schema?.proxyGroup?.types||[])" :key="gt.type" :value="gt.type">{{ gt.type }}</option>
                 </select>
@@ -197,26 +197,26 @@
                   <input class="form-control form-control-sm" style="max-width:90px" type="number" v-model.number="g.interval" placeholder="interval">
                   <input v-if="groupTolerance(g.type)" class="form-control form-control-sm" style="max-width:90px" type="number" v-model.number="g.tolerance" placeholder="tol, ms">
                 </template>
-                <button class="btn btn-sm btn-danger-soft act" @click="delGroup(gi)" title="удалить группу">✕</button>
+                <button class="btn btn-sm btn-danger-soft act" @click="delGroup(gi)" title="delete group">✕</button>
               </div>
               <div class="grp-members" v-sortable="{handle:'.h-mbr', item:'.mbr-row', end:(o,n)=>reorder(g.members,o,n)}">
                 <div v-for="(m,mi) in g.members" :key="m._uid" class="mbr-row">
-                  <span class="drag h-mbr" title="перетащить">⋮⋮</span>
+                  <span class="drag h-mbr" title="drag">⋮⋮</span>
                   <policy-picker v-model="m.pref" :allowed="groupItems(g.type)" :actions="schema?.actions||[]" :inbounds="inboundOptions" :groups="cfg.groups"></policy-picker>
                   <button class="btn btn-sm btn-danger-soft act" @click="delMember(g,mi)">✕</button>
                 </div>
               </div>
-              <button class="btn btn-sm btn-outline-secondary mt-1" @click="addMember(g)">Добавить элемент</button>
+              <button class="btn btn-sm btn-outline-secondary mt-1" @click="addMember(g)">Add item</button>
             </div>
           </div>
-          <span v-if="!cfg.groups.length" class="text-dim small">групп нет</span>
+          <span v-if="!cfg.groups.length" class="text-dim small">no groups</span>
         </div>
       </div>
 
       <!-- rules -->
       <div class="card mb-3">
         <div class="card-header">rules
-          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addRule()">Добавить правило</button>
+          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addRule()">Add rule</button>
         </div>
         <div class="card-body">
           <div v-if="cfgWarnings.length" class="cfg-warn">
@@ -225,16 +225,16 @@
           <div v-sortable="{handle:'.h-rule', item:'.rule-item', end:(o,n)=>reorder(cfg.rules,o,n)}">
             <div v-for="(r,ri) in cfg.rules" :key="r._uid" class="rule-item">
               <div class="rule-row">
-                <span class="drag h-rule" title="перетащить">⋮⋮</span>
+                <span class="drag h-rule" title="drag">⋮⋮</span>
                 <select class="form-select form-select-sm" style="max-width:170px" v-model="r.type">
                   <option v-for="rt in (schema?.rules?.types||[])" :key="rt.type" :value="rt.type">{{ rt.type }}</option>
                 </select>
-                <span v-if="isLogical(r.type)" class="grow text-dim small">вложенные правила ниже</span>
+                <span v-if="isLogical(r.type)" class="grow text-dim small">nested rules below</span>
                 <select v-else-if="isRuleSet(r.type)" class="form-select form-select-sm grow" v-model="r.providerUid">
-                  <option :value="null" disabled>— провайдер —</option>
-                  <option v-for="(p,pi) in cfg.providers" :key="p._uid" :value="p._uid">{{ p.name || ('провайдер '+(pi+1)) }}</option>
+                  <option :value="null" disabled>— provider —</option>
+                  <option v-for="(p,pi) in cfg.providers" :key="p._uid" :value="p._uid">{{ p.name || ('provider '+(pi+1)) }}</option>
                 </select>
-                <input v-else-if="!isMatch(r.type)" class="form-control form-control-sm grow" v-model="r.value" placeholder="значение">
+                <input v-else-if="!isMatch(r.type)" class="form-control form-control-sm grow" v-model="r.value" placeholder="value">
                 <span v-else class="grow text-dim small">catch-all</span>
                 <label v-if="!isLogical(r.type) && supportsNoResolve(r.type)" class="form-check mb-0 nr" title="no-resolve">
                   <input class="form-check-input" type="checkbox" v-model="r.noResolve"><span class="form-check-label small">no-resolve</span>
@@ -245,55 +245,55 @@
               </div>
               <div v-if="isLogical(r.type)" class="rule-conds">
                 <rule-node v-for="(c,ci) in r.children" :key="c._uid" :node="c" :schema="schema" :providers="cfg.providers" @remove="r.children.splice(ci,1)"></rule-node>
-                <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild(r)">Добавить вложенное правило</button>
+                <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild(r)">Add nested rule</button>
               </div>
             </div>
           </div>
-          <span v-if="!cfg.rules.length" class="text-dim small">правил нет</span>
+          <span v-if="!cfg.rules.length" class="text-dim small">no rules</span>
         </div>
       </div>
 
       <!-- rule-providers -->
       <div class="card mb-3">
         <div class="card-header">rule-providers
-          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addProvider()">Добавить провайдера</button>
+          <button class="btn btn-sm btn-outline-secondary ms-auto" @click="addProvider()">Add provider</button>
         </div>
         <div class="card-body">
           <div v-for="(p,i) in cfg.providers" :key="p._uid" class="prov-item">
             <span class="prov-name">{{ p.name }}</span>
             <span class="prov-meta">{{ p.behavior }} · {{ p.format }}</span>
-            <span v-if="p.mirror" class="prov-meta" title="зеркалируется через subgen">· зеркало</span>
-            <button class="btn btn-sm btn-outline-secondary act prov-check" :disabled="p._checking" @click="checkProvider(p)" title="проверить доступность и формат URL"><span v-if="p._checking" class="spin me-1"></span>проверить</button>
-            <button class="btn btn-sm btn-outline-secondary act prov-edit" @click="openProvider(i)">изменить</button>
-            <button class="btn btn-sm btn-danger-soft act" @click="cfg.providers.splice(i,1)" title="удалить">✕</button>
+            <span v-if="p.mirror" class="prov-meta" title="mirrored through subgen">· mirror</span>
+            <button class="btn btn-sm btn-outline-secondary act prov-check" :disabled="p._checking" @click="checkProvider(p)" title="check URL availability and format"><span v-if="p._checking" class="spin me-1"></span>check</button>
+            <button class="btn btn-sm btn-outline-secondary act prov-edit" @click="openProvider(i)">edit</button>
+            <button class="btn btn-sm btn-danger-soft act" @click="cfg.providers.splice(i,1)" title="delete">✕</button>
           </div>
-          <span v-if="!cfg.providers.length" class="text-dim small">провайдеров нет</span>
+          <span v-if="!cfg.providers.length" class="text-dim small">no providers</span>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header">Прочие настройки (YAML) <span class="sub">без {{ (schema?.generatedKeys||[]).join(' / ') }} — они генерируются</span></div>
+        <div class="card-header">Other settings (YAML) <span class="sub">without {{ (schema?.generatedKeys||[]).join(' / ') }} — they are generated</span></div>
         <div class="card-body">
           <yaml-editor v-model="cfg.baseYAML"></yaml-editor>
         </div>
       </div>
 
-      <div class="savebar"><button class="btn btn-primary" :disabled="busy" @click="saveConfig()">{{ cfgScope.kind==='user' ? ('Сохранить конфиг для ' + cfgScope.name) : 'Сохранить базовый' }}</button></div>
+      <div class="savebar"><button class="btn btn-primary" :disabled="busy" @click="saveConfig()">{{ cfgScope.kind==='user' ? ('Save config for ' + cfgScope.name) : 'Save base' }}</button></div>
     </section>
 
     <!-- ============ CUSTOM-CONFIG USER PICKER MODAL ============ -->
-    <modal :open="customPick.open" title="Кастомный конфиг для пользователя" @close="customPick.open=false">
-      <p class="text-dim small mb-2">Будет создана независимая копия базового конфига, привязанная к пользователю.</p>
+    <modal :open="customPick.open" title="Custom config for user" @close="customPick.open=false">
+      <p class="text-dim small mb-2">An independent copy of the base config will be created, bound to the user.</p>
       <div v-if="usersWithoutCustom.length" class="user-pick">
         <div v-for="u in usersWithoutCustom" :key="u.id" class="user-pick-row"
              :class="{active: customPick.userId===u.id}" @click="customPick.userId=u.id" @dblclick="createCustom()">
           {{ u.name }}
         </div>
       </div>
-      <span v-else class="text-dim small">у всех пользователей уже есть кастомный конфиг</span>
+      <span v-else class="text-dim small">all users already have a custom config</span>
       <template #footer>
-        <button class="btn btn-secondary" @click="customPick.open=false">Отмена</button>
-        <button class="btn btn-primary" :disabled="busy || !customPick.userId" @click="createCustom()">Создать</button>
+        <button class="btn btn-secondary" @click="customPick.open=false">Cancel</button>
+        <button class="btn btn-primary" :disabled="busy || !customPick.userId" @click="createCustom()">Create</button>
       </template>
     </modal>
 
@@ -302,7 +302,7 @@
       <template v-if="editProv">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label">Имя</label>
+            <label class="form-label">Name</label>
             <input class="form-control" v-model="editProv.name" placeholder="google-ai" @keyup.enter="provForm.open=false">
           </div>
           <div class="col-md-6">
@@ -318,13 +318,13 @@
             </select>
           </div>
           <div class="col-12">
-            <label class="form-label">URL источника</label>
+            <label class="form-label">Source URL</label>
             <input class="form-control" v-model="editProv.url" placeholder="https://…">
           </div>
           <div class="col-12">
-            <label class="form-label">Автообновление ruleset на клиенте</label>
+            <label class="form-label">Client-side ruleset auto-update</label>
             <duration-input v-model="editProv.interval"></duration-input>
-            <div class="form-text">как часто клиент перетягивает ruleset</div>
+            <div class="form-text">how often the client re-pulls the ruleset</div>
           </div>
         </div>
 
@@ -332,45 +332,45 @@
 
         <label class="pick" :class="{on:editProv.mirror}">
           <input class="form-check-input" type="checkbox" v-model="editProv.mirror">
-          <span class="pname">Зеркалировать через SubGen</span>
+          <span class="pname">Mirror through subgen</span>
         </label>
-        <p class="text-dim small mt-2 mb-0">subgen скачивает upstream-файл и отдаёт клиентам с <code>/rules/…</code> — полезно, когда upstream недоступен из РФ.</p>
+        <p class="text-dim small mt-2 mb-0">subgen downloads the upstream file and serves it to clients from <code>/rules/…</code> — useful when the upstream is unreachable from the client's network.</p>
         <div v-if="editProv.mirror" class="mt-3">
-          <label class="form-label">Период обновления зеркала</label>
+          <label class="form-label">Mirror refresh interval</label>
           <duration-input v-model="editProv.mirrorInterval"></duration-input>
         </div>
       </template>
-      <template #footer><button class="btn btn-primary" @click="provForm.open=false">Готово</button></template>
+      <template #footer><button class="btn btn-primary" @click="provForm.open=false">Done</button></template>
     </modal>
 
     <!-- ============ USER MODAL (create / edit) ============ -->
-    <modal :open="uForm.open" :title="uForm.id ? 'Изменить пользователя' : 'Новый пользователь'" @close="uForm.open=false">
+    <modal :open="uForm.open" :title="uForm.id ? 'Edit user' : 'New user'" @close="uForm.open=false">
       <div v-if="!uForm.id" class="mb-3">
-        <label class="form-label">Имя (a-z, 0-9, _ -)</label>
+        <label class="form-label">Name (a-z, 0-9, _ -)</label>
         <input class="form-control" v-model="uForm.name" maxlength="32" @keyup.enter="submitUser()">
       </div>
-      <div v-else class="mb-3 text-dim">Пользователь <span class="fw-semibold">{{ uForm.name }}</span></div>
+      <div v-else class="mb-3 text-dim">User <span class="fw-semibold">{{ uForm.name }}</span></div>
 
       <div class="mb-3">
-        <label class="form-label">Описание <span class="text-dim small">(необязательно)</span></label>
-        <textarea class="form-control" v-model="uForm.description" maxlength="500" rows="2" placeholder="Заметка, видна только в админке"></textarea>
+        <label class="form-label">Description <span class="text-dim small">(optional)</span></label>
+        <textarea class="form-control" v-model="uForm.description" maxlength="500" rows="2" placeholder="Note, visible only in the admin panel"></textarea>
       </div>
 
       <div>
-        <label class="form-label">Инбаунды</label>
+        <label class="form-label">Inbounds</label>
         <div class="pick-list">
           <label v-for="o in inboundOptions" :key="o.id" class="pick" :class="{on:uForm.inbounds.includes(o.id)}">
             <input class="form-check-input" type="checkbox" :value="o.id" v-model="uForm.inbounds">
             <span class="pname">{{ o.label }}</span><span class="pport">:{{ o.port }}</span>
           </label>
-          <span v-if="!inboundOptions.length" class="inb-empty">нет инбаундов</span>
+          <span v-if="!inboundOptions.length" class="inb-empty">no inbounds</span>
         </div>
       </div>
 
       <template #footer>
-        <button class="btn btn-outline-secondary" @click="uForm.open=false">Отмена</button>
+        <button class="btn btn-outline-secondary" @click="uForm.open=false">Cancel</button>
         <button class="btn btn-primary" :disabled="busy" @click="submitUser()">
-          <span v-if="busy" class="spin me-1"></span>{{ uForm.id ? 'Сохранить' : 'Создать' }}
+          <span v-if="busy" class="spin me-1"></span>{{ uForm.id ? 'Save' : 'Create' }}
         </button>
       </template>
     </modal>
@@ -379,24 +379,24 @@
     <!-- The list of links comes entirely from the users API — nothing about which links
          exist or their titles is hardcoded here. The value is private and not shown:
          title + a copy button only. -->
-    <modal :open="subLinks.open" :title="'Подписка — ' + subLinks.name" @close="subLinks.open=false">
+    <modal :open="subLinks.open" :title="'Subscription — ' + subLinks.name" @close="subLinks.open=false">
       <div class="sublinks">
         <div v-for="(l,i) in subLinks.links" :key="i" class="sublink">
           <div class="sublink-title">{{ l.title }}</div>
-          <button class="btn btn-sm btn-outline-secondary sublink-copy" @click="copy(l.value)">Копировать</button>
+          <button class="btn btn-sm btn-outline-secondary sublink-copy" @click="copy(l.value)">Copy</button>
         </div>
-        <div v-if="!subLinks.links.length" class="inb-empty">ссылок нет</div>
+        <div v-if="!subLinks.links.length" class="inb-empty">no links</div>
       </div>
       <template #footer>
-        <button class="btn btn-outline-secondary" @click="subLinks.open=false">Закрыть</button>
+        <button class="btn btn-outline-secondary" @click="subLinks.open=false">Close</button>
       </template>
     </modal>
 
     <!-- ============ NODE MODAL (create / edit) ============ -->
-    <modal :open="nodeForm.open" lg :title="nodeForm.id ? 'Изменить узел' : 'Новый узел'" @close="nodeForm.open=false">
+    <modal :open="nodeForm.open" lg :title="nodeForm.id ? 'Edit node' : 'New node'" @close="nodeForm.open=false">
       <div class="row g-3">
-        <div class="col-md-4"><label class="form-label">Имя</label><input class="form-control" v-model="nodeForm.name" placeholder="RU1"></div>
-        <div class="col-md-8"><label class="form-label">Домен (для клиентов)</label><input class="form-control" v-model="nodeForm.vpnHost" placeholder="ru1.example.com"></div>
+        <div class="col-md-4"><label class="form-label">Name</label><input class="form-control" v-model="nodeForm.name" placeholder="RU1"></div>
+        <div class="col-md-8"><label class="form-label">Domain (for clients)</label><input class="form-control" v-model="nodeForm.vpnHost" placeholder="ru1.example.com"></div>
         <div class="col-md-8"><label class="form-label">3x-ui base URL</label><input class="form-control" v-model="nodeForm.panelBaseURL" placeholder="https://host:2096"></div>
         <div class="col-md-4"><label class="form-label">base path</label><input class="form-control" v-model="nodeForm.panelBasePath" placeholder="/secret/"></div>
         <div class="col-md-12"><label class="form-label">API token</label>
@@ -404,19 +404,19 @@
       </div>
 
       <hr class="my-3" style="border-color:var(--bs-border-color)">
-      <label class="form-label">Инбаунд</label>
+      <label class="form-label">Inbound</label>
       <div v-for="(inb,i) in nodeForm.inbounds" :key="i" class="inb-row">
-        <input class="form-control" v-model="inb.name" placeholder="имя (a-z/0-9/-)">
-        <input class="form-control" type="number" v-model="inb.port" placeholder="порт">
+        <input class="form-control" v-model="inb.name" placeholder="name (a-z/0-9/-)">
+        <input class="form-control" type="number" v-model="inb.port" placeholder="port">
         <button class="btn btn-sm btn-danger-soft act" @click="nodeForm.inbounds.splice(i,1)">✕</button>
       </div>
-      <div v-if="!nodeForm.inbounds.length" class="inb-empty">добавьте хотя бы один инбаунд</div>
-      <button class="btn btn-sm btn-outline-secondary" @click="addInbound()">Добавить инбаунд</button>
+      <div v-if="!nodeForm.inbounds.length" class="inb-empty">add at least one inbound</div>
+      <button class="btn btn-sm btn-outline-secondary" @click="addInbound()">Add inbound</button>
 
       <template #footer>
-        <button class="btn btn-outline-secondary" @click="nodeForm.open=false">Отмена</button>
+        <button class="btn btn-outline-secondary" @click="nodeForm.open=false">Cancel</button>
         <button class="btn btn-primary" :disabled="busy" @click="saveNode()">
-          <span v-if="busy" class="spin me-1"></span>Сохранить
+          <span v-if="busy" class="spin me-1"></span>Save
         </button>
       </template>
     </modal>

@@ -33,10 +33,10 @@ func TestHandler_UserCreate(t *testing.T) {
 	}{
 		{
 			name: "success",
-			req:  &oas.UserCreateReq{Name: "alice", Description: oas.NewOptString("заметка"), InboundIDs: []int64{1, 2}},
+			req:  &oas.UserCreateReq{Name: "alice", Description: oas.NewOptString("note"), InboundIDs: []int64{1, 2}},
 			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), entity.UserCreateParams{
-					Name: "alice", Description: utils.Ptr("заметка"), InboundIDs: []int64{1, 2},
+					Name: "alice", Description: utils.Ptr("note"), InboundIDs: []int64{1, 2},
 				}).Return(&entity.User{ID: 7}, nil)
 			},
 			result: &oas.MessageResponse{Message: MsgCreated},
@@ -55,7 +55,7 @@ func TestHandler_UserCreate(t *testing.T) {
 			buildCreatorMock: func(m *MockprovisioningService) {
 				m.EXPECT().CreateUser(gomock.Any(), params("bob", 1)).Return(nil, entity.PanelClientExistsError{Node: "N1"})
 			},
-			result: &oas.UserCreateConflict{ErrMessage: "на панели «N1» уже есть клиент с таким именем — удалите его там вручную или выберите другое имя"},
+			result: &oas.UserCreateConflict{ErrMessage: "panel \"N1\" already has a client with this name — delete it there manually or pick another name"},
 		},
 		{
 			name: "error.invalid_name",

@@ -10,21 +10,21 @@ import (
 // Corner cases considered for POST /admin/api/config/mihomo/save. Validation is ordered
 // (base YAML → groups → rules → providers → RULE-SET refs) and short-circuits, so each
 // rejected case is built to PASS every earlier check and trip exactly the one under
-// test, and asserts the EXACT Russian message:
+// test, and asserts the EXACT message:
 //   - happy.round_trip       — a small valid config saves and reads back identically.
 //   - happy.logical_round_trip — an AND rule with sub-rules (children) round-trips intact.
-//   - err.match_not_last      — a MATCH followed by another rule → "MATCH должно быть последним".
-//   - err.sub_rules_in_base   — base YAML carrying `sub-rules:` → "Уберите ... генерируемые разделы".
-//   - err.rule_value_required — a non-MATCH rule with no value → "не указано значение".
-//   - err.group_no_members    — a proxy-group with no members → "Пустая proxy-группа".
-//   - err.group_name_taken    — two groups with the same name → "...уже существует".
-//   - err.group_cycle         — A→B and B→A by index → "циклическую ссылку".
-//   - err.group_ref_range     — a rule target group index out of range → "несуществующую группу".
-//   - err.provider_nameless   — a provider with an empty name → "Укажите название rule-provider".
-//   - err.provider_dup_name   — two valid providers sharing a name → "...уже существует" (DB UNIQUE).
-//   - err.ruleset_unknown     — a RULE-SET with an out-of-range provider index → "RULE-SET ссылается...".
-//   - err.generated_key       — base YAML carrying `proxies:` → "Уберите ... генерируемые разделы".
-//   - err.base_yaml_invalid   — unparseable base YAML → "YAML невалиден".
+//   - err.match_not_last      — a MATCH followed by another rule → "The MATCH rule must be last".
+//   - err.sub_rules_in_base   — base YAML carrying `sub-rules:` → "Remove the generated sections".
+//   - err.rule_value_required — a non-MATCH rule with no value → "has no value".
+//   - err.group_no_members    — a proxy-group with no members → "Empty proxy-group".
+//   - err.group_name_taken    — two groups with the same name → "...already exists".
+//   - err.group_cycle         — A→B and B→A by index → "cyclic reference".
+//   - err.group_ref_range     — a rule target group index out of range → "non-existent group".
+//   - err.provider_nameless   — a provider with an empty name → "Enter a rule-provider name".
+//   - err.provider_dup_name   — two valid providers sharing a name → "...already exists" (DB UNIQUE).
+//   - err.ruleset_unknown     — a RULE-SET with an out-of-range provider index → "RULE-SET references...".
+//   - err.generated_key       — base YAML carrying `proxies:` → "Remove the generated sections".
+//   - err.base_yaml_invalid   — unparseable base YAML → "Invalid YAML".
 //   - err.malformed_json      — a non-JSON body → MsgBadRequest.
 
 // TestSaveRoundTrip covers the happy path: a fresh store accepts a valid config and

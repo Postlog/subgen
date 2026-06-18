@@ -12,7 +12,7 @@ import (
 	"github.com/postlog/subgen/internal/oas"
 )
 
-const msgConfigExists = "У пользователя уже есть кастомный конфиг"
+const msgConfigExists = "The user already has a custom config"
 
 // Handler clones the base config into a new per-user custom config.
 type Handler struct {
@@ -36,5 +36,5 @@ func (h *Handler) CustomCreate(ctx context.Context, req *oas.CustomCreateReq) (o
 		return nil, err
 	}
 
-	return &oas.MessageResponse{Message: "Кастомный конфиг создан"}, nil
+	return &oas.MessageResponse{Message: "Custom config created"}, nil
 }

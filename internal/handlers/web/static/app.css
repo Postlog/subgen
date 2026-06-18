@@ -59,10 +59,25 @@ code{font-family:var(--font-mono);color:#3c89e8;background:rgba(22,104,220,.12);
 .navbar .nav-link{
   position:relative;color:rgba(255,255,255,.65);font-weight:400;font-size:.92rem;
   padding:.5rem .95rem;border-radius:0;cursor:pointer;transition:color .2s;
+  /* tabs are <button> for keyboard operability — reset native button chrome */
+  background:none;border:0;font-family:inherit;
 }
 .navbar .nav-link:hover{color:#fff;}
+.navbar .nav-link:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:var(--bs-border-radius-sm);}
 .navbar .nav-link.active{color:var(--accent-hover);}
 .navbar .nav-link.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);}
+/* nav-menu holds the tabs + logout; on desktop it's an inline flex row (tabs left,
+   logout pushed right). On mobile (see RESPONSIVE) it collapses behind the hamburger. */
+.nav-menu{display:flex;align-items:center;flex:1;gap:1rem;}
+.nav-menu .navbar-nav{flex-direction:row;margin-right:auto;}
+.nav-toggle{display:none;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;
+  padding:0 9px;background:transparent;border:1px solid var(--bs-border-color);border-radius:var(--bs-border-radius-sm);cursor:pointer;}
+.nav-toggle span{display:block;height:2px;width:100%;background:rgba(255,255,255,.75);border-radius:2px;transition:transform .25s,opacity .2s;}
+.nav-toggle:hover{border-color:var(--accent-hover);}
+.nav-toggle:hover span{background:#fff;}
+.nav-toggle.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.nav-toggle.open span:nth-child(2){opacity:0;}
+.nav-toggle.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
 
 /* ===== page header ===== */
 .page-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1.7rem 0 1.2rem;}
@@ -174,7 +189,8 @@ td.actions{width:1%;white-space:nowrap;}
   background:var(--elevated-bg);border:1px solid var(--divider);border-radius:8px;
   box-shadow:0 6px 18px rgba(0,0,0,.55);padding:.4rem;min-width:170px;max-width:340px;
 }
-.conn:hover .conn-pop{display:block;}
+.conn:hover .conn-pop,.conn:focus-within .conn-pop{display:block;} /* focus-within → tap opens it on touch */
+.conn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
 .conn-pop-row{display:flex;align-items:center;gap:.4rem;padding:.2rem .35rem;border-radius:5px;font-size:.78rem;white-space:nowrap;}
 .conn-pop-row+.conn-pop-row{margin-top:1px;}
 .conn-pop-row:hover{background:rgba(255,255,255,.05);}
@@ -196,7 +212,8 @@ td.actions{width:1%;white-space:nowrap;}
   box-shadow:0 6px 18px rgba(0,0,0,.55);padding:.45rem .6rem;width:max-content;max-width:320px;
   white-space:normal;font-size:.78rem;line-height:1.4;color:var(--bs-body-color);font-weight:400;text-align:left;
 }
-.uname .udesc:hover .udesc-pop{display:block;}
+.uname .udesc:hover .udesc-pop,.uname .udesc:focus-within .udesc-pop{display:block;} /* tap opens on touch */
+.uname .udesc:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
 
 /* compact traffic: up/down on one line with arrows */
 .traffic{font-family:var(--font-mono);font-size:.74rem;white-space:nowrap;color:var(--bs-secondary-color);}
@@ -297,12 +314,17 @@ tr.acting{opacity:.5;}
 
 /* ===== modal (ant-modal; elevated bg) ===== */
 .modal-backdrop-custom{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1050;display:flex;align-items:flex-start;justify-content:center;padding:8vh 1rem 2rem;overflow:auto;}
-.modal-card{background:var(--elevated-bg);border:1px solid var(--split);border-radius:var(--bs-border-radius-lg);box-shadow:0 6px 16px rgba(0,0,0,.5);width:100%;max-width:540px;}
+/* flex column bounded to the viewport: head + foot stay pinned, only the body scrolls,
+   so a tall modal never pushes its actions off-screen (esp. short/landscape phones). */
+.modal-card{background:var(--elevated-bg);border:1px solid var(--split);border-radius:var(--bs-border-radius-lg);box-shadow:0 6px 16px rgba(0,0,0,.5);
+  width:100%;max-width:540px;display:flex;flex-direction:column;
+  max-height:calc(100vh - 8vh - 2rem);max-height:calc(100dvh - 8vh - 2rem);} /* vh fallback before dvh for old engines */
 .modal-card.lg{max-width:720px;}
-.modal-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--split);}
-.modal-head h5{margin:0;font-size:1.05rem;font-weight:600;color:#fff;}
-.modal-body{padding:1.4rem;}
-.modal-foot{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.4rem;border-top:1px solid var(--split);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--split);flex:0 0 auto;}
+.modal-head h5{margin:0;font-size:1.05rem;font-weight:600;color:#fff;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.modal-head .icon-btn{flex:0 0 auto;}
+.modal-body{padding:1.4rem;flex:1 1 auto;overflow-y:auto;}
+.modal-foot{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.4rem;border-top:1px solid var(--split);flex:0 0 auto;}
 .icon-btn{background:transparent;border:0;color:var(--bs-secondary-color);font-size:1.05rem;line-height:1;cursor:pointer;padding:.2rem .45rem;border-radius:6px;transition:color .2s,background .2s;}
 .icon-btn:hover{color:#fff;background:rgba(255,255,255,.06);}
 .modal-enter-active,.modal-leave-active{transition:opacity .2s;}
@@ -323,8 +345,225 @@ tr.acting{opacity:.5;}
 .toast-leave-active{position:absolute;}
 
 /* ===== login page ===== */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;}
+.login-wrap{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.5rem;}
 .login-card{width:100%;max-width:380px;}
 .login-brand{font-weight:700;font-size:1.5rem;color:#fff;margin:0;}
 .login-brand .dot{color:var(--accent);}
 .login-kicker{font-size:.85rem;color:var(--bs-secondary-color);}
+
+/* ============================================================================
+   RESPONSIVE — adaptive layout for ultrawide → desktop → laptop → tablet →
+   phone → mini-phone. The base CSS above is the desktop design; the rules below
+   reflow it. Same Ant-dark tokens throughout — no new colors.
+   Breakpoints: 1600/2200 (widen), 992 (navbar collapse, action wrap),
+   768 (tables→cards, config rows wrap, touch sizing, iOS 16px), 576 (page-head /
+   toolbar wrap, full-width CTAs), 400 (mini-phone down-step). Plus max-height
+   (short/landscape modals) and pointer:coarse (touch affordances).
+   ============================================================================ */
+
+/* passthrough wrapper around tables (fixed-layout never overflows horizontally,
+   so no scroll/clip here — keeps the hover popovers from being cropped). */
+.table-scroll{min-width:0;}
+/* inline <code> must not blow out narrow flex rows */
+code{overflow-wrap:anywhere;}
+
+/* ---- ultrawide: widen the 1100px column so big screens aren't mostly margin ---- */
+@media (min-width:1600px){ main.container{max-width:1320px;} }
+@media (min-width:2200px){ main.container{max-width:1560px;} html{font-size:16px;} }
+
+/* ---- navbar: collapse to a hamburger below lg (992) ---- */
+@media (max-width:991.98px){
+  .navbar .container{flex-wrap:wrap;row-gap:.35rem;padding-top:.45rem;padding-bottom:.45rem;}
+  .nav-toggle{display:flex;margin-left:auto;}
+  /* flex:1 1 100% (not the base flex:1 0%) forces the menu onto its own full-width row below brand+toggle */
+  .nav-menu{display:none;order:3;flex:1 1 100%;width:100%;flex-direction:column;align-items:stretch;gap:.18rem;padding:.35rem 0 .15rem;}
+  .nav-menu.open{display:flex;}
+  .nav-menu .navbar-nav{flex-direction:column;width:100%;gap:.18rem;}
+  .navbar .nav-link{min-height:44px;display:flex;align-items:center;padding:.5rem .7rem;border-radius:var(--bs-border-radius-sm);}
+  .navbar .nav-link.active{background:var(--accent-ghost);}
+  .navbar .nav-link.active::after{display:none;} /* underline → filled chip */
+  .nav-logout{width:100%;min-height:44px;margin-top:.1rem;}
+}
+
+/* ---- tables → stacked cards below lg (992): a 5-column table is too cramped on
+   tablets/phones (long labels collide, action buttons break), so each row becomes a
+   self-contained card with "label: value" rows. The real table returns at >=992. ---- */
+@media (max-width:991.98px){
+  /* the row-cards ARE the cards now — drop the outer card chrome so they don't nest
+     inside a second bordered box (only the users/nodes table cards have a .table-scroll) */
+  .card:has(>.table-scroll){background:transparent;border:0;box-shadow:none;}
+  .table{table-layout:auto;}
+  .table thead{display:none;}
+  .table,.table>tbody,.table>tbody>tr,.table>tbody>tr>td{display:block;width:auto;}
+  /* reset desktop td padding/border, AND kill Bootstrap's row-hover/stripe tint, which it
+     paints as `box-shadow: inset 0 0 0 9999px var(--bs-table-bg-state)` on each cell — on a
+     card that lit the title cell up to its divider. Cards don't want any cell shadow. */
+  .table>:not(caption)>*>*{padding:0;border-bottom:0;box-shadow:none;} /* reset desktop td padding/border + hover tint */
+  .table>tbody>tr{
+    border:1px solid var(--split);border-radius:var(--bs-border-radius);background:var(--input-bg);
+    padding:.7rem .85rem;margin-bottom:.7rem;
+  }
+  .table>tbody>tr:last-child{margin-bottom:0;}
+  .table>tbody>tr>td{display:flex;gap:.75rem;align-items:center;padding:.32rem 0;}
+  .table>tbody>tr>td::before{
+    content:attr(data-label);flex:0 0 6.5rem;max-width:42%;
+    color:var(--bs-secondary-color);font-size:.78rem;font-weight:600;
+  }
+  .table>tbody>tr>td:not([data-label])::before{content:none;}
+  /* first column = card title (full name/node, no truncation, no label) */
+  .table>tbody>tr>td.uname{
+    display:block;font-size:1rem;font-weight:600;color:#fff;
+    padding-bottom:.55rem;margin-bottom:.4rem;border-bottom:1px solid var(--split);
+    white-space:normal;overflow:visible;
+  }
+  .table>tbody>tr>td.cell-ellipsis{white-space:normal;overflow:visible;text-overflow:clip;}
+  /* actions = full-width buttons under a divider */
+  .table>tbody>tr>td.actions{
+    display:block;width:auto;white-space:normal;
+    padding-top:.6rem;margin-top:.35rem;border-top:1px solid var(--split);
+  }
+  .table>tbody>tr>td.actions .act-group{width:100%;flex-wrap:wrap;gap:.45rem;}
+  .table>tbody>tr>td.actions .act{flex:1 1 30%;justify-content:center;min-height:40px;}
+  .table>tbody>tr>td[colspan]{text-align:center;}
+  /* connection cell: let long inbound labels wrap inside the card instead of overflowing */
+  .table>tbody>tr>td .conn{min-width:0;max-width:100%;flex-wrap:wrap;}
+  .table>tbody>tr>td .conn>.badge.tag{max-width:100%;white-space:normal;overflow-wrap:anywhere;overflow:visible;text-overflow:clip;}
+  /* the connection popover anchors inside a card — flow it below (focus-within shows it,
+     via the unconditional rule near .conn-pop above) and clamp so it can't overflow */
+  .conn-pop{position:static;margin-top:.4rem;box-shadow:none;min-width:0;max-width:100%;}
+}
+
+/* tablets (md–lg): pack cards two-up to use the width; phones stay single-column.
+   The empty-state row (a colspan cell) spans the full grid. */
+@media (min-width:768px) and (max-width:991.98px){
+  .table>tbody{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:start;}
+  .table>tbody>tr{margin-bottom:0;}
+  .table>tbody>tr:has(td[colspan]){grid-column:1 / -1;}
+}
+
+/* ---- on cards, show the user description as a plain muted line under the name instead
+   of the floating hover-tooltip (which renders as a gray padded box overlapping the card
+   and is awkward to reach on touch) ---- */
+@media (max-width:991.98px){
+  .table>tbody>tr>td.uname .udesc{display:block;margin:.2rem 0 0;color:var(--bs-secondary-color);cursor:default;}
+  .table>tbody>tr>td.uname .udesc .udesc-ic{display:none;}
+  .table>tbody>tr>td.uname .udesc-pop{
+    position:static;display:block;background:none;border:0;box-shadow:none;
+    padding:0;max-width:none;width:auto;font-size:.8rem;line-height:1.4;font-weight:400;
+  }
+}
+
+/* ---- pager: bigger touch targets, allow wrap ---- */
+@media (max-width:991.98px){
+  .pager{flex-wrap:wrap;gap:.4rem;}
+  .pager .btn{min-width:40px;min-height:40px;}
+}
+
+/* tablet (sm–md): toolbar is still inline, the filter button sits mid-right after the
+   280px search — anchor the popover to its right edge so it can't overflow the screen */
+@media (min-width:576px) and (max-width:767.98px){
+  .filter-pop{left:auto;right:0;width:min(300px,calc(100vw - 1.5rem));}
+}
+
+/* ---- users toolbar + page-head wrap below sm (576) ---- */
+@media (max-width:575.98px){
+  .page-head{flex-wrap:wrap;gap:.6rem;margin:1.2rem 0 1rem;}
+  .page-title{font-size:1.3rem;}
+  .page-head .btn-add{margin-left:auto;}
+  .users-toolbar{flex-wrap:wrap;gap:.5rem;}
+  .users-toolbar .tb-search{max-width:none;flex:1 1 100%;order:0;}
+  .tb-filter{order:1;}
+  .tb-filter .btn{min-height:40px;}
+  .users-toolbar .tb-count{order:2;margin-left:auto;}
+  /* after the wrap the filter button sits at the LEFT, so anchor the popover left and
+     let it grow rightward within the viewport (right:0 would push it off-screen left) */
+  .filter-pop{left:0;right:auto;width:min(300px,calc(100vw - 1.5rem));}
+  /* config scope picker → its own full-width row under the title */
+  .scope-pick{width:100%;margin-left:0!important;}
+  .scope-pick .form-select{max-width:none;flex:1 1 auto;}
+  .scope-banner{flex-wrap:wrap;row-gap:.5rem;}
+  .scope-banner>span{flex:1 1 100%;}
+  .scope-banner .ms-auto{margin-left:0!important;}
+}
+
+/* ---- config constructors: wrap rows + lift desktop inline max-widths below md ---- */
+@media (max-width:767.98px){
+  .grp-head,.mbr-row,.rule-row,.cond-row,.prov-item,.editrow,.inb-row{flex-wrap:wrap;}
+  /* inline style="max-width:NNNpx" beats author rules → needs !important to override */
+  .grp-head .form-control,.grp-head .form-select,
+  .rule-row .form-select,.rule-row .form-control,.rule-row .form-select:last-of-type,
+  .mbr-row .form-select,.cond-row .form-select,.cond-row .form-control{max-width:none!important;}
+  .grp-head .grow,.rule-row .grow,.cond-row .grow,.cond-row .form-control{flex:1 1 100%;min-width:0;}
+  .grp-head>input.form-control,.grp-head>select.form-select{flex:1 1 100%;}
+  .rule-row>select.form-select{flex:1 1 100%;} /* rule type select takes the row */
+  /* member row stays compact: drag + picker + ✕ on one line, picker shrinks */
+  .mbr-row .form-select{flex:1 1 auto;min-width:0;}
+  .rule-row .nr{flex:1 1 100%;}
+  .rule-row .arrow{display:none;} /* meaningless once the row stacks */
+  /* the trailing ✕ wraps to its own line when the row stacks — right-align it so it
+     reads as a deliberate "delete this row" affordance (its desktop position) */
+  .grp-head>.btn-danger-soft,.rule-row>.btn-danger-soft,.cond-row>.btn-danger-soft{margin-left:auto;}
+  .rule-row>.form-select,.mbr-row>.form-select,.cond-row>.form-select{min-width:0;}
+  /* shrink the recursive tree indent so depth doesn't starve width */
+  .grp-members,.rule-conds,.cond-children{margin-left:.5rem;padding-left:.55rem;}
+  /* rule-provider rows: name on its own line, buttons stretch & stay tappable */
+  .prov-item{row-gap:.5rem;}
+  .prov-name{flex:1 1 100%;}
+  .prov-item .prov-check{margin-left:0;}
+  .prov-item .act{flex:1 1 auto;justify-content:center;}
+  /* subscription-profile fields each take a full row */
+  .card-body>.d-flex.flex-wrap.gap-3>label{flex:1 1 100%!important;max-width:none!important;}
+  /* duration field grows; unit stays readable */
+  .dur-input{width:100%;}
+  .dur-input input{flex:1 1 auto;max-width:none;}
+  .dur-input select{max-width:none;min-width:96px;}
+  /* save button full width */
+  .savebar .btn{width:100%;}
+  /* node-modal inbound editor rows */
+  .inb-row .form-control{flex:1 1 130px;max-width:none;min-width:0;}
+}
+
+/* ---- bigger tap targets for touch phones. We deliberately DON'T bump input font to
+   16px (the iOS no-zoom trick): it blew .form-control-sm up out of proportion in the
+   dense config constructors, so inputs keep their normal size (one consistent scale). ---- */
+@media (max-width:767.98px) and (pointer:coarse){
+  .btn{min-height:42px;}
+  .btn-sm,.act{min-height:40px;}
+  .form-check-input{width:1.2rem;height:1.2rem;}
+  .drag{min-width:38px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;}
+}
+
+/* ---- Monaco YAML editor on phones: shorter, no scroll-trap (see app.js), no manual resize on touch ---- */
+@media (max-width:767.98px){ .ye-mon{height:320px;min-height:220px;} }
+@media (pointer:coarse){
+  .ye-mon{resize:none;}
+  .icon-btn{min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center;}
+}
+
+/* ---- toasts clear of the sticky header on phones ---- */
+@media (max-width:767.98px){
+  .toast-wrap{top:auto;bottom:1rem;max-width:calc(100vw - 1.5rem);}
+}
+
+/* ---- modal chrome on small / short screens ---- */
+@media (max-width:575.98px){
+  .modal-backdrop-custom{padding:4vh .75rem 1rem;}
+  .modal-body{padding:1.1rem;}
+  .modal-head,.modal-foot{padding-left:1.1rem;padding-right:1.1rem;}
+  .modal-foot{flex-wrap:wrap;}
+  .modal-foot .btn{flex:1 1 auto;min-height:42px;}
+}
+@media (max-height:620px){
+  .modal-backdrop-custom{align-items:center;padding:1rem;}
+  .modal-card{max-height:calc(100vh - 2rem);max-height:calc(100dvh - 2rem);}
+  .pick-list{max-height:38vh;}
+  .login-wrap{align-items:flex-start;}
+}
+
+/* ---- mini-phone down-step: relieve crowding under 400px ---- */
+@media (max-width:400px){
+  html{font-size:14px;}
+  .page-head .btn-add{width:100%;justify-content:center;}
+  .table>tbody>tr>td::before{flex-basis:5.5rem;}
+  .udesc-pop{left:auto;right:0;max-width:min(280px,84vw);}
+}

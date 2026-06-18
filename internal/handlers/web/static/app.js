@@ -6,6 +6,7 @@ const app = createApp({
   data() {
     return {
       tab: "users",
+      navOpen: false,   // mobile hamburger menu open state
       busy: false,      // a mutation is in flight (disables actions)
       actingId: 0,      // user id whose row action is in flight (row spinner)
       toasts: [],
@@ -93,7 +94,7 @@ const app = createApp({
   methods: {
     uid() { return ++this._uidc; },
 
-    go(tab) { this.tab = tab; this.load(tab); },
+    go(tab) { this.tab = tab; this.navOpen = false; this.load(tab); },
     async load(tab) {
       try {
         if (tab === "users") {
@@ -485,7 +486,7 @@ const app = createApp({
       if (d.ok) this.load("nodes");
     },
 
-    closeModals() { this.uForm.open = false; this.nodeForm.open = false; this.inboundFilterOpen = false; this.subLinks.open = false; },
+    closeModals() { this.uForm.open = false; this.nodeForm.open = false; this.inboundFilterOpen = false; this.subLinks.open = false; this.navOpen = false; },
   },
   mounted() {
     this.load("users");
@@ -719,7 +720,9 @@ app.component("yaml-editor", {
       renderLineHighlight: "all", scrollBeyondLastLine: false, smoothScrolling: true,
       lineNumbersMinChars: 3, glyphMargin: false, folding: true, wordWrap: "off",
       padding: { top: 8, bottom: 8 }, fixedOverflowWidgets: true,
-      scrollbar: { verticalScrollbarSize: 12, horizontalScrollbarSize: 12, useShadows: false },
+      // alwaysConsumeMouseWheel:false lets a wheel/touch-scroll at the editor's
+      // scroll boundary bubble to the page, so Monaco doesn't trap page scroll on mobile.
+      scrollbar: { verticalScrollbarSize: 12, horizontalScrollbarSize: 12, useShadows: false, alwaysConsumeMouseWheel: false },
     });
     this.ready = true;
     this._ed.onDidChangeModelContent(() => {

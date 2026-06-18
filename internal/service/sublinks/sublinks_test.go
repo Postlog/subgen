@@ -122,6 +122,7 @@ func TestService_Links(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			cfgs := NewMockconfigsRepo(ctrl)
+
 			profiles := NewMockroutingRepo(ctrl)
 			if tc.buildMock != nil {
 				tc.buildMock(cfgs, profiles)

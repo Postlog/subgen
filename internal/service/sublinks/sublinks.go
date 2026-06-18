@@ -123,6 +123,7 @@ func (s *Service) titlesByUser(ctx context.Context, users []entity.User) (map[in
 			u := &users[i]
 
 			title := baseTitle
+
 			if _, ok := custom[u.ID]; ok {
 				t, err := s.userTitle(ctx, u.ID, kind)
 				if err != nil {

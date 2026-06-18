@@ -44,6 +44,7 @@ func (s *SubPanelSuite) TestSubValid() {
 	u, err := s.API().MustFindUser(name)
 	s.Require().NoError(err)
 	s.T().Cleanup(func() { _, _ = s.API().DeleteUser(u.ID) })
+
 	subURL := u.Sub.SubURL()
 	s.Require().NotEmpty(subURL, "user must have a /sub URL")
 

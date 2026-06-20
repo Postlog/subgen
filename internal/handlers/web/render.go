@@ -29,7 +29,19 @@ func assetFS(staticDir string) fs.FS {
 // because RU1 DNS is unreliable) from staticDir on disk, or the embedded copy when
 // staticDir is empty.
 func StaticHandler(staticDir string) http.Handler {
-	return http.StripPrefix("/admin/static/", http.FileServer(http.FS(assetFS(staticDir))))
+	fileServer := http.StripPrefix("/admin/static/", http.FileServer(http.FS(assetFS(staticDir))))
+	if staticDir == "" {
+		return fileServer // embedded prod assets — let the browser cache normally
+	}
+
+	// Live dev (SUBGEN_STATIC_DIR): force revalidation so an edited CSS/JS shows on a
+	// plain reload. Without this the browser applies heuristic freshness (only
+	// Last-Modified is sent) and serves a stale asset for minutes — defeating the whole
+	// "edit + browser reload, no Go rebuild" point of staticDir.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 // ReadPage reads a static HTML page (the SPA shell or the login page) from the on-disk

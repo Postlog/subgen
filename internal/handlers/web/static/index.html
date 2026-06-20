@@ -9,15 +9,20 @@
 </head>
 <body>
 <div id="app" v-cloak>
-  <nav class="navbar navbar-expand-lg sticky-top">
+  <nav class="navbar sticky-top">
     <div class="container">
       <span class="navbar-brand mb-0">sub<span class="dot">gen</span></span>
-      <ul class="navbar-nav me-auto gap-1 flex-row">
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='users'}" @click="go('users')">Users</a></li>
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='nodes'}" @click="go('nodes')">Nodes</a></li>
-        <li class="nav-item"><a class="nav-link" :class="{active:tab==='config'}" @click="go('config')">Mihomo config</a></li>
-      </ul>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="logout">Log out</button>
+      <!-- hamburger: shown only below lg via CSS; toggles the collapsible nav-menu -->
+      <button type="button" class="nav-toggle" :class="{open:navOpen}" @click="navOpen=!navOpen"
+              :aria-expanded="navOpen ? 'true' : 'false'" aria-label="Menu"><span></span><span></span><span></span></button>
+      <div class="nav-menu" :class="{open:navOpen}">
+        <ul class="navbar-nav gap-1">
+          <li class="nav-item"><button type="button" class="nav-link" :class="{active:tab==='users'}" @click="go('users')">Users</button></li>
+          <li class="nav-item"><button type="button" class="nav-link" :class="{active:tab==='nodes'}" @click="go('nodes')">Nodes</button></li>
+          <li class="nav-item"><button type="button" class="nav-link" :class="{active:tab==='config'}" @click="go('config')">Mihomo config</button></li>
+        </ul>
+        <button type="button" class="btn btn-sm btn-outline-secondary nav-logout" @click="logout">Log out</button>
+      </div>
     </div>
   </nav>
 
@@ -55,14 +60,15 @@
       </div>
 
       <div class="card">
+        <div class="table-scroll">
         <table class="table table-hover">
           <colgroup><col style="width:23%"><col style="width:21%"><col style="width:15%"><col style="width:11%"><col style="width:30%"></colgroup>
           <thead><tr><th>Name</th><th>Connections</th><th>Traffic</th><th>Subscription</th><th></th></tr></thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" :class="{acting:actingId===u.id}">
-              <td class="uname">{{ u.name }}<span v-if="u.description" class="udesc"><svg class="udesc-ic" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity=".16"></circle><circle cx="8" cy="4.7" r="1" fill="currentColor"></circle><rect x="7" y="6.7" width="2" height="5" rx="1" fill="currentColor"></rect></svg><span class="udesc-pop">{{ u.description }}</span></span></td>
-              <td>
-                <div v-if="u.inbounds.length" class="conn">
+              <td class="uname">{{ u.name }}<span v-if="u.description" class="udesc" tabindex="0"><svg class="udesc-ic" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity=".16"></circle><circle cx="8" cy="4.7" r="1" fill="currentColor"></circle><rect x="7" y="6.7" width="2" height="5" rx="1" fill="currentColor"></rect></svg><span class="udesc-pop">{{ u.description }}</span></span></td>
+              <td data-label="Connections">
+                <div v-if="u.inbounds.length" class="conn" :tabindex="u.inbounds.length>1 ? 0 : null">
                   <span class="badge tag" :class="u.inbounds[0].missing ? 'miss' : 'inb'">
                     <span v-if="u.inbounds[0].missing" title="no client on the panel">⚠</span>{{ u.inbounds[0].label }}<span class="port">:{{ u.inbounds[0].port }}</span>
                   </span>
@@ -76,8 +82,8 @@
                 </div>
                 <span v-else class="text-dim small">—</span>
               </td>
-              <td class="traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
-              <td><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Links</button></td>
+              <td class="traffic" data-label="Traffic"><span class="up">↑{{ hsize(u.stats.up) }}</span><span class="down">↓{{ hsize(u.stats.down) }}</span></td>
+              <td data-label="Subscription"><button class="btn btn-sm btn-outline-secondary act" @click="openSubLinks(u)">Links</button></td>
               <td class="actions">
                 <span v-if="actingId===u.id" class="spin me-2"></span>
                 <div class="act-group">
@@ -90,6 +96,7 @@
             <tr v-if="!users.length"><td colspan="5" class="text-dim text-center py-4">{{ (userSearch.trim() || userInboundFilter.length) ? 'Nothing found' : 'No users' }}</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="pager" v-if="userPageCount > 1">
@@ -110,15 +117,16 @@
       </div>
 
       <div class="card">
+        <div class="table-scroll">
         <table class="table table-hover">
           <colgroup><col style="width:16%"><col style="width:23%"><col style="width:12%"><col style="width:31%"><col style="width:18%"></colgroup>
           <thead><tr><th>Name</th><th>Domain</th><th>Panel</th><th>Inbounds</th><th></th></tr></thead>
           <tbody>
             <tr v-for="n in nodes" :key="n.id">
-              <td class="uname cell-ellipsis">{{ n.name }}</td>
-              <td class="mono small cell-ellipsis">{{ n.vpnHost }}</td>
-              <td><a class="panel-link" :href="n.panelBaseURL + n.panelBasePath" target="_blank" rel="noopener" :title="n.panelBaseURL + n.panelBasePath">Panel ↗</a></td>
-              <td>
+              <td class="uname cell-ellipsis" :title="n.name">{{ n.name }}</td>
+              <td class="mono small cell-ellipsis" data-label="Domain" :title="n.vpnHost">{{ n.vpnHost }}</td>
+              <td data-label="Panel"><a class="panel-link" :href="n.panelBaseURL + n.panelBasePath" target="_blank" rel="noopener" :title="n.panelBaseURL + n.panelBasePath">Panel ↗</a></td>
+              <td data-label="Inbounds">
                 <div class="chips">
                   <span v-for="i in n.inbounds" :key="i.id" class="badge tag inb">{{ i.name }}<span class="port">:{{ i.port }}</span></span>
                   <span v-if="!n.inbounds.length" class="text-dim small">—</span>
@@ -134,6 +142,7 @@
             <tr v-if="!nodes.length"><td colspan="5" class="text-dim text-center py-4">No nodes</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </section>
 

@@ -5,6 +5,23 @@ link to an ADR in [`docs/decisions/`](docs/decisions/). The rule and format are
 in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
 the service is not released, deploy is continuous.
 
+## 2026-06-19 — Responsive admin UI: phones, tablets, ultrawide (#115)
+
+Made the admin panel usable on every screen size — mini-phones (320px) through ultrawide.
+Almost all of it is static (`internal/handlers/web/static/{app.css,app.js,index.html}`); the
+only Go change is a one-line dev tweak (below). The desktop (≥992px) is visually unchanged.
+The navbar collapses into a hamburger below `lg` (the tabs became `<button>` for keyboard
+use); the Users/Nodes tables turn into `data-label` cards below 992px (two-up on tablets via
+CSS-grid, the table returns at ≥992px), with the user description shown inline on a card
+rather than a floating tooltip and Bootstrap's row-hover cell tint dropped on cards; the
+config constructors stack below 768px; touch gets bigger tap targets while inputs keep their
+normal size (no 16px bump — it had blown the dense config selects/inputs out of proportion);
+hover popovers open on tap (`:focus-within`); modals scroll their body only (header/footer
+pinned); Monaco no longer traps page scroll; and the container widens on ultrawide.
+`render.go` now serves the dev `SUBGEN_STATIC_DIR` assets with `Cache-Control: no-cache` so a
+live edit shows on a plain reload. Verified with a real browser at
+320/360/500/768/850/1024/1280/1600px (no horizontal overflow, no desktop regression).
+
 ## 2026-06-18 — public-ready: README overhaul, MIT license, English docs & UI (#117)
 
 Prepared the repository for a public release. Rewrote `README.md` for newcomers (a clear

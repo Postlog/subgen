@@ -129,6 +129,18 @@ type Invoker interface {
 	//
 	// GET /sub/{kind}/{token}
 	Sub(ctx context.Context, params SubParams) (SubRes, error)
+	// SubProxies invokes subProxies operation.
+	//
+	// Fetch a client's node list (proxy-provider payload).
+	//
+	// GET /sub/{kind}/{token}/proxies
+	SubProxies(ctx context.Context, params SubProxiesParams) (SubProxiesRes, error)
+	// SubRules invokes subRules operation.
+	//
+	// Fetch an authored rule-provider's list (classical text).
+	//
+	// GET /sub/{kind}/{token}/rules/{name}
+	SubRules(ctx context.Context, params SubRulesParams) (SubRulesRes, error)
 	// UserCreate invokes userCreate operation.
 	//
 	// Create a user.
@@ -1359,6 +1371,174 @@ func (c *Client) sendSub(ctx context.Context, params SubParams) (res SubRes, err
 	defer body.Close()
 
 	result, err := decodeSubResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// SubProxies invokes subProxies operation.
+//
+// Fetch a client's node list (proxy-provider payload).
+//
+// GET /sub/{kind}/{token}/proxies
+func (c *Client) SubProxies(ctx context.Context, params SubProxiesParams) (SubProxiesRes, error) {
+	res, err := c.sendSubProxies(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendSubProxies(ctx context.Context, params SubProxiesParams) (res SubProxiesRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/sub/"
+	{
+		// Encode "kind" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "kind",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Kind))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	{
+		// Encode "token" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "token",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Token))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/proxies"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer body.Close()
+
+	result, err := decodeSubProxiesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// SubRules invokes subRules operation.
+//
+// Fetch an authored rule-provider's list (classical text).
+//
+// GET /sub/{kind}/{token}/rules/{name}
+func (c *Client) SubRules(ctx context.Context, params SubRulesParams) (SubRulesRes, error) {
+	res, err := c.sendSubRules(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendSubRules(ctx context.Context, params SubRulesParams) (res SubRulesRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [6]string
+	pathParts[0] = "/sub/"
+	{
+		// Encode "kind" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "kind",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Kind))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	{
+		// Encode "token" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "token",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Token))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/rules/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer body.Close()
+
+	result, err := decodeSubRulesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

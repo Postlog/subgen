@@ -43,11 +43,17 @@ components:
         groupIdx:
           type: integer
 
+    # A rule-provider. source is external (behavior/format/url describe the upstream,
+    # optionally mirrored) or authored (matchers is the in-subgen list subgen serves as
+    # classical text; behavior/format are forced to classical/text and url is empty). value
+    # constraints (which fields each source needs) are validated in the service.
     MihomoProvider:
       type: object
-      required: [name, behavior, format, url, interval, mirror, mirrorInterval]
+      required: [name, source, behavior, format, url, interval, mirror, mirrorInterval]
       properties:
         name:
+          type: string
+        source:
           type: string
         behavior:
           type: string
@@ -61,6 +67,10 @@ components:
           type: boolean
         mirrorInterval:
           type: integer
+        matchers:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/MihomoRule'
 
     # A routing rule — recursive: a logical rule (AND/OR/NOT) carries its sub-rules in
     # children, every other type is a leaf. value is the plain matcher payload — optional,
@@ -117,7 +127,7 @@ components:
     # Profile-Update-Interval in hours).
     MihomoConfig:
       type: object
-      required: [groups, rules, providers, baseYAML, profileTitle, filename, profileUpdateInterval]
+      required: [groups, rules, providers, baseYAML, profileTitle, filename, profileUpdateInterval, proxiesInterval]
       properties:
         groups:
           type: array
@@ -138,4 +148,6 @@ components:
         filename:
           type: string
         profileUpdateInterval:
+          type: integer
+        proxiesInterval:
           type: integer

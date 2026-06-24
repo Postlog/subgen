@@ -32,7 +32,7 @@ const app = createApp({
       // cfg: structured mihomo config. groups/rules carry a client-side _uid; a
       // policy ref is encoded as a string `pref` (direct|reject|…|smart|force:<id>|
       // group:<groupUid>) so it binds straight to a <select>.
-      cfg: { groups: [], rules: [], providers: [], baseYAML: "", profileTitle: "", filename: "", profileUpdateInterval: 1 },
+      cfg: { groups: [], rules: [], providers: [], baseYAML: "", profileTitle: "", filename: "", profileUpdateInterval: 1, proxiesInterval: 3600 },
 
       // Config scope: which config the editor is bound to. 'base' = the shared base
       // config; 'user' = a per-user custom config (userId/name set). customs lists the
@@ -219,7 +219,14 @@ const app = createApp({
         groups[gi].members = (g.members || []).map((m) => ({ _uid: this.uid(), pref: this.refToPref(m, gUid) }));
       });
       this.cfg.groups = groups;
-      this.cfg.providers = (c.providers || []).map((p) => ({ ...p, _uid: this.uid() }));
+      this.cfg.providers = (c.providers || []).map((p) => ({
+        _uid: this.uid(), name: p.name, source: p.source || "external",
+        behavior: p.behavior || "domain", format: p.format || "mrs", url: p.url || "",
+        interval: p.interval || 0, mirror: !!p.mirror, mirrorInterval: p.mirrorInterval || 0,
+        // authored providers carry a matcher tree (target-less sub-rules); reuse loadChildren
+        // (no RULE-SET ⇒ providerUid is always null, so the empty pUid is unused).
+        matchers: this.loadChildren(p.matchers, []),
+      }));
       const pUid = this.cfg.providers.map((p) => p._uid); // providerIdx -> uid
       this.cfg.rules = (c.rules || []).map((r) => ({
         _uid: this.uid(), type: r.type, value: r.value || "",
@@ -231,6 +238,7 @@ const app = createApp({
       this.cfg.profileTitle = c.profileTitle || "";
       this.cfg.filename = c.filename || "";
       this.cfg.profileUpdateInterval = c.profileUpdateInterval ?? 1;
+      this.cfg.proxiesInterval = c.proxiesInterval ?? 3600;
     },
     // loadChildren maps a logical rule's API sub-rules (children) into the editor model,
     // recursively. A RULE-SET sub-rule's providerIdx is resolved to the provider's stable
@@ -278,7 +286,8 @@ const app = createApp({
     delRule(i) { this.cfg.rules.splice(i, 1); },
     // addChild appends a fresh leaf sub-rule to a logical rule (or sub-rule).
     addChild(node) { node.children.push(newChild()); },
-    addProvider() { this.cfg.providers.push({ _uid: this.uid(), name: "", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400 }); this.openProvider(this.cfg.providers.length - 1); },
+    addMatcher(p) { p.matchers.push(newChild()); },
+    addProvider() { this.cfg.providers.push({ _uid: this.uid(), name: "", source: "external", behavior: "domain", format: "mrs", url: "", interval: 86400, mirror: false, mirrorInterval: 86400, matchers: [] }); this.openProvider(this.cfg.providers.length - 1); },
     openProvider(i) { this.provForm = { open: true, idx: i }; },
     // checkProvider probes the provider URL via the backend (reachable / file present /
     // right format) and toasts the outcome. Saves nothing; a per-row _checking flag
@@ -362,17 +371,29 @@ const app = createApp({
         return rule;
       });
 
-      const providers = this.cfg.providers.map((p) => ({
-        name: p.name, behavior: p.behavior || "", format: p.format || "",
-        url: p.url || "", interval: p.interval || 0,
-        mirror: !!p.mirror, mirrorInterval: p.mirror ? (p.mirrorInterval || 0) : 0,
-      }));
+      const providers = this.cfg.providers.map((p) => {
+        // An authored provider sends its matcher tree; subgen owns behavior/format
+        // (classical/text) and it has no URL/mirror. An external provider is unchanged.
+        if (p.source === "authored") {
+          return {
+            name: p.name, source: "authored", behavior: "classical", format: "text",
+            url: "", interval: p.interval || 0, mirror: false, mirrorInterval: 0,
+            matchers: this.dumpChildren(p.matchers, {}),
+          };
+        }
+        return {
+          name: p.name, source: "external", behavior: p.behavior || "", format: p.format || "",
+          url: p.url || "", interval: p.interval || 0,
+          mirror: !!p.mirror, mirrorInterval: p.mirror ? (p.mirrorInterval || 0) : 0,
+        };
+      });
 
       const payload = {
         baseYAML: this.cfg.baseYAML, groups, rules, providers,
         profileTitle: this.cfg.profileTitle || "",
         filename: this.cfg.filename || "",
         profileUpdateInterval: Number(this.cfg.profileUpdateInterval) || 0,
+        proxiesInterval: Number(this.cfg.proxiesInterval) || 0,
       };
       if (this.cfgScope.kind === "user") payload.userId = this.cfgScope.userId;
       await this.post("/admin/api/config/mihomo/save", payload);
@@ -547,10 +568,12 @@ function newChild() { return { _uid: cuid(), type: "DOMAIN-SUFFIX", value: "", p
 // sub-rule); nothing about the taxonomy is hardcoded.
 app.component("rule-node", {
   name: "rule-node",
-  props: { node: Object, schema: Object, providers: Array },
+  props: { node: Object, schema: Object, providers: Array, authored: Boolean },
   emits: ["remove"],
   computed: {
-    types() { return (this.schema?.rules?.types || []).filter((t) => !t.isMatch); },
+    // MATCH is never a nested rule; RULE-SET is additionally excluded inside an authored
+    // rule-provider (mihomo forbids it in a classical provider).
+    types() { return (this.schema?.rules?.types || []).filter((t) => !t.isMatch && !(this.authored && t.takesProvider)); },
   },
   methods: {
     info(t) { return (this.schema?.rules?.types || []).find((r) => r.type === t); },
@@ -574,7 +597,7 @@ app.component("rule-node", {
         <button class="btn btn-sm btn-danger-soft act" @click="$emit('remove')" title="delete nested rule">✕</button>
       </div>
       <div v-if="isLogical(node.type)" class="cond-children">
-        <rule-node v-for="(c,ci) in node.children" :key="c._uid" :node="c" :schema="schema" :providers="providers" @remove="delChild(ci)"></rule-node>
+        <rule-node v-for="(c,ci) in node.children" :key="c._uid" :node="c" :schema="schema" :providers="providers" :authored="authored" @remove="delChild(ci)"></rule-node>
         <button class="btn btn-sm btn-outline-secondary mt-1" @click="addChild()">Add nested rule</button>
       </div>
     </div>`,

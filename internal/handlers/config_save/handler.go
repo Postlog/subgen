@@ -43,15 +43,21 @@ const (
 	MsgGeneratedKey     = "Remove the generated sections from the YAML"
 
 	MsgProviderNameEmpty   = "Enter a rule-provider name"
+	MsgProviderBadSource   = "Unknown rule-provider source"
 	MsgProviderBadBehavior = "Unknown rule-provider behavior"
 	MsgProviderBadFormat   = "Unknown rule-provider format"
 	MsgProviderURLEmpty    = "Enter the rule-provider URL"
 	MsgRuleSetUnknownProv  = "RULE-SET references a non-existent rule-provider"
 
-	MsgProfileTitleEmpty      = "Enter the profile title (Profile title)"
-	MsgProfileFilenameEmpty   = "Enter the subscription filename"
-	MsgProfileFilenameInvalid = "The filename must not contain / \\ or control characters"
-	MsgProfileIntervalInvalid = "Update interval must be a positive number of hours"
+	MsgProviderAuthoredURLSet        = "An authored rule-provider must not have a URL"
+	MsgProviderAuthoredNeedsMatchers = "Add at least one rule to the authored rule-provider"
+	MsgProviderMatcherUnsupported    = "MATCH and RULE-SET cannot be used in an authored list"
+
+	MsgProfileTitleEmpty             = "Enter the profile title (Profile title)"
+	MsgProfileFilenameEmpty          = "Enter the subscription filename"
+	MsgProfileFilenameInvalid        = "The filename must not contain / \\ or control characters"
+	MsgProfileIntervalInvalid        = "Update interval must be a positive number of hours"
+	MsgProfileProxiesIntervalInvalid = "Nodes update interval must be a positive number of seconds"
 
 	MsgUserConfigMissing = "The user has no custom config"
 	MsgProviderNameTaken = "A rule-provider with this name already exists"
@@ -188,6 +194,8 @@ func validationMessage(err error) (string, bool) {
 		return MsgGeneratedKey, true
 	case errors.Is(err, mihomo.ErrProviderNameEmpty):
 		return MsgProviderNameEmpty, true
+	case errors.Is(err, mihomo.ErrProviderBadSource):
+		return MsgProviderBadSource, true
 	case errors.Is(err, mihomo.ErrProviderBadBehavior):
 		return MsgProviderBadBehavior, true
 	case errors.Is(err, mihomo.ErrProviderBadFormat):
@@ -196,6 +204,12 @@ func validationMessage(err error) (string, bool) {
 		return MsgProviderURLEmpty, true
 	case errors.Is(err, mihomo.ErrProviderRefRange):
 		return MsgRuleSetUnknownProv, true
+	case errors.Is(err, mihomo.ErrProviderAuthoredURLSet):
+		return MsgProviderAuthoredURLSet, true
+	case errors.Is(err, mihomo.ErrProviderAuthoredNeedsMatchers):
+		return MsgProviderAuthoredNeedsMatchers, true
+	case errors.Is(err, mihomo.ErrProviderMatcherUnsupported):
+		return MsgProviderMatcherUnsupported, true
 	case errors.Is(err, mihomo.ErrProfileTitleEmpty):
 		return MsgProfileTitleEmpty, true
 	case errors.Is(err, mihomo.ErrProfileFilenameEmpty):
@@ -204,6 +218,8 @@ func validationMessage(err error) (string, bool) {
 		return MsgProfileFilenameInvalid, true
 	case errors.Is(err, mihomo.ErrProfileUpdateIntervalInvalid):
 		return MsgProfileIntervalInvalid, true
+	case errors.Is(err, mihomo.ErrProfileProxiesIntervalInvalid):
+		return MsgProfileProxiesIntervalInvalid, true
 	default:
 		return "", false
 	}

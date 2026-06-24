@@ -51,9 +51,11 @@ type ConfigGroup struct {
 	Members   []ConfigRef `json:"members"`
 }
 
-// ConfigProvider is one rule-provider for read/save.
+// ConfigProvider is one rule-provider for read/save. Source is required by the save
+// schema (external | authored); SaveConfig defaults an empty Source to "external".
 type ConfigProvider struct {
 	Name           string `json:"name"`
+	Source         string `json:"source"`
 	Behavior       string `json:"behavior"`
 	Format         string `json:"format"`
 	URL            string `json:"url"`
@@ -73,6 +75,7 @@ type Config struct {
 	ProfileTitle          string           `json:"profileTitle"`
 	Filename              string           `json:"filename"`
 	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
+	ProxiesInterval       int              `json:"proxiesInterval"`
 }
 
 // ReadConfig GETs /admin/api/config/mihomo.
@@ -90,9 +93,10 @@ func (c *Client) ReadConfig() (Config, error) {
 // maps the response into a Result. The schema marks groups/rules/providers (and each
 // group's members) as required arrays, and the server's decoder rejects a JSON `null`
 // for them — which is what a nil Go slice encodes to — so a partially-built config is
-// normalised to send empty arrays instead. The profile knobs are likewise defaulted to
-// valid values (the server now validates them), so a case not exercising profile
-// validation still passes through to the behaviour under test.
+// normalised to send empty arrays instead. The profile knobs (including the nodes update
+// interval) are likewise defaulted to valid values (the server now validates them) and an
+// empty provider source defaults to "external", so a case not exercising those still passes
+// through to the behaviour under test.
 func (c *Client) SaveConfig(cfg Config) (Result, error) {
 	if cfg.Rules == nil {
 		cfg.Rules = []ConfigRule{}
@@ -100,6 +104,12 @@ func (c *Client) SaveConfig(cfg Config) (Result, error) {
 
 	if cfg.Providers == nil {
 		cfg.Providers = []ConfigProvider{}
+	}
+
+	for i := range cfg.Providers {
+		if cfg.Providers[i].Source == "" {
+			cfg.Providers[i].Source = "external"
+		}
 	}
 
 	groups := make([]ConfigGroup, len(cfg.Groups))
@@ -123,6 +133,10 @@ func (c *Client) SaveConfig(cfg Config) (Result, error) {
 
 	if cfg.ProfileUpdateInterval <= 0 {
 		cfg.ProfileUpdateInterval = 1
+	}
+
+	if cfg.ProxiesInterval <= 0 {
+		cfg.ProxiesInterval = 3600
 	}
 
 	return c.post("/admin/api/config/mihomo/save", cfg)

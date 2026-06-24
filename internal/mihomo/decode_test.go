@@ -54,7 +54,7 @@ func TestDecodeConfig(t *testing.T) {
 					{Type: RuleRuleSet, ProviderIdx: utils.Ptr(0), Target: &RefDraft{Kind: PolicyDirect}},
 					{Type: RuleMatch, Target: &RefDraft{Kind: PolicyGroup, GroupIdx: utils.Ptr(1)}},
 				},
-				Providers: []RuleProvider{{Name: "allow", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+				Providers: []RuleProvider{{Name: "allow", Source: RuleProviderExternal, Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestDecodeConfig(t *testing.T) {
 						}},
 					}},
 				},
-				Providers: []RuleProvider{{Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+				Providers: []RuleProvider{{Name: "ads", Source: RuleProviderExternal, Behavior: "domain", Format: "mrs", URL: "https://x"}},
 			},
 		},
 		{
@@ -98,7 +98,37 @@ func TestDecodeConfig(t *testing.T) {
 			want: ConfigDraft{
 				Groups:    []GroupDraft{},
 				Rules:     []RuleDraft{},
-				Providers: []RuleProvider{{Name: "", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+				Providers: []RuleProvider{{Name: "", Source: RuleProviderExternal, Behavior: "domain", Format: "mrs", URL: "https://x"}},
+			},
+		},
+		{
+			// An authored provider: source=authored carries a matcher tree (decoded into
+			// RoutingRule with no target), and subgen normalizes behavior/format to
+			// classical/text and clears url/mirror. proxiesInterval rides on the profile.
+			name: "success.authored_provider",
+			body: `{
+				"proxiesInterval": 1800,
+				"providers": [
+					{"name":"reject-set","source":"authored","behavior":"x","format":"y","url":"https://drop","matchers":[
+						{"type":"DOMAIN-KEYWORD","value":"ads"},
+						{"type":"AND","children":[{"type":"NETWORK","value":"udp"},{"type":"DST-PORT","value":"53"}]}
+					]}
+				]
+			}`,
+			want: ConfigDraft{
+				Groups:  []GroupDraft{},
+				Rules:   []RuleDraft{},
+				Profile: Profile{ProxiesInterval: 1800},
+				Providers: []RuleProvider{{
+					Name: "reject-set", Source: RuleProviderAuthored, Behavior: "classical", Format: "text",
+					Matchers: []RoutingRule{
+						{Type: RuleDomainKeyword, Value: utils.Ptr("ads")},
+						{Type: RuleAnd, Children: []RoutingRule{
+							{Type: RuleNetwork, Value: utils.Ptr("udp")},
+							{Type: RuleDstPort, Value: utils.Ptr("53")},
+						}},
+					},
+				}},
 			},
 		},
 	}

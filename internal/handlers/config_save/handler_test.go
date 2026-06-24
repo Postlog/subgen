@@ -29,6 +29,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 			ProfileTitle:          "My VPN",
 			Filename:              "my.yaml",
 			ProfileUpdateInterval: 6,
+			ProxiesInterval:       3600,
 		}
 		if userID != 0 {
 			req.UserId = oas.NewOptInt64(userID)
@@ -43,7 +44,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 		Rules:     []mihomo.RuleDraft{{Type: mihomo.RuleMatch, Target: &mihomo.RefDraft{Kind: mihomo.PolicyDirect}}},
 		Groups:    []mihomo.GroupDraft{},
 		Providers: []mihomo.RuleProvider{},
-		Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
+		Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6, ProxiesInterval: 3600},
 	}
 
 	tt := []struct {
@@ -86,6 +87,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 				ProfileTitle:          "My VPN",
 				Filename:              "my.yaml",
 				ProfileUpdateInterval: 6,
+				ProxiesInterval:       3600,
 			},
 			buildConfigsMock: func(m *MockconfigsRepo) {
 				m.EXPECT().EnsureBaseConfigID(gomock.Any(), entity.ConfigKindMihomo).Return(int64(3), nil)
@@ -101,7 +103,7 @@ func TestHandler_ConfigSave(t *testing.T) {
 					},
 					Groups:    []mihomo.GroupDraft{},
 					Providers: []mihomo.RuleProvider{},
-					Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6},
+					Profile:   mihomo.Profile{Title: "My VPN", Filename: "my.yaml", UpdateInterval: 6, ProxiesInterval: 3600},
 				}).Return(nil)
 			},
 			result: &oas.MessageResponse{Message: MsgSaved},

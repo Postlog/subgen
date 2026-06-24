@@ -11,8 +11,9 @@ import (
 )
 
 // Corner cases considered for a VALID GET /sub/{token} (gated — provisions a user):
-//   - body        — the response is the rendered mihomo YAML, and its proxies carry the
-//                   real per-inbound client uuids.
+//   - body        — nodes are delivered as a proxy-provider, so the node list (with the
+//                   real per-inbound client uuids) is served at /sub/{kind}/{token}/proxies,
+//                   not inlined in the main document.
 //   - headers     — Content-Type text/yaml; a base64 Profile-Title; a Content-Disposition
 //                   filename; a Profile-Update-Interval; and a Subscription-Userinfo line.
 //
@@ -72,8 +73,14 @@ func (s *SubPanelSuite) TestSubValid() {
 	})
 
 	s.Run("body", func() {
-		px, perr := api.SubProxies(resp.Body)
-		s.Require().NoError(perr, "subscription must be valid YAML")
+		// Nodes are delivered as a proxy-provider, not inlined: the node list lives at
+		// /sub/{kind}/{token}/proxies. Fetch it and assert the provisioned inbound's uuid.
+		presp, perr := s.API().GetURL(subURL + "/proxies")
+		s.Require().NoError(perr)
+		s.Require().Equal(http.StatusOK, presp.Status, "GET %s/proxies", subURL)
+
+		px, perr := api.SubProxies(presp.Body)
+		s.Require().NoError(perr, "the proxy-provider payload must be valid YAML")
 		s.Contains(px, "N1-smart", "the provisioned inbound must appear as a proxy")
 		s.Equal(s.ClientUUID(s.Pan1(), api.N1Smart, name), px["N1-smart"], "proxy uuid must match the real client")
 	})

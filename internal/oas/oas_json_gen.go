@@ -534,6 +534,10 @@ func (s *ConfigSaveReq) encodeFields(e *jx.Encoder) {
 		e.Int(s.ProfileUpdateInterval)
 	}
 	{
+		e.FieldStart("proxiesInterval")
+		e.Int(s.ProxiesInterval)
+	}
+	{
 		if s.UserId.Set {
 			e.FieldStart("userId")
 			s.UserId.Encode(e)
@@ -541,7 +545,7 @@ func (s *ConfigSaveReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfConfigSaveReq = [8]string{
+var jsonFieldsNameOfConfigSaveReq = [9]string{
 	0: "groups",
 	1: "rules",
 	2: "providers",
@@ -549,7 +553,8 @@ var jsonFieldsNameOfConfigSaveReq = [8]string{
 	4: "profileTitle",
 	5: "filename",
 	6: "profileUpdateInterval",
-	7: "userId",
+	7: "proxiesInterval",
+	8: "userId",
 }
 
 // Decode decodes ConfigSaveReq from json.
@@ -557,7 +562,7 @@ func (s *ConfigSaveReq) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ConfigSaveReq to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -663,6 +668,18 @@ func (s *ConfigSaveReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"profileUpdateInterval\"")
 			}
+		case "proxiesInterval":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.ProxiesInterval = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"proxiesInterval\"")
+			}
 		case "userId":
 			if err := func() error {
 				s.UserId.Reset()
@@ -682,8 +699,9 @@ func (s *ConfigSaveReq) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1335,6 +1353,14 @@ func (s *ConfigSchemaOKRuleProvider) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ConfigSchemaOKRuleProvider) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("sources")
+		e.ArrStart()
+		for _, elem := range s.Sources {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("behaviors")
 		e.ArrStart()
 		for _, elem := range s.Behaviors {
@@ -1352,9 +1378,10 @@ func (s *ConfigSchemaOKRuleProvider) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfConfigSchemaOKRuleProvider = [2]string{
-	0: "behaviors",
-	1: "formats",
+var jsonFieldsNameOfConfigSchemaOKRuleProvider = [3]string{
+	0: "sources",
+	1: "behaviors",
+	2: "formats",
 }
 
 // Decode decodes ConfigSchemaOKRuleProvider from json.
@@ -1366,8 +1393,28 @@ func (s *ConfigSchemaOKRuleProvider) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "behaviors":
+		case "sources":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Sources = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Sources = append(s.Sources, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sources\"")
+			}
+		case "behaviors":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Behaviors = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1387,7 +1434,7 @@ func (s *ConfigSchemaOKRuleProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"behaviors\"")
 			}
 		case "formats":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Formats = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1416,7 +1463,7 @@ func (s *ConfigSchemaOKRuleProvider) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2459,9 +2506,13 @@ func (s *MihomoConfig) encodeFields(e *jx.Encoder) {
 		e.FieldStart("profileUpdateInterval")
 		e.Int(s.ProfileUpdateInterval)
 	}
+	{
+		e.FieldStart("proxiesInterval")
+		e.Int(s.ProxiesInterval)
+	}
 }
 
-var jsonFieldsNameOfMihomoConfig = [7]string{
+var jsonFieldsNameOfMihomoConfig = [8]string{
 	0: "groups",
 	1: "rules",
 	2: "providers",
@@ -2469,6 +2520,7 @@ var jsonFieldsNameOfMihomoConfig = [7]string{
 	4: "profileTitle",
 	5: "filename",
 	6: "profileUpdateInterval",
+	7: "proxiesInterval",
 }
 
 // Decode decodes MihomoConfig from json.
@@ -2582,6 +2634,18 @@ func (s *MihomoConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"profileUpdateInterval\"")
 			}
+		case "proxiesInterval":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.ProxiesInterval = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"proxiesInterval\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -2592,7 +2656,7 @@ func (s *MihomoConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2860,6 +2924,10 @@ func (s *MihomoProvider) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("source")
+		e.Str(s.Source)
+	}
+	{
 		e.FieldStart("behavior")
 		e.Str(s.Behavior)
 	}
@@ -2883,16 +2951,28 @@ func (s *MihomoProvider) encodeFields(e *jx.Encoder) {
 		e.FieldStart("mirrorInterval")
 		e.Int(s.MirrorInterval)
 	}
+	{
+		if s.Matchers != nil {
+			e.FieldStart("matchers")
+			e.ArrStart()
+			for _, elem := range s.Matchers {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfMihomoProvider = [7]string{
+var jsonFieldsNameOfMihomoProvider = [9]string{
 	0: "name",
-	1: "behavior",
-	2: "format",
-	3: "url",
-	4: "interval",
-	5: "mirror",
-	6: "mirrorInterval",
+	1: "source",
+	2: "behavior",
+	3: "format",
+	4: "url",
+	5: "interval",
+	6: "mirror",
+	7: "mirrorInterval",
+	8: "matchers",
 }
 
 // Decode decodes MihomoProvider from json.
@@ -2900,7 +2980,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode MihomoProvider to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -2916,8 +2996,20 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "behavior":
+		case "source":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Source = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
+		case "behavior":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Behavior = string(v)
@@ -2929,7 +3021,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"behavior\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Format = string(v)
@@ -2941,7 +3033,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -2953,7 +3045,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"url\"")
 			}
 		case "interval":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Interval = int(v)
@@ -2965,7 +3057,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval\"")
 			}
 		case "mirror":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Bool()
 				s.Mirror = bool(v)
@@ -2977,7 +3069,7 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mirror\"")
 			}
 		case "mirrorInterval":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.MirrorInterval = int(v)
@@ -2988,6 +3080,23 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mirrorInterval\"")
 			}
+		case "matchers":
+			if err := func() error {
+				s.Matchers = make([]MihomoRule, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem MihomoRule
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Matchers = append(s.Matchers, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"matchers\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -2997,8 +3106,9 @@ func (s *MihomoProvider) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

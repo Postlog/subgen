@@ -43,9 +43,11 @@ func fullOptions() Options {
 			{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
 		Providers: []mihomo.RuleProvider{
-			{ID: 7, Name: "allow", Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
+			{ID: 7, Name: "allow", Source: mihomo.RuleProviderExternal, Behavior: "domain", Format: "mrs", Mirror: true, URL: "https://example/x.mrs", Interval: 86400},
 		},
-		PublicBase: "https://ru1.example:2097",
+		PublicBase:      "https://ru1.example:2097",
+		Token:           "TOK",
+		ProxiesInterval: 3600,
 	}
 }
 
@@ -73,53 +75,21 @@ func fullSub() *entity.Subscriber {
 }
 
 // fullWant is the whole expected rendered doc for fullSub()/fullOptions(): base knobs
-// preserved, the three proxies mapped (reality with fingerprint, reality without, tls
-// with alpn+flow), groups resolved (smart→DIRECT fallback; Connection→group+two
-// inbound proxy names), rules retargeted to inbound proxy names with the missing-inbound
-// rule dropped and MATCH last, and the mirrored rule-provider pointing at /rules/.
+// preserved, the node list delivered as a per-token proxy-provider (not inlined), groups
+// resolved (smart→DIRECT fallback; Connection→group ref inline + the two inbounds pulled
+// from the provider via use:+filter), rules retargeted to inbound proxy names with the
+// missing-inbound rule dropped and MATCH last, and the mirrored rule-provider at /rules/.
 const fullWant = `
 mode: rule
 dns:
   enable: true
   enhanced-mode: fake-ip
-proxies:
-  - name: smart-NL2
-    type: vless
-    server: nl2.example
-    port: 35740
-    uuid: 11111111-1111-1111-1111-111111111111
-    udp: true
-    network: tcp
-    tls: true
-    servername: www.sony.com
-    client-fingerprint: chrome
-    reality-opts:
-      public-key: PBK
-      short-id: sid
-  - name: force-NL2
-    type: vless
-    server: nl2.example
-    port: 35741
-    uuid: 22222222-2222-2222-2222-222222222222
-    udp: true
-    network: tcp
-    tls: true
-    servername: www.sony.com
-    reality-opts:
-      public-key: PBK
-      short-id: sid
-  - name: force-RU1
-    type: vless
-    server: ru1.example
-    port: 8443
-    uuid: 33333333-3333-3333-3333-333333333333
-    udp: true
-    network: tcp
-    flow: xtls-rprx-vision
-    tls: true
-    servername: ru1.example
-    alpn:
-      - http/1.1
+proxy-providers:
+  proxies:
+    type: http
+    url: https://ru1.example:2097/sub/mihomo/TOK/proxies
+    path: ./providers/proxies.yaml
+    interval: 3600
 proxy-groups:
   - name: smart
     type: select
@@ -127,10 +97,11 @@ proxy-groups:
       - DIRECT
   - name: Connection
     type: select
+    use:
+      - proxies
+    filter: ^(force-NL2|force-RU1)$
     proxies:
       - smart
-      - force-NL2
-      - force-RU1
 rules:
   - GEOIP,private,DIRECT,no-resolve
   - RULE-SET,allow,smart-NL2
@@ -164,6 +135,9 @@ func partialOptions() Options {
 			{Type: mihomo.RuleDomain, Value: utils.Ptr("x.com"), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyInbound, InboundID: utils.Ptr[int64](20)}},
 			{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyGroup, GroupID: utils.Ptr[int64](2)}},
 		},
+		PublicBase:      "https://h",
+		Token:           "T",
+		ProxiesInterval: 600,
 	}
 }
 
@@ -195,16 +169,12 @@ func TestRender(t *testing.T) {
 			opts: partialOptions(),
 			wantYAML: `
 mode: rule
-proxies:
-  - name: force-NL2
-    type: vless
-    server: nl2
-    port: 1
-    uuid: 22222222-2222-2222-2222-222222222222
-    udp: true
-    network: tcp
-    tls: true
-    servername: nl2
+proxy-providers:
+  proxies:
+    type: http
+    url: https://h/sub/mihomo/T/proxies
+    path: ./providers/proxies.yaml
+    interval: 600
 proxy-groups:
   - name: smart
     type: select
@@ -212,9 +182,11 @@ proxy-groups:
       - DIRECT
   - name: Conn
     type: select
+    use:
+      - proxies
+    filter: ^(force-NL2)$
     proxies:
       - smart
-      - force-NL2
 rules:
   - MATCH,Conn
 `,
@@ -227,7 +199,12 @@ rules:
 			opts: partialOptions(),
 			wantYAML: `
 mode: rule
-proxies: []
+proxy-providers:
+  proxies:
+    type: http
+    url: https://h/sub/mihomo/T/proxies
+    path: ./providers/proxies.yaml
+    interval: 600
 proxy-groups:
   - name: smart
     type: select
@@ -252,10 +229,16 @@ rules:
 					{Type: mihomo.RuleRuleSet, ProviderID: utils.Ptr[int64](99), Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 					{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
 				},
+				PublicBase: "https://h",
+				Token:      "T",
 			},
 			wantYAML: `
 mode: rule
-proxies: []
+proxy-providers:
+  proxies:
+    type: http
+    url: https://h/sub/mihomo/T/proxies
+    path: ./providers/proxies.yaml
 proxy-groups: []
 rules:
   - MATCH,DIRECT
@@ -270,8 +253,11 @@ rules:
 			opts: Options{
 				BaseYAML: "mode: rule",
 				Providers: []mihomo.RuleProvider{
-					{ID: 5, Name: "ads", Behavior: "domain", Format: "mrs", URL: "https://up/ads.mrs", Interval: 3600},
+					{ID: 5, Name: "ads", Source: mihomo.RuleProviderExternal, Behavior: "domain", Format: "mrs", URL: "https://up/ads.mrs", Interval: 3600},
 				},
+				PublicBase:      "https://h",
+				Token:           "T",
+				ProxiesInterval: 600,
 				Rules: []mihomo.RoutingRule{
 					{Type: mihomo.RuleAnd, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyRejectDrop}, Children: []mihomo.RoutingRule{
 						{Type: mihomo.RuleNetwork, Value: utils.Ptr("UDP")},
@@ -292,7 +278,12 @@ rules:
 			},
 			wantYAML: `
 mode: rule
-proxies: []
+proxy-providers:
+  proxies:
+    type: http
+    url: https://h/sub/mihomo/T/proxies
+    path: ./providers/proxies.yaml
+    interval: 600
 proxy-groups: []
 rules:
   - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT-DROP

@@ -37,13 +37,15 @@ type groupDTO struct {
 }
 
 type providerDTO struct {
-	Name           string `json:"name"`
-	Behavior       string `json:"behavior"`
-	Format         string `json:"format"`
-	URL            string `json:"url"`
-	Interval       int    `json:"interval"`
-	Mirror         bool   `json:"mirror"`
-	MirrorInterval int    `json:"mirrorInterval"`
+	Name           string    `json:"name"`
+	Source         string    `json:"source"`
+	Behavior       string    `json:"behavior"`
+	Format         string    `json:"format"`
+	URL            string    `json:"url"`
+	Interval       int       `json:"interval"`
+	Mirror         bool      `json:"mirror"`
+	MirrorInterval int       `json:"mirrorInterval"`
+	Matchers       []ruleDTO `json:"matchers"`
 }
 
 type configDTO struct {
@@ -54,6 +56,7 @@ type configDTO struct {
 	ProfileTitle          string        `json:"profileTitle"`
 	Filename              string        `json:"filename"`
 	ProfileUpdateInterval int           `json:"profileUpdateInterval"`
+	ProxiesInterval       int           `json:"proxiesInterval"`
 }
 
 // DecodeConfig unmarshals the raw mihomo-config JSON (the admin form payload) into a
@@ -95,13 +98,32 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 
 	// Keep every provider (empty name included) so ValidateRuleProviders can reject a
 	// nameless one — silently dropping it would let a half-filled row "save" as a no-op.
+	// An absent source maps to external (back-compat). Authored providers are normalized:
+	// subgen owns their behavior/format (classical/text) and they carry no URL/mirror.
 	provs := make([]RuleProvider, 0, len(dto.Providers))
 	for _, p := range dto.Providers {
-		provs = append(provs, RuleProvider{
-			Name: strings.TrimSpace(p.Name), Behavior: p.Behavior, Format: p.Format,
+		src := RuleProviderSource(strings.TrimSpace(p.Source))
+		if src == "" {
+			src = RuleProviderExternal
+		}
+
+		rp := RuleProvider{
+			Name: strings.TrimSpace(p.Name), Source: src,
+			Behavior: p.Behavior, Format: p.Format,
 			URL: strings.TrimSpace(p.URL), Interval: p.Interval,
 			Mirror: p.Mirror, MirrorInterval: p.MirrorInterval,
-		})
+		}
+
+		if src == RuleProviderAuthored {
+			rp.Behavior = "classical"
+			rp.Format = "text"
+			rp.URL = ""
+			rp.Mirror = false
+			rp.MirrorInterval = 0
+			rp.Matchers = matchersFromDTO(p.Matchers)
+		}
+
+		provs = append(provs, rp)
 	}
 
 	return ConfigDraft{
@@ -110,11 +132,33 @@ func DecodeConfig(raw json.RawMessage) (ConfigDraft, error) {
 		Providers: provs,
 		BaseYAML:  dto.BaseYAML,
 		Profile: Profile{
-			Title:          strings.TrimSpace(dto.ProfileTitle),
-			Filename:       strings.TrimSpace(dto.Filename),
-			UpdateInterval: dto.ProfileUpdateInterval,
+			Title:           strings.TrimSpace(dto.ProfileTitle),
+			Filename:        strings.TrimSpace(dto.Filename),
+			UpdateInterval:  dto.ProfileUpdateInterval,
+			ProxiesInterval: dto.ProxiesInterval,
 		},
 	}, nil
+}
+
+// matchersFromDTO maps an authored rule-provider's JSON matchers to RoutingRule trees,
+// recursively (a logical matcher's sub-matchers in children). Authored matchers carry no
+// target, provider or no-resolve — only a type, an optional value and children — so those
+// DTO fields are ignored here; ValidateRuleProviders rejects a tree that smuggles them in.
+func matchersFromDTO(in []ruleDTO) []RoutingRule {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]RoutingRule, 0, len(in))
+	for _, ru := range in {
+		out = append(out, RoutingRule{
+			Type:     RuleType(strings.TrimSpace(ru.Type)),
+			Value:    trimPtr(ru.Value),
+			Children: matchersFromDTO(ru.Children),
+		})
+	}
+
+	return out
 }
 
 // trimPtr trims a wire string pointer; an absent or whitespace-only value becomes nil

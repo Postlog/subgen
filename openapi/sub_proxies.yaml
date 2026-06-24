@@ -1,0 +1,34 @@
+# GET /sub/{kind}/{token}/proxies — the subscriber's node list as a proxy-provider
+# payload (a YAML document with a top-level proxies: array). Public (the token is the
+# credential). The mihomo core re-fetches this on the proxy-provider interval, so node
+# changes reach a connected client without a profile reload. Like /sub, the body is opaque
+# engine-generated YAML (no JSON schema) — ogen serves it as a raw stream.
+get:
+  operationId: subProxies
+  summary: Fetch a client's node list (proxy-provider payload)
+  parameters:
+    - name: kind
+      in: path
+      required: true
+      description: Engine/config kind (e.g. mihomo).
+      schema:
+        type: string
+    - name: token
+      in: path
+      required: true
+      description: HMAC subscription token.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: the proxy-provider document
+      content:
+        text/yaml:
+          schema:
+            type: string
+    '404':
+      description: unknown token or kind
+      content:
+        text/plain:
+          schema:
+            type: string

@@ -1,0 +1,44 @@
+# GET /sub/{kind}/{token}/rules/{name} — an authored rule-provider's matcher list, as
+# classical rule-provider text (one matcher per line, no target). Public (the token is the
+# credential). The mihomo core re-fetches this on the rule-provider interval, so edits reach
+# a connected client without a profile reload. The body is opaque text (no JSON schema),
+# served as text/plain with X-Content-Type-Options: nosniff — ogen serves it as a raw stream.
+get:
+  operationId: subRules
+  summary: Fetch an authored rule-provider's list (classical text)
+  parameters:
+    - name: kind
+      in: path
+      required: true
+      description: Engine/config kind (e.g. mihomo).
+      schema:
+        type: string
+    - name: token
+      in: path
+      required: true
+      description: HMAC subscription token.
+      schema:
+        type: string
+    - name: name
+      in: path
+      required: true
+      description: The authored rule-provider's name.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: the rule list
+      headers:
+        X-Content-Type-Options:
+          schema:
+            type: string
+      content:
+        text/plain:
+          schema:
+            type: string
+    '404':
+      description: unknown token, kind or provider name
+      content:
+        text/plain:
+          schema:
+            type: string

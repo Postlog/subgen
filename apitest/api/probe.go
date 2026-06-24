@@ -72,23 +72,10 @@ func (s *Base) RequireNoClient(p Panel, port int, email string) {
 
 // ensureInbound creates a minimal vless/tcp/none inbound on the port if absent.
 func ensureInbound(p Panel, port int, remark string) error {
-	body, err := panelDo(http.MethodGet, p, "/panel/api/inbounds/list", nil)
-	if err != nil {
+	if has, err := panelHasInbound(p, port); err != nil {
 		return err
-	}
-
-	var lr struct {
-		Obj []struct {
-			Port int `json:"port"`
-		} `json:"obj"`
-	}
-
-	_ = json.Unmarshal(body, &lr)
-
-	for _, in := range lr.Obj {
-		if in.Port == port {
-			return nil
-		}
+	} else if has {
+		return nil
 	}
 
 	add := map[string]any{
@@ -114,10 +101,41 @@ func ensureInbound(p Panel, port int, remark string) error {
 	_ = json.Unmarshal(resp, &res)
 
 	if !res.Success {
+		// The panels are shared across the parallel suites, so another suite may have
+		// added the same inbound between our check and our add — the UNIQUE tag then
+		// rejects ours. Accept it as long as the inbound now exists.
+		if has, herr := panelHasInbound(p, port); herr == nil && has {
+			return nil
+		}
+
 		return fmt.Errorf("add inbound :%d: %s", port, res.Msg)
 	}
 
 	return nil
+}
+
+// panelHasInbound reports whether the panel already has an inbound on the given port.
+func panelHasInbound(p Panel, port int) (bool, error) {
+	body, err := panelDo(http.MethodGet, p, "/panel/api/inbounds/list", nil)
+	if err != nil {
+		return false, err
+	}
+
+	var lr struct {
+		Obj []struct {
+			Port int `json:"port"`
+		} `json:"obj"`
+	}
+
+	_ = json.Unmarshal(body, &lr)
+
+	for _, in := range lr.Obj {
+		if in.Port == port {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func panelDo(method string, p Panel, path string, body []byte) ([]byte, error) {

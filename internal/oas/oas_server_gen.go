@@ -116,6 +116,18 @@ type Handler interface {
 	//
 	// GET /sub/{kind}/{token}
 	Sub(ctx context.Context, params SubParams) (SubRes, error)
+	// SubProxies implements subProxies operation.
+	//
+	// Fetch a client's node list (proxy-provider payload).
+	//
+	// GET /sub/{kind}/{token}/proxies
+	SubProxies(ctx context.Context, params SubProxiesParams) (SubProxiesRes, error)
+	// SubRules implements subRules operation.
+	//
+	// Fetch an authored rule-provider's list (classical text).
+	//
+	// GET /sub/{kind}/{token}/rules/{name}
+	SubRules(ctx context.Context, params SubRulesParams) (SubRulesRes, error)
 	// UserCreate implements userCreate operation.
 	//
 	// Create a user.

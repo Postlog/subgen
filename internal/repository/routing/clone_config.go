@@ -37,6 +37,10 @@ func (r *Repository) CloneConfig(ctx context.Context, tx *sql.Tx, srcConfigID, d
 		return err
 	}
 
+	if err := cloneAuthoredMatchers(ctx, tx, srcConfigID, provMap); err != nil {
+		return err
+	}
+
 	if err := cloneSettings(ctx, tx, srcConfigID, dstConfigID); err != nil {
 		return err
 	}
@@ -280,6 +284,7 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 	type prov struct {
 		id             int64
 		name           string
+		source         string
 		behavior       string
 		format         string
 		mirror         int
@@ -289,7 +294,7 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 	}
 
 	rows, err := tx.QueryContext(ctx,
-		`SELECT id,name,behavior,format,mirror,url,interval,mirror_interval
+		`SELECT id,name,source,behavior,format,mirror,url,interval,mirror_interval
 		   FROM mihomo_rule_providers WHERE config_id=? ORDER BY id`, src)
 	if err != nil {
 		return nil, err
@@ -299,7 +304,7 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 
 	for rows.Next() {
 		var p prov
-		if err := rows.Scan(&p.id, &p.name, &p.behavior, &p.format, &p.mirror, &p.url, &p.interval, &p.mirrorInterval); err != nil {
+		if err := rows.Scan(&p.id, &p.name, &p.source, &p.behavior, &p.format, &p.mirror, &p.url, &p.interval, &p.mirrorInterval); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -316,11 +321,11 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 
 	provRows := make([][]any, len(provs))
 	for i, p := range provs {
-		provRows[i] = []any{dst, p.name, p.behavior, p.format, p.mirror, p.url, p.interval, p.mirrorInterval}
+		provRows[i] = []any{dst, p.name, p.source, p.behavior, p.format, p.mirror, p.url, p.interval, p.mirrorInterval}
 	}
 
 	if err := batchInsert(ctx, tx, "mihomo_rule_providers",
-		[]string{"config_id", "name", "behavior", "format", "mirror", "url", "interval", "mirror_interval"}, provRows); err != nil {
+		[]string{"config_id", "name", "source", "behavior", "format", "mirror", "url", "interval", "mirror_interval"}, provRows); err != nil {
 		return nil, err
 	}
 
@@ -337,6 +342,86 @@ func cloneProviders(ctx context.Context, tx *sql.Tx, src, dst int64) (map[int64]
 	return idMap, nil
 }
 
+// cloneAuthoredMatchers copies the authored providers' matcher trees (recursive via
+// parent_id, in ONE batched INSERT), remapping provider_id to the cloned providers and
+// parent_id to the cloned matchers. Source rows are read by id (a parent precedes its
+// children — see insertAuthoredMatchers), so pre-assigned new ids (from MAX(id)) map
+// parent-before-child and every parent_id remap resolves. External providers have no rows.
+func cloneAuthoredMatchers(ctx context.Context, tx *sql.Tx, src int64, provMap map[int64]int64) error {
+	type matcher struct {
+		id       int64
+		provider int64
+		parentID sql.Null[int64]
+		position int
+		typ      string
+		value    sql.Null[string]
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id,provider_id,parent_id,position,type,value
+		   FROM mihomo_authored_matchers
+		  WHERE provider_id IN (SELECT id FROM mihomo_rule_providers WHERE config_id=?)
+		  ORDER BY id`, src)
+	if err != nil {
+		return err
+	}
+
+	var matchers []matcher
+
+	for rows.Next() {
+		var m matcher
+		if err := rows.Scan(&m.id, &m.provider, &m.parentID, &m.position, &m.typ, &m.value); err != nil {
+			rows.Close()
+			return err
+		}
+
+		matchers = append(matchers, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+
+	rows.Close()
+
+	if len(matchers) == 0 {
+		return nil
+	}
+
+	base, err := maxAuthoredMatcherID(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	idMap := make(map[int64]int64, len(matchers)) // old matcher id -> new (pre-assigned) id
+
+	var matcherRows [][]any
+
+	var n int64
+
+	for _, m := range matchers {
+		newProv, ok := provMap[m.provider]
+		if !ok {
+			continue
+		}
+
+		n++
+		newID := base + n
+		idMap[m.id] = newID
+
+		var parent any
+		if m.parentID.Valid {
+			parent = idMap[m.parentID.V] // parent has a smaller id → already mapped
+		}
+
+		matcherRows = append(matcherRows, []any{newID, newProv, parent, m.position, m.typ, m.value})
+	}
+
+	return batchInsert(ctx, tx, "mihomo_authored_matchers",
+		[]string{"id", "provider_id", "parent_id", "position", "type", "value"}, matcherRows)
+}
+
 // cloneSettings copies the free-form settings (base_yaml) under the new config_id.
 func cloneSettings(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 	if _, err := tx.ExecContext(ctx,
@@ -348,13 +433,13 @@ func cloneSettings(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 	return nil
 }
 
-// cloneProfile copies the subscription-profile row (title, filename, update interval)
-// under the new config_id. A missing source row copies nothing — the clone then falls
-// back to defaults like any config without a profile row.
+// cloneProfile copies the subscription-profile row (title, filename, update interval,
+// proxies interval) under the new config_id. A missing source row copies nothing — the
+// clone then falls back to defaults like any config without a profile row.
 func cloneProfile(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval)
-		 SELECT ?,title,filename,update_interval FROM mihomo_profile WHERE config_id=?`, dst, src); err != nil {
+		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval,proxies_interval)
+		 SELECT ?,title,filename,update_interval,proxies_interval FROM mihomo_profile WHERE config_id=?`, dst, src); err != nil {
 		return err
 	}
 

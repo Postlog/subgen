@@ -73,7 +73,7 @@ func TestHandler_Sub(t *testing.T) {
 					},
 				}, nil)
 				m.renderer.EXPECT().
-					Render(gomock.Any(), &entity.Subscriber{SubID: "sub1", Up: 10, Down: 20, Total: 100, Expiry: 5000}, int64(3)).
+					Render(gomock.Any(), &entity.Subscriber{SubID: "sub1", Up: 10, Down: 20, Total: 100, Expiry: 5000}, int64(3), matchingToken).
 					Return([]byte("yaml"), RenderMeta{Filename: "f.yaml", ProfileTitle: "Profile", UpdateInterval: 300}, nil)
 			},
 			assertRes: func(t *testing.T, res oas.SubRes) {

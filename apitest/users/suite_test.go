@@ -80,16 +80,17 @@ func (s *UserSuite) recreateUser(id int64) {
 	s.Require().True(res.OK, "RecreateUser(%d): %s", id, res.Message())
 }
 
-// subProxies fetches the user's subscription over GET /sub/{token} (the absolute URL
-// the users API reports) and parses the rendered mihomo YAML into a proxy name->uuid
-// map — the same ground truth fleet.Sub would give, obtained purely over HTTP.
+// subProxies fetches the user's node list over GET /sub/{token}/proxies (the absolute
+// /sub URL the users API reports, plus the proxy-provider path) and parses the payload
+// into a proxy name->uuid map — the same ground truth fleet.Sub would give, obtained
+// purely over HTTP. Nodes are delivered as a proxy-provider, not inlined in /sub.
 func (s *UserSuite) subProxies(u *api.User) map[string]string {
 	subURL := u.Sub.SubURL()
 	s.Require().NotEmpty(subURL, "user must have a subscription URL")
 
-	resp, err := s.API().GetURL(subURL)
+	resp, err := s.API().GetURL(subURL + "/proxies")
 	s.Require().NoError(err)
-	s.Require().Equal(200, resp.Status, "GET %s", subURL)
+	s.Require().Equal(200, resp.Status, "GET %s/proxies", subURL)
 
 	px, err := api.SubProxies(resp.Body)
 	s.Require().NoError(err)

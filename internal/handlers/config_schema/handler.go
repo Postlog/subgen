@@ -56,7 +56,7 @@ func build() oas.ConfigSchemaOK {
 
 	return oas.ConfigSchemaOK{
 		Actions:       actions,
-		RuleProvider:  oas.ConfigSchemaOKRuleProvider{Behaviors: mihomo.RuleProviderBehaviors(), Formats: mihomo.RuleProviderFormats()},
+		RuleProvider:  oas.ConfigSchemaOKRuleProvider{Sources: mihomo.RuleProviderSources(), Behaviors: mihomo.RuleProviderBehaviors(), Formats: mihomo.RuleProviderFormats()},
 		ProxyGroup:    oas.ConfigSchemaOKProxyGroup{Types: groups},
 		Rules:         oas.ConfigSchemaOKRules{Types: rules},
 		GeneratedKeys: mihomo.GeneratedKeys(),

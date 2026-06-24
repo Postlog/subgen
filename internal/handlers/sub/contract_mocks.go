@@ -206,9 +206,9 @@ func (mr *MockEngineRendererMockRecorder) Kind() *gomock.Call {
 }
 
 // Render mocks base method.
-func (m *MockEngineRenderer) Render(ctx context.Context, sub *entity.Subscriber, configID int64) ([]byte, RenderMeta, error) {
+func (m *MockEngineRenderer) Render(ctx context.Context, sub *entity.Subscriber, configID int64, token string) ([]byte, RenderMeta, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Render", ctx, sub, configID)
+	ret := m.ctrl.Call(m, "Render", ctx, sub, configID, token)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(RenderMeta)
 	ret2, _ := ret[2].(error)
@@ -216,9 +216,40 @@ func (m *MockEngineRenderer) Render(ctx context.Context, sub *entity.Subscriber,
 }
 
 // Render indicates an expected call of Render.
-func (mr *MockEngineRendererMockRecorder) Render(ctx, sub, configID any) *gomock.Call {
+func (mr *MockEngineRendererMockRecorder) Render(ctx, sub, configID, token any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Render", reflect.TypeOf((*MockEngineRenderer)(nil).Render), ctx, sub, configID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Render", reflect.TypeOf((*MockEngineRenderer)(nil).Render), ctx, sub, configID, token)
+}
+
+// RenderProxies mocks base method.
+func (m *MockEngineRenderer) RenderProxies(ctx context.Context, sub *entity.Subscriber) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RenderProxies", ctx, sub)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RenderProxies indicates an expected call of RenderProxies.
+func (mr *MockEngineRendererMockRecorder) RenderProxies(ctx, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenderProxies", reflect.TypeOf((*MockEngineRenderer)(nil).RenderProxies), ctx, sub)
+}
+
+// RenderRuleProvider mocks base method.
+func (m *MockEngineRenderer) RenderRuleProvider(ctx context.Context, configID int64, name string) ([]byte, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RenderRuleProvider", ctx, configID, name)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// RenderRuleProvider indicates an expected call of RenderRuleProvider.
+func (mr *MockEngineRendererMockRecorder) RenderRuleProvider(ctx, configID, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenderRuleProvider", reflect.TypeOf((*MockEngineRenderer)(nil).RenderRuleProvider), ctx, configID, name)
 }
 
 // MockroutingRepo is a mock of routingRepo interface.

@@ -6,6 +6,16 @@ ADR catalog was removed; older entries below still mention their ADR by number).
 format are in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
 the service is not released, deploy is continuous.
 
+## 2026-06-30 — Live delivery of nodes and rules via providers (#119)
+
+Nodes are now delivered as a `proxy-provider` and authored rule lists as `rule-providers`,
+bound to the subscription token, so the mihomo core refreshes them on their interval while
+connected — operator edits reach a connected client without a profile reload (mobile apps
+have no background profile timer). proxy-groups reference the node provider via `use:`+`filter:`;
+rule-providers gain a `source` (external upstream / authored-in-subgen list); a new per-config
+"nodes update interval". Migration `0005` (additive). See
+[the archived OpenSpec change](openspec/changes/archive/2026-06-30-live-providers/).
+
 ## 2026-06-28 — Move the unit-test convention into a skill (#122)
 
 Extracted the unit-test rules out of `AGENTS.md` into a tracked **`go-unit-tests` skill**

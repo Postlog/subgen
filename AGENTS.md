@@ -455,57 +455,15 @@ panel's format, and the service layer is trivially mocked via `contract.go`.
 
 ## Unit tests
 
-A strict table-driven structure. One `Test{Type}_{Method}` per **method** (do not
-split into `Test*_Success` / `Test*_Error`).
-
-```go
-func TestClient_Method(t *testing.T) {
-	targetErr := errors.New("test")
-
-	tt := []struct {
-		name string
-		// input
-		buildMock func(mock *MockClient) // buildMocks(...) if there are several dependencies
-		result    SomeOut
-		err       error
-		wantErr   bool // only if err is not a sentinel
-	}{
-		{name: "empty"},
-		{name: "success.one_user", buildMock: func(m *MockClient) { /* EXPECT */ }, result: SomeOut{ /*…*/ }},
-		{name: "error.downstream", buildMock: func(m *MockClient) { m.EXPECT().X(gomock.Any()).Return(nil, targetErr) }, err: targetErr},
-	}
-
-	t.Parallel()
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ctrl := gomock.NewController(t)
-
-			mock := NewMockClient(ctrl)
-			if tc.buildMock != nil {
-				tc.buildMock(mock)
-			}
-
-			c := New(mock)
-			result, err := c.Method(context.Background(), /* in */)
-
-			require.ErrorIs(t, err, tc.err)
-			assert.Equal(t, tc.result, result)
-		})
-	}
-}
-```
-
-| Rule | Essence |
-|---|---|
-| `contract.go` + mockgen | Dependency interfaces — in the package's `contract.go`; `//go:generate go tool mockgen -source=contract.go` for services, entity and clients |
-| Public API | We test only exported methods; private helpers — through the public one |
-| Table-driven | One `Test{Type}_{Method}` per method; `tt []struct{ name, … }`; do **not** split into `*_Success`/`*_Error` |
-| Case naming | `name` **without spaces**: `success.one_user`, `error.invalid_user_id`, `empty_fields` |
-| Parallelism | `t.Parallel()` on the table **and** in `t.Run`. Exception: if the dependency codegen is not thread-safe (a data race in the generated `New()`/declaration) — without parallel construction |
-| Branches | At a minimum: `empty` (if applicable), `success` with a mapping check, `error` from downstream; domain edge cases — by sense |
-| Mocks | `mockgen` by one's own package `contract.go` → `Mock*`; do **not** drag a foreign `clients.MockClient` into a service/entity test |
-| Assertions | `require.ErrorIs` / `ErrorAs` / `NoError` for errors; `assert.Equal` for the result; `wantErr` / `ErrorContains` — only when there is no specific sentinel |
+The unit-test convention lives in the **`go-unit-tests` skill**
+(`.claude/skills/go-unit-tests/SKILL.md`) — it is the source of truth for how unit tests are
+written and reviewed here, so they are not duplicated in this document. In short: a strict
+table-driven structure (one `Test{Type}_{Method}` per method, never split into
+`*_Success`/`*_Error`), `testify` `require`/`assert`, and `gomock` mocks generated from a
+per-package `contract.go`; dotted case names, `t.Parallel()` on the table and each subtest,
+one build-func per dependency, sentinel checks via `require.ErrorIs`, and the judgment of when
+*not* to reach for a table. Write and review unit tests by that skill. Integration / API tests
+are a separate thing — see below.
 
 ## Integration / API tests
 

@@ -525,6 +525,25 @@ scenario. Turnkey run: `make -C apitest test`.
 - Required arrays (`groups`/`rules`/`providers`/`inbounds`/…) are decoded strictly by the server: `null`
   (what a nil slice is JSON-encoded into) is rejected — send empty `[]`.
 
+## Working on a change — worktree, branch, PR
+
+Every feature/fix is developed in its **own git worktree on its own branch** — never
+directly on `main` in the main checkout. This keeps `main` clean and switchable, isolates
+parallel work, and makes branch → commit → push → PR the only path into `main`.
+
+- **Create a worktree** off a clean `main`:
+  `git worktree add -b <type>/<slug> .worktrees/<slug>` — `<type>` ∈ `feat`/`fix`/`chore`
+  (e.g. `feat/subscription-link-catalog`). Worktrees live **in-repo** under `.worktrees/`,
+  which is gitignored, so the checkouts never show up in `git status`.
+- **Do all development and commits in the worktree** (`cd .worktrees/<slug>`); the main
+  checkout stays untouched.
+- **Run the full check before pushing** (`make all` — build+vet+lint+unit+integration+
+  apitest) and confirm it is green; a green push is not a substitute for the gate.
+- **Push the branch and open a PR.** Do **not** push to or merge straight into `main` —
+  changes land via a reviewed, approved PR (squash-merge). Each PR carries its CHANGELOG
+  entry (and an ADR for non-trivial changes — see below).
+- **After merge**, clean up: `git worktree remove .worktrees/<slug>` and delete the branch.
+
 ## Documenting changes — CHANGELOG + ADR
 
 Every PR leaves a trace, so that «what and why we changed» does not get lost in the

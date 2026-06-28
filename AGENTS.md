@@ -455,15 +455,7 @@ panel's format, and the service layer is trivially mocked via `contract.go`.
 
 ## Unit tests
 
-The unit-test convention lives in the **`go-unit-tests` skill**
-(`.claude/skills/go-unit-tests/SKILL.md`) — it is the source of truth for how unit tests are
-written and reviewed here, so they are not duplicated in this document. In short: a strict
-table-driven structure (one `Test{Type}_{Method}` per method, never split into
-`*_Success`/`*_Error`), `testify` `require`/`assert`, and `gomock` mocks generated from a
-per-package `contract.go`; dotted case names, `t.Parallel()` on the table and each subtest,
-one build-func per dependency, sentinel checks via `require.ErrorIs`, and the judgment of when
-*not* to reach for a table. Write and review unit tests by that skill. Integration / API tests
-are a separate thing — see below.
+The rules for writing unit tests are described in the **`go-unit-tests` skill** (`.claude/skills/go-unit-tests/`).
 
 ## Integration / API tests
 

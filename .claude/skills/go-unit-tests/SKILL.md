@@ -1,14 +1,15 @@
 ---
 name: go-unit-tests
 description: >-
-  Write Go unit tests in a strict table-driven style using testify (require/assert)
-  and gomock (go.uber.org/mock) with mockgen-generated mocks from a per-package
-  contract.go. Use this skill whenever the user asks to write, add, generate, or fix
-  unit tests for Go code — for a handler, service, client, repository, or any exported
-  method — even if they don't say the words "table-driven" or "testify". Also use it
-  when reviewing or refactoring existing Go tests toward this convention, or when the
-  user mentions gomock, mockgen, contract.go, Mock* types, or *_test.go files in a Go
-  backend.
+  Use this skill whenever unit tests are involved in this Go backend — writing, adding,
+  generating, fixing, extending, or reviewing them — for a handler, service, client, or
+  any exported method. Trigger it when the user asks for a test or a `*_test.go` file,
+  wants more coverage for some function, needs a missing or failing unit test made to
+  pass, adds a case to a table-driven test, or needs a `contract.go` / mock created or
+  regenerated for a test — even if they never say "table-driven", "testify", "gomock",
+  or name this skill. Also trigger on mentions of gomock, mockgen, contract.go, or Mock*
+  types, and when refactoring existing Go tests toward the repo's convention. Reach for
+  it by default so every test in the codebase stays consistent rather than ad hoc.
 ---
 
 # Go Unit Tests

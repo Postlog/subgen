@@ -15,17 +15,15 @@ description: >-
 # Go Unit Tests
 
 This skill captures one specific, opinionated way of writing Go unit tests. The goal
-is that every test you write looks like it was written by the same person: a strict
-table-driven structure, `testify` for checks, and `gomock` mocks generated from a
-per-package `contract.go`. Consistency here matters more than cleverness — a reviewer
+is that every test you write looks like it was written by the same person.
+Consistency here matters more than cleverness — a reviewer
 should be able to read any test in the codebase without re-learning the layout.
 
 ## A note on scope
 
 These rules are for **unit** tests — pure logic with mocked dependencies — and apply in full
-only to them. Other kinds of tests (integration / API tests, or repository tests that run
-against a real store under a build tag) follow their own conventions; don't force this
-mock-and-table template onto them.
+only to them. Other kinds of tests (integration / API tests / e2e / etc.) follow their own conventions; don't force this 
+template onto them.
 
 ## The shape of every test
 

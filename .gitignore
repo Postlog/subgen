@@ -33,6 +33,9 @@ go.work.sum
 # Tooling scratch (Playwright MCP traces/console logs)
 .playwright-mcp/
 
+# Feature worktrees live in-repo under .worktrees/<slug> (one branch per feature/fix)
+.worktrees/
+
 # OS / editor noise
 .DS_Store
 ._*

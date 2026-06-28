@@ -5,6 +5,13 @@ link to an ADR in [`docs/decisions/`](docs/decisions/). The rule and format are
 in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
 the service is not released, deploy is continuous.
 
+## 2026-06-28 — Feature worktree workflow (#120)
+
+Documented the per-feature workflow in `AGENTS.md`: every feature/fix is developed in its
+own git worktree under `.worktrees/<slug>` on its own branch (branch → commit → push → PR;
+never edit `main` directly). Added `.worktrees/` to `.gitignore` so those in-repo checkouts
+never pollute `git status`.
+
 ## 2026-06-19 — Responsive admin UI: phones, tablets, ultrawide (#115)
 
 Made the admin panel usable on every screen size — mini-phones (320px) through ultrawide.

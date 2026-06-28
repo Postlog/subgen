@@ -20,6 +20,13 @@ table-driven structure, `testify` for checks, and `gomock` mocks generated from 
 per-package `contract.go`. Consistency here matters more than cleverness — a reviewer
 should be able to read any test in the codebase without re-learning the layout.
 
+## A note on scope
+
+These rules are for **unit** tests — pure logic with mocked dependencies — and apply in full
+only to them. Other kinds of tests (integration / API tests, or repository tests that run
+against a real store under a build tag) follow their own conventions; don't force this
+mock-and-table template onto them.
+
 ## The shape of every test
 
 One test function per **exported method**, named `Test{Type}_{Method}`. The table holds
@@ -224,22 +231,3 @@ The test verifies the DTO→domain mapping, which is the only logic a client sho
 4. If mocks are missing, add/extend `contract.go` and run `go generate ./...`.
 5. Run `go test ./...` (or the specific package) and make it green. Report the result —
    if a test reveals a real bug in the code, surface it rather than bending the test to pass.
-
-## A note on scope
-
-This is the convention for **unit** tests — pure logic with mocked dependencies. Two
-neighbors are deliberately out of scope, and forcing the mock-and-table template onto them
-makes things worse, not better:
-
-- **Integration / API tests** are a separate thing (testify suites under a build tag, run
-  against real dependencies). If the user clearly wants an integration test against a live
-  service, say so and don't bend the unit-test template onto it.
-- **Repository tests, in a codebase that already tests them against a real store.** Many Go
-  backends (subgen among them) run repository tests under a `//go:build integration` tag
-  against a real database via a `dbtest`-style helper — because the thing worth testing in a
-  repository *is* the SQL and the constraint-to-sentinel mapping, which a mocked DB can't
-  exercise. There, a repository test is an integration test; **don't mock the database.** The
-  exception is a pure-logic helper that merely lives under `repository/` (an error-class
-  detector that inspects a driver error, a small mapper) — no I/O, so it's an ordinary unit
-  test. When unsure which kind a package wants, glance at its sibling `*_test.go`: the build
-  tag and whether they spin up `dbtest` tell you immediately.

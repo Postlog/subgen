@@ -30,8 +30,7 @@ comments, log/error messages, user-facing strings and the admin UI, the docs (`R
 `AGENTS.md`, `docs/`, ADRs), the `CHANGELOG`, commit messages, and **pull-request titles and
 descriptions**. Non-English text (e.g. Cyrillic) must not appear anywhere in the tree — the
 only exception is operator-entered data that lives in the running store, not in the repo.
-Quick guard: `grep -rI '[А-Яа-я]'` over the tree comes back empty. See
-[ADR-0009](docs/decisions/0009-public-ready-and-english-docs.md).
+Quick guard: `grep -rI '[А-Яа-я]'` over the tree comes back empty.
 
 Structure references (look at as a model):
 `go.avito.ru/av/service-listing-admin`, `go.avito.ru/av/service-mnz-sf`.
@@ -94,7 +93,7 @@ RAM-starved — Go/registry are not needed on the node), shipped over SSH (`dock
 `README.md` / `docs/subgen.md`. The legacy systemd deploy has been removed (it was `systemd/`). There is no SIGHUP reload —
 the config flows bottom-up from the store on every request. **DB migrations — an ordered runner
 on start** (`migrations.Apply`: the `0001-init.sql` baseline + `NNNN-*.sql` by name, tracked in
-`schema_migrations`; see [ADR-0002](docs/decisions/0002-ordered-migration-runner.md)).
+`schema_migrations`).
 
 ## Target rules (layer inversion)
 
@@ -208,8 +207,7 @@ these formulations take priority. Any new code follows them; if you touch old co
   thin — it maps the sentinel into a typed 4xx with a local text constant. No service —
   we create one (`internal/service/nodes` owns node validation). **Surrogate ids (PK) we do not
   validate** — a non-existent id (whether negative or valid-but-absent)
-  yields not-found either way, a separate `id≥1` check is meaningless. See
-  [ADR-0003](docs/decisions/0003-validation-in-code.md).
+  yields not-found either way, a separate `id≥1` check is meaningless.
 - A handler's dependency — a concrete interface for the data it needs.
   **The anti-pattern `cfgReader{ Cfg() *config.Config }` is forbidden** — if you need a concrete field,
   pass the concrete field.
@@ -379,8 +377,7 @@ edit of the baseline (otherwise it diverges from already-adopted bases), not in-
 (`journal_mode=WAL`, `foreign_keys`, `busy_timeout`) live in the DSN (`open.go`), since `PRAGMA
 journal_mode` cannot be executed inside the runner's transaction. There are no rollbacks (forward-only). If
 a migration rebuilds a table via RENAME — set `PRAGMA legacy_alter_table=ON` before the
-RENAME (otherwise SQLite rewrites FKs in other tables and leaves dangling references). See
-[ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
+RENAME (otherwise SQLite rewrites FKs in other tables and leaves dangling references).
 
 ## Dependencies: `contract.go` + mockgen
 
@@ -541,24 +538,34 @@ parallel work, and makes branch → commit → push → PR the only path into `m
   apitest) and confirm it is green; a green push is not a substitute for the gate.
 - **Push the branch and open a PR.** Do **not** push to or merge straight into `main` —
   changes land via a reviewed, approved PR (squash-merge). Each PR carries its CHANGELOG
-  entry (and an ADR for non-trivial changes — see below).
+  entry (and an OpenSpec change for non-trivial changes — see below).
 - **After merge**, clean up: `git worktree remove .worktrees/<slug>` and delete the branch.
 
-## Documenting changes — CHANGELOG + ADR
+## Documenting changes — CHANGELOG + OpenSpec
 
-Every PR leaves a trace, so that «what and why we changed» does not get lost in the
+Every PR leaves a trace, so that what and why we changed does not get lost in the
 git/GitHub history. This is a repository rule, not an option:
 
 - **`CHANGELOG.md`** (root) — **one entry per PR**, reverse-chronologically.
-  Format: `## YYYY-MM-DD — <short title> (#<PR>)` + 1–2 lines of essence + a link to
-  an ADR, if there is one. **No version sections** — the service has no releases/tags, the deploy is
-  continuous. The entry is added in the same PR as the change.
-- **ADR** — for **non-trivial** changes (there is a design decision, a choice between
-  options, a non-obvious trade-off): `docs/decisions/NNNN-<slug>.md`, a continuous
-  4-digit numbering, by the template `docs/decisions/0000-template.md` (sections **Context /
-  Considered Options / Decision / Consequences**) — the problem, the considered options,
-  the rationale for the choice. The CHANGELOG entry links to the ADR.
+  Format: `## YYYY-MM-DD — <short title> (#<PR>)` + 1–2 lines of essence + a link to the
+  archived OpenSpec change, if there is one. **No version sections** — the service has no
+  releases/tags, the deploy is continuous. The entry is added in the same PR as the change.
+- **OpenSpec** (`openspec/`) — for **non-trivial** changes (there is a design decision, a choice
+  between options, a non-obvious trade-off). Plan it as an OpenSpec change rather than coding
+  blind: `openspec/changes/<slug>/` holds `proposal.md` (why + what), `design.md` (how + the
+  trade-off, in the spirit of the old ADRs: Context / Considered Options / Decision /
+  Consequences) and `tasks.md`, plus spec deltas. Drive it with the `/opsx:*` workflow
+  (`/opsx:propose` → `/opsx:apply` → `/opsx:archive`) or the `openspec` CLI. On completion the
+  change is **archived** under `openspec/changes/archive/<date>-<slug>/` and the affected specs
+  are updated. The CHANGELOG entry links the archived change.
+- **`openspec/specs/<capability>/spec.md`** is the **living behavior contract** (requirement +
+  WHEN/THEN scenarios) — the source of truth for what the system does. Keep it in sync when
+  behavior changes (the design rationale lives in the change's `design.md`; the behavior lives in
+  the spec). Validate with `openspec validate --specs --strict`.
 - **Trivial** changes (a typo, a dependency bump, a small thing without forks) — only
-  a line in CHANGELOG, without an ADR.
-- An ADR is **immutable after merge**. A decision that cancels a previous one is a new ADR with a
-  `Supersedes 000X` link; the old one's status changes to `Superseded by 000Y`.
+  a line in CHANGELOG, no OpenSpec change.
+
+> OpenSpec **replaces the former ADR process**: this migration is recorded as the archived change
+> `openspec/changes/archive/2026-06-28-adopt-openspec/`, and the old `docs/decisions/` ADR catalog
+> was removed (the records remain in git history). **Do not add new ADRs** — new design decisions
+> go through OpenSpec changes.

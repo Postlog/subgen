@@ -72,7 +72,7 @@ func (s *UserSuite) TestCreateValidation() {
 
 	s.Run("empty_name", func() {
 		// Schema no longer carries minLength; the empty name reaches validateName → friendly
-		// charset message (ADR-0003: validation in code).
+		// charset message (value validation lives in the service).
 		res, err := s.API().CreateUser("", []int64{smartN1})
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)

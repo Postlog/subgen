@@ -75,20 +75,26 @@ Highlights:
   (`fmt.Errorf("dep.Method: %w", err)`); user-facing text lives as constants in the handler
   package, mapped from sentinels (domain → 4xx, infra → 5xx).
 - **User-facing text is English.** Don't introduce non-English strings in code or docs (the
-  admin UI's product labels are English too). See
-  [ADR-0009](docs/decisions/0009-public-ready-and-english-docs.md).
+  admin UI's product labels are English too).
 - **Validation lives in the service layer** (sentinel errors), not in the OpenAPI schema.
 
-## Documenting changes — CHANGELOG + ADR
+## Documenting changes — CHANGELOG + OpenSpec
 
 Every PR leaves a trail:
 
 - **`CHANGELOG.md`** — one entry per PR, reverse-chronological:
-  `## YYYY-MM-DD — <short title> (#PR)` + 1–2 lines, plus an ADR link if there is one.
-- **ADRs** — for non-trivial changes (a design decision / trade-off), add
-  `docs/decisions/NNNN-<slug>.md` from `docs/decisions/0000-template.md` (Context /
-  Considered Options / Decision / Consequences). ADRs are immutable once merged; a later
-  decision that reverses one is a new ADR that `Supersedes` it.
+  `## YYYY-MM-DD — <short title> (#PR)` + 1–2 lines, plus a link to the archived OpenSpec
+  change if there is one.
+- **OpenSpec** (`openspec/`) — for non-trivial changes (a design decision / trade-off), plan
+  it as an OpenSpec change: `openspec/changes/<slug>/` with `proposal.md` / `design.md` /
+  `tasks.md` and spec deltas, then archive it under `openspec/changes/archive/` and update the
+  affected `openspec/specs/`. Drive it with the `/opsx:*` slash commands (committed under
+  `.claude/`) or the CLI (`npx @fission-ai/openspec`). Validate specs with
+  `openspec validate --specs --strict`.
+- The living behavior contract is `openspec/specs/<capability>/spec.md`; keep it in sync when
+  behavior changes. OpenSpec replaces the former ADR process (the old `docs/decisions/` catalog
+  was removed; do not add new ADRs). This migration's own record is the archived change
+  `openspec/changes/archive/2026-06-28-adopt-openspec/`.
 
 ## Security & secrets
 
@@ -100,4 +106,4 @@ per-client configs must never land in git.
 
 - Branch off `main`, keep the change focused, and make sure `make all` (or at least lint +
   unit + integration) is green.
-- Include the `CHANGELOG.md` entry (and an ADR if warranted) in the same PR.
+- Include the `CHANGELOG.md` entry (and an OpenSpec change if warranted) in the same PR.

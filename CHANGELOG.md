@@ -1,9 +1,20 @@
 # Changelog
 
-subgen changes — one entry per PR, reverse-chronological. Non-trivial changes
-link to an ADR in [`docs/decisions/`](docs/decisions/). The rule and format are
-in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
+subgen changes — one entry per PR, reverse-chronological. Non-trivial changes link to an
+archived OpenSpec change in [`openspec/changes/archive/`](openspec/changes/archive/) (the former
+ADR catalog was removed; older entries below still mention their ADR by number). The rule and
+format are in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
 the service is not released, deploy is continuous.
+
+## 2026-06-28 — Migrate to OpenSpec (#121)
+
+Adopted [OpenSpec](https://github.com/Fission-AI/OpenSpec) (the `spec-driven` schema) as the
+planning and change-documentation process, replacing the ADR catalog (the `CHANGELOG` stays).
+Seeded a full spec baseline under `openspec/specs/` (12 capabilities, validated by
+`openspec validate --specs --strict`), added the `/opsx:*` workflow under `.claude/` (narrowed the
+`.claude` gitignore so it is tracked), rewrote the process in `AGENTS.md` / `CONTRIBUTING.md` /
+`README.md`, and **removed the `docs/decisions/` ADR catalog** (kept in git history). The
+migration's own rationale lives in `openspec/changes/archive/2026-06-28-adopt-openspec/`.
 
 ## 2026-06-28 — Feature worktree workflow (#120)
 
@@ -37,7 +48,7 @@ Prepared the repository for a public release. Rewrote `README.md` for newcomers 
 human-facing to English — `AGENTS.md`, `CHANGELOG.md`, all ADRs, `apitest/README.md`,
 `docs/subgen.md`, the admin UI (`internal/handlers/web/static/`), and all user-facing
 handler/error messages (unit tests and `apitest` assertions updated in lockstep). See
-[ADR-0009](docs/decisions/0009-public-ready-and-english-docs.md).
+ADR-0009.
 
 ## 2026-06-17 — Subscription: a popup of links from the backend (raw URL + clashmi deeplink) (#116)
 
@@ -49,7 +60,7 @@ catalog and the frontend hardcodes nothing (adding an engine/app = one catalog l
 shows only the title and a "Copy" button (the value is private). The `sub` shape in
 `GET /admin/api/users` changed from `{id,url}` to `{links:[{title,value}]}`; the clashmi
 deeplink's `name` = the profile title of the user's effective (custom, else base) config. See
-[ADR-0008](docs/decisions/0008-subscription-link-catalog.md).
+ADR-0008.
 
 Also in this PR: the "Subscription settings" block was moved to the top of the "Mihomo config"
 tab; leftover githooks were removed (the `make hooks` target and the local `core.hooksPath` — the
@@ -76,7 +87,7 @@ matchers were added for parity with the wiki (`SRC-IP-ASN`, `SRC-IP-SUFFIX`, `PR
 section in the base YAML). Sub-rules carry no `no-resolve` (mihomo does not parse it for them). UI —
 a recursive tree constructor; SUB-RULE is not implemented. Schema — migration
 `migrations/0004-mihomo-rule-children.notx.sql`. See
-[ADR-0006](docs/decisions/0006-recursive-routing-rules.md).
+ADR-0006.
 
 ## 2026-06-11 — Strict mihomo references: RULE-SET → rule-provider by id (#17)
 
@@ -85,7 +96,7 @@ rule-provider by surrogate id (`provider_id` FK); the save input and domain/read
 separate types (a draft with indices vs a domain with real ids), which removes the double meaning of
 `PolicyRef.GroupID`. Optional fields (`value`/`interval`/`tolerance`/`lazy`/`noResolve`) are
 pointers. The schema is migrated by the runner (`migrations/0003-strict-mihomo-refs.notx.sql` —
-rebuild with FK off outside a transaction). See [ADR-0005](docs/decisions/0005-strict-mihomo-refs.md).
+rebuild with FK off outside a transaction). See ADR-0005.
 
 ## 2026-06-11 — User: optional description for the admin panel (#15)
 
@@ -94,7 +105,7 @@ visible only in the admin UI): set on create/edit, shown as an icon with a
 tooltip in the table. The `users.description` column (nullable) is added by migration
 `migrations/0002-users-description.sql` via the runner. Service inputs were moved into the structs
 `entity.UserCreateParams` / `entity.UserEditParams` (removed `entity.ConnectionSelection`).
-See [ADR-0004](docs/decisions/0004-optional-user-description.md).
+See ADR-0004.
 
 ## 2026-06-11 — Request validation — in the service layer, not in OpenAPI (#19)
 
@@ -109,7 +120,7 @@ provider-check URL is not a special case (nor is a malformed URL → `RulesetChe
 public and are imported in apitest (no duplication). In tests `gomock.Any()` was kept
 only for the context — the other arguments are checked exactly (matchers for random uuid/subId).
 `required`/`type`/`format` were kept (the contract shape). See
-[ADR-0003](docs/decisions/0003-validation-in-code.md).
+ADR-0003.
 
 ## 2026-06-11 — Ordered migration runner (#18)
 
@@ -117,10 +128,10 @@ Manual `*.manual.sql` was replaced by the runner `migrations.Apply` (`repository
 instead of `ExecContext(Schema)`): `0001-init.sql` — the immutable baseline, then `NNNN-*.sql`
 by name, the application fact — in `schema_migrations`, each migration in a transaction,
 fail-fast + log. Connection PRAGMA (incl. `journal_mode=WAL`) moved into the DSN. The section on
-migrations in `AGENTS.md` was rewritten. See [ADR-0002](docs/decisions/0002-ordered-migration-runner.md).
+migrations in `AGENTS.md` was rewritten. See ADR-0002.
 
 ## 2026-06-11 — Documenting convention: CHANGELOG + ADR (#16)
 
 Introduced `CHANGELOG.md` (this file) and the ADR catalog `docs/decisions/`; the rule is recorded in
 `AGENTS.md`. The format "one entry per PR, no versions" was chosen.
-See [ADR-0001](docs/decisions/0001-adopt-changelog-and-adr.md).
+See ADR-0001.

@@ -53,7 +53,7 @@ func (s *AuthSuite) TestLoginPost() {
 
 	s.Run("empty_fields", func() {
 		// Schema no longer carries minLength; empty creds reach the handler and just fail
-		// the constant-time compare like any wrong creds → 401 (ADR-0003: validation in code).
+		// the constant-time compare like any wrong creds → 401 (value validation lives in the service).
 		res, err := s.fresh().Login("", "")
 		s.Require().NoError(err)
 		s.Equal(http.StatusUnauthorized, res.Status, "empty creds are wrong creds → 401")

@@ -222,7 +222,8 @@ assets. There is no `App` oracle — dependencies flow bottom-up
 
 - [`docs/subgen.md`](docs/subgen.md) — design rationale, operations, admin-panel tour, deploy.
 - [`AGENTS.md`](AGENTS.md) — code style & conventions (layers, contracts, testing, errors).
-- [`docs/decisions/`](docs/decisions) — Architecture Decision Records (ADRs).
+- [`openspec/`](openspec) — the living spec baseline (`specs/`) and the OpenSpec change workflow
+  (it replaces the former ADR catalog).
 - [`CHANGELOG.md`](CHANGELOG.md) — one entry per PR.
 - [`openapi/`](openapi) — the HTTP contract (source of the generated server).
 - [`apitest/README.md`](apitest/README.md) — black-box API tests against real 3x-ui.

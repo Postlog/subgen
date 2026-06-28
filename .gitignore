@@ -6,7 +6,8 @@
 # Secrets — .env lives here; .env.example stays tracked
 *.env
 
-.claude
+# Claude Code — local-only settings stay out; shared commands/skills are tracked
+.claude/settings.local.json
 
 # Rendered per-client configs contain real UUIDs/keys — never commit
 examples/*.local.yaml

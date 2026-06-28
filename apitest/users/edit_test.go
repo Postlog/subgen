@@ -109,7 +109,8 @@ func (s *UserSuite) TestEditValidation() {
 
 	s.Run("no_connection", func() {
 		// An absent inbound list (nil → null) is rejected as a generic 400 by the kept
-		// `required` (ADR-0003 removed minItems but not required); the binding is unchanged.
+		// `required` (value constraints like minItems live in the service, not the schema, but
+		// `required` stays); the binding is unchanged.
 		res, err := s.API().EditUser(u.ID, nil)
 		s.Require().NoError(err)
 		s.Equal(http.StatusBadRequest, res.Status)

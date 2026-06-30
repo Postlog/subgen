@@ -6,6 +6,13 @@ ADR catalog was removed; older entries below still mention their ADR by number).
 format are in [`AGENTS.md`](AGENTS.md) (section "Documenting changes"). There are no versions/tags:
 the service is not released, deploy is continuous.
 
+## 2026-06-28 — Move the unit-test convention into a skill (#122)
+
+Extracted the unit-test rules out of `AGENTS.md` into a tracked **`go-unit-tests` skill**
+(`.claude/skills/go-unit-tests/`); `AGENTS.md` now references the skill as the source of truth
+for the table-driven / `testify` / `gomock`-from-`contract.go` convention instead of
+duplicating it inline.
+
 ## 2026-06-28 — Migrate to OpenSpec (#121)
 
 Adopted [OpenSpec](https://github.com/Fission-AI/OpenSpec) (the `spec-driven` schema) as the

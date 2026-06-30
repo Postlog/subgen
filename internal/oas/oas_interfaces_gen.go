@@ -61,8 +61,16 @@ type RulesRes interface {
 	rulesRes()
 }
 
+type SubProxiesRes interface {
+	subProxiesRes()
+}
+
 type SubRes interface {
 	subRes()
+}
+
+type SubRulesRes interface {
+	subRulesRes()
 }
 
 type UserCreateRes interface {

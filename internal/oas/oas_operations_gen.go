@@ -24,6 +24,8 @@ const (
 	ProviderCheckOperation  OperationName = "ProviderCheck"
 	RulesOperation          OperationName = "Rules"
 	SubOperation            OperationName = "Sub"
+	SubProxiesOperation     OperationName = "SubProxies"
+	SubRulesOperation       OperationName = "SubRules"
 	UserCreateOperation     OperationName = "UserCreate"
 	UserDeleteOperation     OperationName = "UserDelete"
 	UserEditOperation       OperationName = "UserEdit"

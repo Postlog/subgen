@@ -134,24 +134,106 @@ func validateRule(r RuleDraft, top bool, numGroups, numProviders int) error {
 	return nil
 }
 
-// ValidateRuleProviders checks each provider has a non-empty name, a known behavior
-// and format, and a URL. Name uniqueness is NOT checked here — it is enforced by the
-// table's PK and translated to entity.ErrRuleProviderNameTaken in the repository.
+// ValidateRuleProviders checks each provider per its source. Every provider needs a
+// non-empty name. An external provider needs a known behavior and format and a URL. An
+// authored provider (subgen-served classical text) must carry no URL and at least one
+// matcher, and each matcher must be a valid target-less leaf/logical rule (no MATCH,
+// RULE-SET or SUB-RULE — mihomo rejects those in a classical provider). An empty source
+// is treated as external (back-compat with rows/tests predating the source field). Name
+// uniqueness is NOT checked here — it is enforced by the table's PK and translated to
+// entity.ErrRuleProviderNameTaken in the repository.
 func ValidateRuleProviders(provs []RuleProvider) error {
 	behaviors := sliceSet(RuleProviderBehaviors())
 	formats := sliceSet(RuleProviderFormats())
 
 	for _, p := range provs {
-		switch {
-		case p.Name == "":
+		if p.Name == "" {
 			return ErrProviderNameEmpty
-		case !behaviors[p.Behavior]:
-			return ErrProviderBadBehavior
-		case !formats[p.Format]:
-			return ErrProviderBadFormat
-		case p.URL == "":
-			return ErrProviderURLEmpty
 		}
+
+		src := p.Source
+		if src == "" {
+			src = RuleProviderExternal
+		}
+
+		switch src {
+		case RuleProviderAuthored:
+			if p.URL != "" {
+				return ErrProviderAuthoredURLSet
+			}
+
+			if len(p.Matchers) == 0 {
+				return ErrProviderAuthoredNeedsMatchers
+			}
+
+			for _, m := range p.Matchers {
+				if err := validateMatcher(m); err != nil {
+					return err
+				}
+			}
+		case RuleProviderExternal:
+			switch {
+			case !behaviors[p.Behavior]:
+				return ErrProviderBadBehavior
+			case !formats[p.Format]:
+				return ErrProviderBadFormat
+			case p.URL == "":
+				return ErrProviderURLEmpty
+			}
+		default:
+			return ErrProviderBadSource
+		}
+	}
+
+	return nil
+}
+
+// validateMatcher validates one node of an authored rule-provider's matcher tree (and its
+// subtree). It is a target-less matcher, not a routing rule: MATCH and RULE-SET (and any
+// type that takes a provider) are rejected — mihomo forbids them in a classical provider —
+// and a node may not carry a Target. A logical node (AND/OR/NOT) carries no value, enforces
+// arity, and validates each child; a leaf carries no children and a non-empty value.
+func validateMatcher(r RoutingRule) error {
+	if !r.Type.Valid() {
+		return ErrUnknownRuleType
+	}
+
+	if r.Type.IsMatch() || r.Type.TakesProvider() {
+		return ErrProviderMatcherUnsupported
+	}
+
+	if r.Target != nil {
+		return ErrChildTarget
+	}
+
+	if r.Type.IsLogical() {
+		if r.Value != nil {
+			return ErrRulePayloadNotAllowed
+		}
+
+		if r.Type == RuleNot {
+			if len(r.Children) != 1 {
+				return ErrNotArity
+			}
+		} else if len(r.Children) < 2 { // AND / OR
+			return ErrLogicalArity
+		}
+
+		for _, c := range r.Children {
+			if err := validateMatcher(c); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if len(r.Children) != 0 {
+		return ErrChildrenNotAllowed
+	}
+
+	if r.Value == nil || *r.Value == "" {
+		return ErrRuleValueRequired
 	}
 
 	return nil
@@ -177,6 +259,10 @@ func ValidateProfile(p Profile) error {
 
 	if p.UpdateInterval < 1 {
 		return ErrProfileUpdateIntervalInvalid
+	}
+
+	if p.ProxiesInterval < 1 {
+		return ErrProfileProxiesIntervalInvalid
 	}
 
 	return nil

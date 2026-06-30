@@ -195,6 +195,7 @@ type ConfigSaveReq struct {
 	ProfileTitle          string           `json:"profileTitle"`
 	Filename              string           `json:"filename"`
 	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
+	ProxiesInterval       int              `json:"proxiesInterval"`
 	UserId                OptInt64         `json:"userId"`
 }
 
@@ -231,6 +232,11 @@ func (s *ConfigSaveReq) GetFilename() string {
 // GetProfileUpdateInterval returns the value of ProfileUpdateInterval.
 func (s *ConfigSaveReq) GetProfileUpdateInterval() int {
 	return s.ProfileUpdateInterval
+}
+
+// GetProxiesInterval returns the value of ProxiesInterval.
+func (s *ConfigSaveReq) GetProxiesInterval() int {
+	return s.ProxiesInterval
 }
 
 // GetUserId returns the value of UserId.
@@ -271,6 +277,11 @@ func (s *ConfigSaveReq) SetFilename(val string) {
 // SetProfileUpdateInterval sets the value of ProfileUpdateInterval.
 func (s *ConfigSaveReq) SetProfileUpdateInterval(val int) {
 	s.ProfileUpdateInterval = val
+}
+
+// SetProxiesInterval sets the value of ProxiesInterval.
+func (s *ConfigSaveReq) SetProxiesInterval(val int) {
+	s.ProxiesInterval = val
 }
 
 // SetUserId sets the value of UserId.
@@ -429,8 +440,14 @@ func (s *ConfigSchemaOKProxyGroupTypesItem) SetItems(val []string) {
 }
 
 type ConfigSchemaOKRuleProvider struct {
+	Sources   []string `json:"sources"`
 	Behaviors []string `json:"behaviors"`
 	Formats   []string `json:"formats"`
+}
+
+// GetSources returns the value of Sources.
+func (s *ConfigSchemaOKRuleProvider) GetSources() []string {
+	return s.Sources
 }
 
 // GetBehaviors returns the value of Behaviors.
@@ -441,6 +458,11 @@ func (s *ConfigSchemaOKRuleProvider) GetBehaviors() []string {
 // GetFormats returns the value of Formats.
 func (s *ConfigSchemaOKRuleProvider) GetFormats() []string {
 	return s.Formats
+}
+
+// SetSources sets the value of Sources.
+func (s *ConfigSchemaOKRuleProvider) SetSources(val []string) {
+	s.Sources = val
 }
 
 // SetBehaviors sets the value of Behaviors.
@@ -752,6 +774,7 @@ type MihomoConfig struct {
 	ProfileTitle          string           `json:"profileTitle"`
 	Filename              string           `json:"filename"`
 	ProfileUpdateInterval int              `json:"profileUpdateInterval"`
+	ProxiesInterval       int              `json:"proxiesInterval"`
 }
 
 // GetGroups returns the value of Groups.
@@ -789,6 +812,11 @@ func (s *MihomoConfig) GetProfileUpdateInterval() int {
 	return s.ProfileUpdateInterval
 }
 
+// GetProxiesInterval returns the value of ProxiesInterval.
+func (s *MihomoConfig) GetProxiesInterval() int {
+	return s.ProxiesInterval
+}
+
 // SetGroups sets the value of Groups.
 func (s *MihomoConfig) SetGroups(val []MihomoGroup) {
 	s.Groups = val
@@ -822,6 +850,11 @@ func (s *MihomoConfig) SetFilename(val string) {
 // SetProfileUpdateInterval sets the value of ProfileUpdateInterval.
 func (s *MihomoConfig) SetProfileUpdateInterval(val int) {
 	s.ProfileUpdateInterval = val
+}
+
+// SetProxiesInterval sets the value of ProxiesInterval.
+func (s *MihomoConfig) SetProxiesInterval(val int) {
+	s.ProxiesInterval = val
 }
 
 func (*MihomoConfig) configGetRes() {}
@@ -909,18 +942,25 @@ func (s *MihomoGroup) SetMembers(val []PolicyRef) {
 
 // Ref: #/components/schemas/MihomoProvider
 type MihomoProvider struct {
-	Name           string `json:"name"`
-	Behavior       string `json:"behavior"`
-	Format         string `json:"format"`
-	URL            string `json:"url"`
-	Interval       int    `json:"interval"`
-	Mirror         bool   `json:"mirror"`
-	MirrorInterval int    `json:"mirrorInterval"`
+	Name           string       `json:"name"`
+	Source         string       `json:"source"`
+	Behavior       string       `json:"behavior"`
+	Format         string       `json:"format"`
+	URL            string       `json:"url"`
+	Interval       int          `json:"interval"`
+	Mirror         bool         `json:"mirror"`
+	MirrorInterval int          `json:"mirrorInterval"`
+	Matchers       []MihomoRule `json:"matchers"`
 }
 
 // GetName returns the value of Name.
 func (s *MihomoProvider) GetName() string {
 	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *MihomoProvider) GetSource() string {
+	return s.Source
 }
 
 // GetBehavior returns the value of Behavior.
@@ -953,9 +993,19 @@ func (s *MihomoProvider) GetMirrorInterval() int {
 	return s.MirrorInterval
 }
 
+// GetMatchers returns the value of Matchers.
+func (s *MihomoProvider) GetMatchers() []MihomoRule {
+	return s.Matchers
+}
+
 // SetName sets the value of Name.
 func (s *MihomoProvider) SetName(val string) {
 	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *MihomoProvider) SetSource(val string) {
+	s.Source = val
 }
 
 // SetBehavior sets the value of Behavior.
@@ -986,6 +1036,11 @@ func (s *MihomoProvider) SetMirror(val bool) {
 // SetMirrorInterval sets the value of MirrorInterval.
 func (s *MihomoProvider) SetMirrorInterval(val int) {
 	s.MirrorInterval = val
+}
+
+// SetMatchers sets the value of Matchers.
+func (s *MihomoProvider) SetMatchers(val []MihomoRule) {
+	s.Matchers = val
 }
 
 // Ref: #/components/schemas/MihomoRule
@@ -1780,6 +1835,96 @@ func (s *SubOKHeaders) SetResponse(val SubOK) {
 }
 
 func (*SubOKHeaders) subRes() {}
+
+type SubProxiesNotFound struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s SubProxiesNotFound) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*SubProxiesNotFound) subProxiesRes() {}
+
+type SubProxiesOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s SubProxiesOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*SubProxiesOK) subProxiesRes() {}
+
+type SubRulesNotFound struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s SubRulesNotFound) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*SubRulesNotFound) subRulesRes() {}
+
+type SubRulesOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s SubRulesOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+// SubRulesOKHeaders wraps SubRulesOK with response headers.
+type SubRulesOKHeaders struct {
+	XContentTypeOptions OptString
+	Response            SubRulesOK
+}
+
+// GetXContentTypeOptions returns the value of XContentTypeOptions.
+func (s *SubRulesOKHeaders) GetXContentTypeOptions() OptString {
+	return s.XContentTypeOptions
+}
+
+// GetResponse returns the value of Response.
+func (s *SubRulesOKHeaders) GetResponse() SubRulesOK {
+	return s.Response
+}
+
+// SetXContentTypeOptions sets the value of XContentTypeOptions.
+func (s *SubRulesOKHeaders) SetXContentTypeOptions(val OptString) {
+	s.XContentTypeOptions = val
+}
+
+// SetResponse sets the value of Response.
+func (s *SubRulesOKHeaders) SetResponse(val SubRulesOK) {
+	s.Response = val
+}
+
+func (*SubRulesOKHeaders) subRulesRes() {}
 
 type UserCreateBadRequest ErrorResponse
 

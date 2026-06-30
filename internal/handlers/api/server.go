@@ -99,6 +99,14 @@ func (s *Server) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, err
 	return s.h.Sub.Sub(ctx, params)
 }
 
+func (s *Server) SubProxies(ctx context.Context, params oas.SubProxiesParams) (oas.SubProxiesRes, error) {
+	return s.h.Sub.SubProxies(ctx, params)
+}
+
+func (s *Server) SubRules(ctx context.Context, params oas.SubRulesParams) (oas.SubRulesRes, error) {
+	return s.h.Sub.SubRules(ctx, params)
+}
+
 func (s *Server) Rules(ctx context.Context, params oas.RulesParams) (oas.RulesRes, error) {
 	return s.h.Rules.Rules(ctx, params)
 }

@@ -175,6 +175,24 @@ func (UnimplementedHandler) Sub(ctx context.Context, params SubParams) (r SubRes
 	return r, ht.ErrNotImplemented
 }
 
+// SubProxies implements subProxies operation.
+//
+// Fetch a client's node list (proxy-provider payload).
+//
+// GET /sub/{kind}/{token}/proxies
+func (UnimplementedHandler) SubProxies(ctx context.Context, params SubProxiesParams) (r SubProxiesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SubRules implements subRules operation.
+//
+// Fetch an authored rule-provider's list (classical text).
+//
+// GET /sub/{kind}/{token}/rules/{name}
+func (UnimplementedHandler) SubRules(ctx context.Context, params SubRulesParams) (r SubRulesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UserCreate implements userCreate operation.
 //
 // Create a user.

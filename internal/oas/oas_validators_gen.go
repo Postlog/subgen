@@ -242,6 +242,17 @@ func (s *ConfigSchemaOKRuleProvider) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.Sources == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sources",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Behaviors == nil {
 			return errors.New("nil is invalid value")
 		}

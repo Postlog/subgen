@@ -64,7 +64,7 @@ func (s *ConfigSuite) TestSchema() {
 	})
 
 	s.Run("generated_keys", func() {
-		s.ElementsMatch([]any{"proxies", "proxy-groups", "rules", "rule-providers", "sub-rules"}, schema["generatedKeys"])
+		s.ElementsMatch([]any{"proxies", "proxy-providers", "proxy-groups", "rules", "rule-providers", "sub-rules"}, schema["generatedKeys"])
 	})
 }
 

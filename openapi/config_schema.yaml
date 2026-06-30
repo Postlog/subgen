@@ -27,8 +27,12 @@ get:
                       type: string
               ruleProvider:
                 type: object
-                required: [behaviors, formats]
+                required: [sources, behaviors, formats]
                 properties:
+                  sources:
+                    type: array
+                    items:
+                      type: string
                   behaviors:
                     type: array
                     items:

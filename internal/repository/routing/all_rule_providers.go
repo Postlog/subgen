@@ -11,7 +11,7 @@ import (
 // reference a mirrored provider the base does not. Names can repeat across configs;
 // the mirror keys by name+ext, so a later duplicate just overwrites the source.
 func (r *Repository) AllRuleProviders(ctx context.Context) ([]mihomo.RuleProvider, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,name,behavior,format,mirror,url,interval,mirror_interval FROM mihomo_rule_providers ORDER BY name`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,name,source,behavior,format,mirror,url,interval,mirror_interval FROM mihomo_rule_providers ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -23,11 +23,16 @@ func (r *Repository) AllRuleProviders(ctx context.Context) ([]mihomo.RuleProvide
 	for rows.Next() {
 		var rp mihomo.RuleProvider
 
-		var mirror int
-		if err := rows.Scan(&rp.ID, &rp.Name, &rp.Behavior, &rp.Format, &mirror, &rp.URL, &rp.Interval, &rp.MirrorInterval); err != nil {
+		var (
+			mirror int
+			source string
+		)
+
+		if err := rows.Scan(&rp.ID, &rp.Name, &source, &rp.Behavior, &rp.Format, &mirror, &rp.URL, &rp.Interval, &rp.MirrorInterval); err != nil {
 			return nil, err
 		}
 
+		rp.Source = mihomo.RuleProviderSource(source)
 		rp.Mirror = mirror != 0
 		out = append(out, rp)
 	}

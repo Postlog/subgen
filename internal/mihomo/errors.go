@@ -38,17 +38,27 @@ var (
 	// Rule-providers. (Name uniqueness is enforced by the DB UNIQUE(config_id,name),
 	// translated to entity.ErrRuleProviderNameTaken in the repository — not here.)
 	ErrProviderNameEmpty   = errors.New("rule-provider name is empty")
+	ErrProviderBadSource   = errors.New("unknown rule-provider source")
 	ErrProviderBadBehavior = errors.New("unknown rule-provider behavior")
 	ErrProviderBadFormat   = errors.New("unknown rule-provider format")
 	ErrProviderURLEmpty    = errors.New("rule-provider url is empty")
+
+	// Authored rule-providers (Source == authored): subgen serves them as classical text,
+	// so they carry no upstream URL, must have at least one matcher, and the matcher tree
+	// may not contain MATCH, RULE-SET or SUB-RULE (mihomo rejects those in a classical
+	// provider) nor a routing target (the target comes from the referencing RULE-SET rule).
+	ErrProviderAuthoredURLSet        = errors.New("authored rule-provider must not set a url")
+	ErrProviderAuthoredNeedsMatchers = errors.New("authored rule-provider has no matchers")
+	ErrProviderMatcherUnsupported    = errors.New("authored rule-provider matcher cannot be MATCH or RULE-SET")
 
 	// Base YAML.
 	ErrBaseYAMLInvalid     = errors.New("base YAML is invalid")
 	ErrGeneratedKeyPresent = errors.New("base YAML carries a generated section")
 
 	// Subscription profile.
-	ErrProfileTitleEmpty            = errors.New("profile title is empty")
-	ErrProfileFilenameEmpty         = errors.New("profile filename is empty")
-	ErrProfileFilenameInvalid       = errors.New("profile filename has path separators or control characters")
-	ErrProfileUpdateIntervalInvalid = errors.New("profile update interval must be a positive number of hours")
+	ErrProfileTitleEmpty             = errors.New("profile title is empty")
+	ErrProfileFilenameEmpty          = errors.New("profile filename is empty")
+	ErrProfileFilenameInvalid        = errors.New("profile filename has path separators or control characters")
+	ErrProfileUpdateIntervalInvalid  = errors.New("profile update interval must be a positive number of hours")
+	ErrProfileProxiesIntervalInvalid = errors.New("profile proxies interval must be a positive number of seconds")
 )

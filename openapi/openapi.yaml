@@ -14,6 +14,10 @@ paths:
     $ref: './healthz.yaml'
   /sub/{kind}/{token}:
     $ref: './sub.yaml'
+  /sub/{kind}/{token}/proxies:
+    $ref: './sub_proxies.yaml'
+  /sub/{kind}/{token}/rules/{name}:
+    $ref: './sub_rules.yaml'
   /rules/{file}:
     $ref: './rules.yaml'
 

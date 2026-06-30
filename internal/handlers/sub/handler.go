@@ -51,54 +51,16 @@ func New(users usersRepo, fleet fleetService, configs configsRepo, renderers map
 // Note: ogen pins the 200 media type from the spec (application/yaml), so RenderMeta's
 // content type is not echoed per-request — every engine here serves YAML.
 func (h *Handler) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, error) {
-	kind := entity.ConfigKind(params.Kind)
-
-	renderer, ok := h.renderers[kind]
-	if !ok || params.Token == "" {
-		return &oas.SubNotFound{Data: strings.NewReader("not found\n")}, nil
-	}
-
-	// Resolve the token against service-owned users only — clients created
-	// directly on a panel are not served.
-	subIDs, err := h.users.SubIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("users.SubIDs: %w", err)
-	}
-
-	var subID string
-
-	for _, id := range subIDs {
-		if token.Match(h.secret, id, params.Token) {
-			subID = id
-			break
-		}
-	}
-
-	if subID == "" {
-		return &oas.SubNotFound{Data: strings.NewReader("not found\n")}, nil
-	}
-
-	userID, err := h.users.IDBySubID(ctx, subID)
-	if err != nil {
-		return nil, fmt.Errorf("users.IDBySubID: %w", err)
-	}
-
-	configID, err := h.configID(ctx, userID, kind)
+	renderer, sub, configID, ok, err := h.resolve(ctx, params.Kind, params.Token)
 	if err != nil {
 		return nil, err
 	}
 
-	fleet, err := h.fleet.Fleet(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fleet.Fleet: %w", err)
+	if !ok {
+		return &oas.SubNotFound{Data: strings.NewReader("not found\n")}, nil
 	}
 
-	sub := fleet.Sub(subID)
-	if sub == nil {
-		sub = &entity.Subscriber{SubID: subID} // provisioned clients missing; serve an empty profile
-	}
-
-	body, meta, err := renderer.Render(ctx, sub, configID)
+	body, meta, err := renderer.Render(ctx, sub, configID, params.Token)
 	if err != nil {
 		return nil, fmt.Errorf("renderer.Render: %w", err)
 	}
@@ -110,6 +72,111 @@ func (h *Handler) Sub(ctx context.Context, params oas.SubParams) (oas.SubRes, er
 		SubscriptionUserinfo:  oas.NewOptString(userinfo(sub.Up, sub.Down, sub.Total, sub.Expiry)),
 		Response:              oas.SubOK{Data: bytes.NewReader(body)},
 	}, nil
+}
+
+// SubProxies implements oas.Handler: GET /sub/{kind}/{token}/proxies — the subscriber's
+// node list as a proxy-provider payload. Same token resolution as Sub; an unknown
+// kind/token is a 404.
+func (h *Handler) SubProxies(ctx context.Context, params oas.SubProxiesParams) (oas.SubProxiesRes, error) {
+	renderer, sub, _, ok, err := h.resolve(ctx, params.Kind, params.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ok {
+		return &oas.SubProxiesNotFound{Data: strings.NewReader("not found\n")}, nil
+	}
+
+	body, err := renderer.RenderProxies(ctx, sub)
+	if err != nil {
+		return nil, fmt.Errorf("renderer.RenderProxies: %w", err)
+	}
+
+	return &oas.SubProxiesOK{Data: bytes.NewReader(body)}, nil
+}
+
+// SubRules implements oas.Handler: GET /sub/{kind}/{token}/rules/{name} — an authored
+// rule-provider's classical-text list. Same token resolution as Sub; an unknown
+// kind/token, or a name that is not an authored provider of this config, is a 404.
+func (h *Handler) SubRules(ctx context.Context, params oas.SubRulesParams) (oas.SubRulesRes, error) {
+	renderer, _, configID, ok, err := h.resolve(ctx, params.Kind, params.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ok {
+		return &oas.SubRulesNotFound{Data: strings.NewReader("not found\n")}, nil
+	}
+
+	body, found, err := renderer.RenderRuleProvider(ctx, configID, params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("renderer.RenderRuleProvider: %w", err)
+	}
+
+	if !found {
+		return &oas.SubRulesNotFound{Data: strings.NewReader("not found\n")}, nil
+	}
+
+	return &oas.SubRulesOKHeaders{
+		XContentTypeOptions: oas.NewOptString("nosniff"),
+		Response:            oas.SubRulesOK{Data: bytes.NewReader(body)},
+	}, nil
+}
+
+// resolve runs the shared token→subscriber chain used by all three subscription routes:
+// it validates the engine kind, matches the HMAC token against a service-owned user's
+// sub_id, picks that user's config (custom or base) and returns the subscriber snapshot.
+// ok=false (with nil error) means "serve a 404"; a non-nil error is an infrastructure 5xx.
+// A provisioned client missing from the fleet yields an empty subscriber, not a 404.
+func (h *Handler) resolve(ctx context.Context, kindStr, tokenStr string) (EngineRenderer, *entity.Subscriber, int64, bool, error) {
+	kind := entity.ConfigKind(kindStr)
+
+	renderer, ok := h.renderers[kind]
+	if !ok || tokenStr == "" {
+		return nil, nil, 0, false, nil
+	}
+
+	// Resolve the token against service-owned users only — clients created
+	// directly on a panel are not served.
+	subIDs, err := h.users.SubIDs(ctx)
+	if err != nil {
+		return nil, nil, 0, false, fmt.Errorf("users.SubIDs: %w", err)
+	}
+
+	var subID string
+
+	for _, id := range subIDs {
+		if token.Match(h.secret, id, tokenStr) {
+			subID = id
+			break
+		}
+	}
+
+	if subID == "" {
+		return nil, nil, 0, false, nil
+	}
+
+	userID, err := h.users.IDBySubID(ctx, subID)
+	if err != nil {
+		return nil, nil, 0, false, fmt.Errorf("users.IDBySubID: %w", err)
+	}
+
+	configID, err := h.configID(ctx, userID, kind)
+	if err != nil {
+		return nil, nil, 0, false, err
+	}
+
+	fleet, err := h.fleet.Fleet(ctx)
+	if err != nil {
+		return nil, nil, 0, false, fmt.Errorf("fleet.Fleet: %w", err)
+	}
+
+	sub := fleet.Sub(subID)
+	if sub == nil {
+		sub = &entity.Subscriber{SubID: subID} // provisioned clients missing; serve an empty profile
+	}
+
+	return renderer, sub, configID, true, nil
 }
 
 // configID picks the config to render: a user's custom config for this engine when

@@ -336,6 +336,53 @@ func TestValidateRuleProviders(t *testing.T) {
 			provs: []RuleProvider{{Name: "p", Behavior: "domain", Format: "mrs"}},
 			err:   ErrProviderURLEmpty,
 		},
+		{
+			name: "success.authored",
+			provs: []RuleProvider{{
+				Name: "reject", Source: RuleProviderAuthored, Behavior: "classical", Format: "text",
+				Matchers: []RoutingRule{
+					{Type: RuleDomainKeyword, Value: utils.Ptr("ads")},
+					{Type: RuleAnd, Children: []RoutingRule{
+						{Type: RuleNetwork, Value: utils.Ptr("udp")},
+						{Type: RuleDstPort, Value: utils.Ptr("53")},
+					}},
+				},
+			}},
+		},
+		{
+			name: "error.authored_url_set",
+			provs: []RuleProvider{{
+				Name: "reject", Source: RuleProviderAuthored, Behavior: "classical", Format: "text",
+				URL: "https://x", Matchers: []RoutingRule{{Type: RuleDomain, Value: utils.Ptr("a.com")}},
+			}},
+			err: ErrProviderAuthoredURLSet,
+		},
+		{
+			name:  "error.authored_no_matchers",
+			provs: []RuleProvider{{Name: "reject", Source: RuleProviderAuthored, Behavior: "classical", Format: "text"}},
+			err:   ErrProviderAuthoredNeedsMatchers,
+		},
+		{
+			name: "error.authored_matcher_match",
+			provs: []RuleProvider{{
+				Name: "reject", Source: RuleProviderAuthored, Behavior: "classical", Format: "text",
+				Matchers: []RoutingRule{{Type: RuleMatch}},
+			}},
+			err: ErrProviderMatcherUnsupported,
+		},
+		{
+			name: "error.authored_matcher_ruleset",
+			provs: []RuleProvider{{
+				Name: "reject", Source: RuleProviderAuthored, Behavior: "classical", Format: "text",
+				Matchers: []RoutingRule{{Type: RuleRuleSet}},
+			}},
+			err: ErrProviderMatcherUnsupported,
+		},
+		{
+			name:  "error.bad_source",
+			provs: []RuleProvider{{Name: "p", Source: "weird", Behavior: "domain", Format: "mrs", URL: "https://x"}},
+			err:   ErrProviderBadSource,
+		},
 	}
 
 	t.Parallel()
@@ -356,37 +403,42 @@ func TestValidateProfile(t *testing.T) {
 	}{
 		{
 			name:    "success.valid",
-			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 1},
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 1, ProxiesInterval: 3600},
 		},
 		{
 			name:    "error.title_empty",
-			profile: Profile{Title: "", Filename: "freedom.yaml", UpdateInterval: 1},
+			profile: Profile{Title: "", Filename: "freedom.yaml", UpdateInterval: 1, ProxiesInterval: 3600},
 			err:     ErrProfileTitleEmpty,
 		},
 		{
 			name:    "error.filename_empty",
-			profile: Profile{Title: "Freedom", Filename: "", UpdateInterval: 1},
+			profile: Profile{Title: "Freedom", Filename: "", UpdateInterval: 1, ProxiesInterval: 3600},
 			err:     ErrProfileFilenameEmpty,
 		},
 		{
 			name:    "error.filename_path_separator",
-			profile: Profile{Title: "Freedom", Filename: "sub/dir.yaml", UpdateInterval: 1},
+			profile: Profile{Title: "Freedom", Filename: "sub/dir.yaml", UpdateInterval: 1, ProxiesInterval: 3600},
 			err:     ErrProfileFilenameInvalid,
 		},
 		{
 			name:    "error.filename_control_char",
-			profile: Profile{Title: "Freedom", Filename: "a\nb.yaml", UpdateInterval: 1},
+			profile: Profile{Title: "Freedom", Filename: "a\nb.yaml", UpdateInterval: 1, ProxiesInterval: 3600},
 			err:     ErrProfileFilenameInvalid,
 		},
 		{
 			name:    "error.interval_zero",
-			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 0},
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 0, ProxiesInterval: 3600},
 			err:     ErrProfileUpdateIntervalInvalid,
 		},
 		{
 			name:    "error.interval_negative",
-			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: -3},
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: -3, ProxiesInterval: 3600},
 			err:     ErrProfileUpdateIntervalInvalid,
+		},
+		{
+			name:    "error.proxies_interval_zero",
+			profile: Profile{Title: "Freedom", Filename: "freedom.yaml", UpdateInterval: 1, ProxiesInterval: 0},
+			err:     ErrProfileProxiesIntervalInvalid,
 		},
 	}
 

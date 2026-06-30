@@ -89,6 +89,7 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 		ProfileTitle:          profile.Title,
 		Filename:              profile.Filename,
 		ProfileUpdateInterval: profile.UpdateInterval,
+		ProxiesInterval:       profile.ProxiesInterval,
 	}
 
 	out.Groups = make([]oas.MihomoGroup, 0, len(groups))
@@ -122,10 +123,18 @@ func (h *Handler) ConfigGet(ctx context.Context, params oas.ConfigGetParams) (oa
 
 	out.Providers = make([]oas.MihomoProvider, 0, len(rps))
 	for _, rp := range rps {
-		out.Providers = append(out.Providers, oas.MihomoProvider{
-			Name: rp.Name, Behavior: rp.Behavior, Format: rp.Format,
+		mp := oas.MihomoProvider{
+			Name: rp.Name, Source: string(rp.Source), Behavior: rp.Behavior, Format: rp.Format,
 			URL: rp.URL, Interval: rp.Interval, Mirror: rp.Mirror, MirrorInterval: rp.MirrorInterval,
-		})
+		}
+
+		// An authored provider's matchers are target-less rule trees; reuse ruleToView
+		// (the idx/provIdx maps are unused — a matcher references no group/provider).
+		for _, m := range rp.Matchers {
+			mp.Matchers = append(mp.Matchers, ruleToView(m, idx, provIdx))
+		}
+
+		out.Providers = append(out.Providers, mp)
 	}
 
 	return out, nil

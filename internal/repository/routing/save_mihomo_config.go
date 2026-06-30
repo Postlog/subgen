@@ -64,14 +64,20 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	}
 
 	// Providers before rules; read ids back (id order = insert order = draft order) so a
-	// RULE-SET rule's ProviderIdx resolves to provider_id.
+	// RULE-SET rule's ProviderIdx resolves to provider_id. An empty source defaults to
+	// external (back-compat with drafts predating the source field).
 	providerRows := make([][]any, len(draft.Providers))
 	for i, rp := range draft.Providers {
-		providerRows[i] = []any{configID, rp.Name, rp.Behavior, rp.Format, boolInt(rp.Mirror), rp.URL, rp.Interval, rp.MirrorInterval}
+		src := rp.Source
+		if src == "" {
+			src = mihomo.RuleProviderExternal
+		}
+
+		providerRows[i] = []any{configID, rp.Name, string(src), rp.Behavior, rp.Format, boolInt(rp.Mirror), rp.URL, rp.Interval, rp.MirrorInterval}
 	}
 
 	if err := batchInsert(ctx, tx, "mihomo_rule_providers",
-		[]string{"config_id", "name", "behavior", "format", "mirror", "url", "interval", "mirror_interval"}, providerRows); err != nil {
+		[]string{"config_id", "name", "source", "behavior", "format", "mirror", "url", "interval", "mirror_interval"}, providerRows); err != nil {
 		// Groups are pre-validated in-memory, so a uniqueness violation here is the
 		// rule-provider UNIQUE(config_id,name). Translate from the constraint, no pre-check.
 		if dberr.IsUniqueViolation(err) {
@@ -83,6 +89,12 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 
 	providerID, err := readIDs(ctx, tx, `SELECT id FROM mihomo_rule_providers WHERE config_id=? ORDER BY id`, configID)
 	if err != nil {
+		return err
+	}
+
+	// Authored providers carry an in-subgen matcher tree (mihomo_authored_matchers,
+	// scoped by provider_id). The provider DELETE above cascades to its old matchers.
+	if err := insertAuthoredMatchers(ctx, tx, draft.Providers, providerID); err != nil {
 		return err
 	}
 
@@ -119,14 +131,66 @@ func (r *Repository) SaveMihomoConfig(ctx context.Context, configID int64, draft
 	}
 
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval) VALUES(?,?,?,?)
+		`INSERT INTO mihomo_profile(config_id,title,filename,update_interval,proxies_interval) VALUES(?,?,?,?,?)
 		 ON CONFLICT(config_id) DO UPDATE SET
-		   title=excluded.title, filename=excluded.filename, update_interval=excluded.update_interval`,
-		configID, draft.Profile.Title, draft.Profile.Filename, draft.Profile.UpdateInterval); err != nil {
+		   title=excluded.title, filename=excluded.filename,
+		   update_interval=excluded.update_interval, proxies_interval=excluded.proxies_interval`,
+		configID, draft.Profile.Title, draft.Profile.Filename, draft.Profile.UpdateInterval, draft.Profile.ProxiesInterval); err != nil {
 		return err
 	}
 
 	return tx.Commit()
+}
+
+// insertAuthoredMatchers inserts every authored provider's matcher tree into
+// mihomo_authored_matchers in ONE batched INSERT. Like insertRules, each node's id is
+// pre-assigned from the table's current MAX(id) so a sub-matcher's parent_id is known up
+// front; this is safe because every insert into this table is an explicit-id batch (save +
+// clone). A matcher carries no target/provider — only type, value (NULL for a logical node)
+// and children (only for a logical node). providers[i] is persisted at providerID[i].
+func insertAuthoredMatchers(ctx context.Context, tx *sql.Tx, providers []mihomo.RuleProvider, providerID []int64) error {
+	base, err := maxAuthoredMatcherID(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	var rows [][]any
+
+	next := base
+
+	var build func(rs []mihomo.RoutingRule, provID int64, parentID any)
+
+	build = func(rs []mihomo.RoutingRule, provID int64, parentID any) {
+		for pos, m := range rs {
+			next++
+			id := next
+
+			rows = append(rows, []any{id, provID, parentID, pos, m.Type, utils.DereferenceOrNil(m.Value)})
+
+			if m.Type.IsLogical() {
+				build(m.Children, provID, id)
+			}
+		}
+	}
+
+	for i, rp := range providers {
+		if rp.Source == mihomo.RuleProviderAuthored {
+			build(rp.Matchers, providerID[i], nil)
+		}
+	}
+
+	return batchInsert(ctx, tx, "mihomo_authored_matchers",
+		[]string{"id", "provider_id", "parent_id", "position", "type", "value"}, rows)
+}
+
+// maxAuthoredMatcherID returns the current MAX(id) of mihomo_authored_matchers (0 when
+// empty) — the base for pre-assigning ids to a freshly-inserted matcher tree.
+func maxAuthoredMatcherID(ctx context.Context, tx *sql.Tx) (int64, error) {
+	var maxID int64
+
+	err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM mihomo_authored_matchers`).Scan(&maxID)
+
+	return maxID, err
 }
 
 // insertRules inserts the whole rule tree (top-level rules + their logical sub-rules, all

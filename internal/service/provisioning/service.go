@@ -89,6 +89,7 @@ type connTarget struct {
 	Node      string // node name — display only
 	Port      int    // inbound_port — bridge to the 3x-ui inbound
 	InboundID int64  // node_inbounds.id — the canonical reference
+	Kind      string // inbound kind — hysteria2 is never provisioned on a panel (see syncPanels)
 }
 
 // inboundRef pairs an inbound with its owning node (for id → target resolution).
@@ -140,7 +141,7 @@ func (s *Service) desiredTargets(inboundByID map[int64]inboundRef, inboundIDs []
 		}
 
 		ts = append(ts, connTarget{
-			NodeID: ref.node.ID, Node: ref.node.Name, Port: ref.in.Port, InboundID: ref.in.ID,
+			NodeID: ref.node.ID, Node: ref.node.Name, Port: ref.in.Port, InboundID: ref.in.ID, Kind: ref.in.Kind,
 		})
 	}
 
@@ -288,7 +289,7 @@ func (s *Service) RecreateUser(ctx context.Context, id int64) error {
 
 	var desired []connTarget
 	for _, c := range u.Connections {
-		desired = append(desired, connTarget{NodeID: c.NodeID, Node: c.Node, Port: c.Port, InboundID: c.InboundID})
+		desired = append(desired, connTarget{NodeID: c.NodeID, Node: c.Node, Port: c.Port, InboundID: c.InboundID, Kind: c.Kind})
 	}
 
 	return s.syncPanels(ctx, byID, u, u.Connections, desired, true)
@@ -303,13 +304,27 @@ func (s *Service) RecreateUser(ctx context.Context, id int64) error {
 func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u *entity.User, old []entity.Connection, desired []connTarget, forceAll bool) error {
 	email := u.Name
 
+	// hysteria2 inbounds have no 3x-ui client — they're rendered from stored creds, not
+	// provisioned on a panel (and their UDP port would otherwise mis-match a same-port VLESS
+	// inbound in panelLookup). Skip them here; access to them is still recorded in
+	// user_connections by the caller, exactly like VLESS.
 	desiredByNode := map[int64][]connTarget{}
+
 	for _, t := range desired {
+		if t.Kind == entity.InboundKindHysteria2 {
+			continue
+		}
+
 		desiredByNode[t.NodeID] = append(desiredByNode[t.NodeID], t)
 	}
 
 	oldByNode := map[int64][]entity.Connection{}
+
 	for _, c := range old {
+		if c.Kind == entity.InboundKindHysteria2 {
+			continue
+		}
+
 		oldByNode[c.NodeID] = append(oldByNode[c.NodeID], c)
 	}
 

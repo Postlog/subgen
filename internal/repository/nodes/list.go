@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/postlog/subgen/internal/entity"
 )
@@ -36,7 +37,7 @@ func (r *Repository) List(ctx context.Context) ([]entity.Node, error) {
 		byID[nodes[i].ID] = &nodes[i]
 	}
 
-	inb, err := r.db.QueryContext(ctx, `SELECT id,node_id,name,inbound_port FROM node_inbounds`)
+	inb, err := r.db.QueryContext(ctx, `SELECT id,node_id,name,inbound_port,kind,settings FROM node_inbounds`)
 	if err != nil {
 		return nil, err
 	}
@@ -44,12 +45,18 @@ func (r *Repository) List(ctx context.Context) ([]entity.Node, error) {
 	defer inb.Close()
 
 	for inb.Next() {
-		var nid int64
+		var (
+			nid      int64
+			in       entity.Inbound
+			kind     string
+			settings sql.NullString
+		)
 
-		var in entity.Inbound
-		if err := inb.Scan(&in.ID, &nid, &in.Name, &in.Port); err != nil {
+		if err := inb.Scan(&in.ID, &nid, &in.Name, &in.Port, &kind, &settings); err != nil {
 			return nil, err
 		}
+
+		applyKindSettings(&in, kind, settings)
 
 		if n := byID[nid]; n != nil {
 			n.Inbounds = append(n.Inbounds, in)

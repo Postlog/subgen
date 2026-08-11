@@ -41,6 +41,33 @@ post:
                     type: string
                   port:
                     type: integer
+                  kind:
+                    type: string
+                    enum: [vless, hysteria2]
+                    default: vless
+                    description: >
+                      Inbound kind. "vless" (default) is panel-managed (a real 3x-ui inbound).
+                      "hysteria2" is rendered straight from the creds below — Xray has no
+                      hysteria2, so it has no 3x-ui inbound and is not provisioned on a panel.
+                  hysteria2:
+                    type: object
+                    description: Creds for a hysteria2 inbound (used only when kind=hysteria2).
+                    properties:
+                      password:
+                        type: string
+                      obfs:
+                        type: string
+                        description: e.g. "salamander"; empty = no obfuscation.
+                      obfsPassword:
+                        type: string
+                      sni:
+                        type: string
+                        description: TLS SNI; empty defaults to the node's VPN host.
+                      up:
+                        type: string
+                        description: Brutal up-bandwidth hint, e.g. "50 Mbps".
+                      down:
+                        type: string
   responses:
     '200':
       description: saved

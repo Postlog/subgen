@@ -43,6 +43,23 @@ get:
                             type: string
                           port:
                             type: integer
+                          kind:
+                            type: string
+                            description: '"vless" (panel-managed) or "hysteria2".'
+                          hysteria2:
+                            type: object
+                            description: >
+                              Non-secret hysteria2 params (present only for kind=hysteria2).
+                              The password is write-only and never returned.
+                            properties:
+                              obfs:
+                                type: string
+                              sni:
+                                type: string
+                              up:
+                                type: string
+                              down:
+                                type: string
     '401':
       description: unauthorized
       content:

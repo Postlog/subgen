@@ -47,7 +47,10 @@ func insertInbounds(ctx context.Context, tx *sql.Tx, nodeID int64, inbounds []en
 			continue
 		}
 
-		if _, err := tx.ExecContext(ctx, `INSERT INTO node_inbounds(node_id,name,inbound_port) VALUES(?,?,?)`, nodeID, in.Name, in.Port); err != nil {
+		kind, settings := inboundKindSettings(in)
+
+		if _, err := tx.ExecContext(ctx, `INSERT INTO node_inbounds(node_id,name,inbound_port,kind,settings) VALUES(?,?,?,?,?)`,
+			nodeID, in.Name, in.Port, kind, settings); err != nil {
 			if dberr.IsUniqueViolation(err) {
 				return entity.ErrInboundDuplicate
 			}

@@ -16,4 +16,12 @@ var (
 	ErrValidationInboundPort   = errors.New("invalid inbound port")
 	ErrValidationInboundNameUq = errors.New("duplicate inbound name")
 	ErrValidationInboundPortUq = errors.New("duplicate inbound port")
+
+	// Inbound kind + hysteria2 creds.
+	ErrValidationInboundKind     = errors.New("invalid inbound kind")
+	ErrValidationInboundSettings = errors.New("inbound settings do not match its kind")
+	ErrValidationHysteria2Pass   = errors.New("hysteria2 inbound requires a password")
+	ErrValidationHysteria2Obfs   = errors.New("hysteria2 obfs must be salamander with an obfs password")
+	ErrValidationHysteria2Band   = errors.New("hysteria2 up/down must be a bandwidth")
+	ErrValidationHysteria2SNI    = errors.New("hysteria2 sni must be a valid host")
 )

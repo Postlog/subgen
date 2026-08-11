@@ -4,6 +4,8 @@ package oas
 
 import (
 	"io"
+
+	"github.com/go-faster/errors"
 )
 
 type AdminSession struct {
@@ -1175,6 +1177,12 @@ type NodeSaveReqInboundsItem struct {
 	ID   OptInt64 `json:"id"`
 	Name string   `json:"name"`
 	Port int      `json:"port"`
+	// Inbound kind. "vless" (default) is panel-managed (a real 3x-ui inbound). "hysteria2" is rendered
+	// straight from the creds below — Xray has no hysteria2, so it has no 3x-ui inbound and is not
+	// provisioned on a panel.
+	Kind OptNodeSaveReqInboundsItemKind `json:"kind"`
+	// Creds for a hysteria2 inbound (used only when kind=hysteria2).
+	Hysteria2 OptNodeSaveReqInboundsItemHysteria2 `json:"hysteria2"`
 }
 
 // GetID returns the value of ID.
@@ -1192,6 +1200,16 @@ func (s *NodeSaveReqInboundsItem) GetPort() int {
 	return s.Port
 }
 
+// GetKind returns the value of Kind.
+func (s *NodeSaveReqInboundsItem) GetKind() OptNodeSaveReqInboundsItemKind {
+	return s.Kind
+}
+
+// GetHysteria2 returns the value of Hysteria2.
+func (s *NodeSaveReqInboundsItem) GetHysteria2() OptNodeSaveReqInboundsItemHysteria2 {
+	return s.Hysteria2
+}
+
 // SetID sets the value of ID.
 func (s *NodeSaveReqInboundsItem) SetID(val OptInt64) {
 	s.ID = val
@@ -1205,6 +1223,133 @@ func (s *NodeSaveReqInboundsItem) SetName(val string) {
 // SetPort sets the value of Port.
 func (s *NodeSaveReqInboundsItem) SetPort(val int) {
 	s.Port = val
+}
+
+// SetKind sets the value of Kind.
+func (s *NodeSaveReqInboundsItem) SetKind(val OptNodeSaveReqInboundsItemKind) {
+	s.Kind = val
+}
+
+// SetHysteria2 sets the value of Hysteria2.
+func (s *NodeSaveReqInboundsItem) SetHysteria2(val OptNodeSaveReqInboundsItemHysteria2) {
+	s.Hysteria2 = val
+}
+
+// Creds for a hysteria2 inbound (used only when kind=hysteria2).
+type NodeSaveReqInboundsItemHysteria2 struct {
+	Password OptString `json:"password"`
+	// E.g. "salamander"; empty = no obfuscation.
+	Obfs         OptString `json:"obfs"`
+	ObfsPassword OptString `json:"obfsPassword"`
+	// TLS SNI; empty defaults to the node's VPN host.
+	Sni OptString `json:"sni"`
+	// Brutal up-bandwidth hint, e.g. "50 Mbps".
+	Up   OptString `json:"up"`
+	Down OptString `json:"down"`
+}
+
+// GetPassword returns the value of Password.
+func (s *NodeSaveReqInboundsItemHysteria2) GetPassword() OptString {
+	return s.Password
+}
+
+// GetObfs returns the value of Obfs.
+func (s *NodeSaveReqInboundsItemHysteria2) GetObfs() OptString {
+	return s.Obfs
+}
+
+// GetObfsPassword returns the value of ObfsPassword.
+func (s *NodeSaveReqInboundsItemHysteria2) GetObfsPassword() OptString {
+	return s.ObfsPassword
+}
+
+// GetSni returns the value of Sni.
+func (s *NodeSaveReqInboundsItemHysteria2) GetSni() OptString {
+	return s.Sni
+}
+
+// GetUp returns the value of Up.
+func (s *NodeSaveReqInboundsItemHysteria2) GetUp() OptString {
+	return s.Up
+}
+
+// GetDown returns the value of Down.
+func (s *NodeSaveReqInboundsItemHysteria2) GetDown() OptString {
+	return s.Down
+}
+
+// SetPassword sets the value of Password.
+func (s *NodeSaveReqInboundsItemHysteria2) SetPassword(val OptString) {
+	s.Password = val
+}
+
+// SetObfs sets the value of Obfs.
+func (s *NodeSaveReqInboundsItemHysteria2) SetObfs(val OptString) {
+	s.Obfs = val
+}
+
+// SetObfsPassword sets the value of ObfsPassword.
+func (s *NodeSaveReqInboundsItemHysteria2) SetObfsPassword(val OptString) {
+	s.ObfsPassword = val
+}
+
+// SetSni sets the value of Sni.
+func (s *NodeSaveReqInboundsItemHysteria2) SetSni(val OptString) {
+	s.Sni = val
+}
+
+// SetUp sets the value of Up.
+func (s *NodeSaveReqInboundsItemHysteria2) SetUp(val OptString) {
+	s.Up = val
+}
+
+// SetDown sets the value of Down.
+func (s *NodeSaveReqInboundsItemHysteria2) SetDown(val OptString) {
+	s.Down = val
+}
+
+// Inbound kind. "vless" (default) is panel-managed (a real 3x-ui inbound). "hysteria2" is rendered
+// straight from the creds below — Xray has no hysteria2, so it has no 3x-ui inbound and is not
+// provisioned on a panel.
+type NodeSaveReqInboundsItemKind string
+
+const (
+	NodeSaveReqInboundsItemKindVless     NodeSaveReqInboundsItemKind = "vless"
+	NodeSaveReqInboundsItemKindHysteria2 NodeSaveReqInboundsItemKind = "hysteria2"
+)
+
+// AllValues returns all NodeSaveReqInboundsItemKind values.
+func (NodeSaveReqInboundsItemKind) AllValues() []NodeSaveReqInboundsItemKind {
+	return []NodeSaveReqInboundsItemKind{
+		NodeSaveReqInboundsItemKindVless,
+		NodeSaveReqInboundsItemKindHysteria2,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NodeSaveReqInboundsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case NodeSaveReqInboundsItemKindVless:
+		return []byte(s), nil
+	case NodeSaveReqInboundsItemKindHysteria2:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NodeSaveReqInboundsItemKind) UnmarshalText(data []byte) error {
+	switch NodeSaveReqInboundsItemKind(data) {
+	case NodeSaveReqInboundsItemKindVless:
+		*s = NodeSaveReqInboundsItemKindVless
+		return nil
+	case NodeSaveReqInboundsItemKindHysteria2:
+		*s = NodeSaveReqInboundsItemKindHysteria2
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type NodeSaveUnauthorized ErrorResponse
@@ -1300,6 +1445,11 @@ type NodesGetOKNodesItemInboundsItem struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 	Port int    `json:"port"`
+	// "vless" (panel-managed) or "hysteria2".
+	Kind OptString `json:"kind"`
+	// Non-secret hysteria2 params (present only for kind=hysteria2). The password is write-only and
+	// never returned.
+	Hysteria2 OptNodesGetOKNodesItemInboundsItemHysteria2 `json:"hysteria2"`
 }
 
 // GetID returns the value of ID.
@@ -1317,6 +1467,16 @@ func (s *NodesGetOKNodesItemInboundsItem) GetPort() int {
 	return s.Port
 }
 
+// GetKind returns the value of Kind.
+func (s *NodesGetOKNodesItemInboundsItem) GetKind() OptString {
+	return s.Kind
+}
+
+// GetHysteria2 returns the value of Hysteria2.
+func (s *NodesGetOKNodesItemInboundsItem) GetHysteria2() OptNodesGetOKNodesItemInboundsItemHysteria2 {
+	return s.Hysteria2
+}
+
 // SetID sets the value of ID.
 func (s *NodesGetOKNodesItemInboundsItem) SetID(val int64) {
 	s.ID = val
@@ -1330,6 +1490,65 @@ func (s *NodesGetOKNodesItemInboundsItem) SetName(val string) {
 // SetPort sets the value of Port.
 func (s *NodesGetOKNodesItemInboundsItem) SetPort(val int) {
 	s.Port = val
+}
+
+// SetKind sets the value of Kind.
+func (s *NodesGetOKNodesItemInboundsItem) SetKind(val OptString) {
+	s.Kind = val
+}
+
+// SetHysteria2 sets the value of Hysteria2.
+func (s *NodesGetOKNodesItemInboundsItem) SetHysteria2(val OptNodesGetOKNodesItemInboundsItemHysteria2) {
+	s.Hysteria2 = val
+}
+
+// Non-secret hysteria2 params (present only for kind=hysteria2). The password is write-only and
+// never returned.
+type NodesGetOKNodesItemInboundsItemHysteria2 struct {
+	Obfs OptString `json:"obfs"`
+	Sni  OptString `json:"sni"`
+	Up   OptString `json:"up"`
+	Down OptString `json:"down"`
+}
+
+// GetObfs returns the value of Obfs.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) GetObfs() OptString {
+	return s.Obfs
+}
+
+// GetSni returns the value of Sni.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) GetSni() OptString {
+	return s.Sni
+}
+
+// GetUp returns the value of Up.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) GetUp() OptString {
+	return s.Up
+}
+
+// GetDown returns the value of Down.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) GetDown() OptString {
+	return s.Down
+}
+
+// SetObfs sets the value of Obfs.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) SetObfs(val OptString) {
+	s.Obfs = val
+}
+
+// SetSni sets the value of Sni.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) SetSni(val OptString) {
+	s.Sni = val
+}
+
+// SetUp sets the value of Up.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) SetUp(val OptString) {
+	s.Up = val
+}
+
+// SetDown sets the value of Down.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) SetDown(val OptString) {
+	s.Down = val
 }
 
 // NewOptBool returns new OptBool with value set to v.
@@ -1464,6 +1683,144 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNodeSaveReqInboundsItemHysteria2 returns new OptNodeSaveReqInboundsItemHysteria2 with value set to v.
+func NewOptNodeSaveReqInboundsItemHysteria2(v NodeSaveReqInboundsItemHysteria2) OptNodeSaveReqInboundsItemHysteria2 {
+	return OptNodeSaveReqInboundsItemHysteria2{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNodeSaveReqInboundsItemHysteria2 is optional NodeSaveReqInboundsItemHysteria2.
+type OptNodeSaveReqInboundsItemHysteria2 struct {
+	Value NodeSaveReqInboundsItemHysteria2
+	Set   bool
+}
+
+// IsSet returns true if OptNodeSaveReqInboundsItemHysteria2 was set.
+func (o OptNodeSaveReqInboundsItemHysteria2) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNodeSaveReqInboundsItemHysteria2) Reset() {
+	var v NodeSaveReqInboundsItemHysteria2
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNodeSaveReqInboundsItemHysteria2) SetTo(v NodeSaveReqInboundsItemHysteria2) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNodeSaveReqInboundsItemHysteria2) Get() (v NodeSaveReqInboundsItemHysteria2, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNodeSaveReqInboundsItemHysteria2) Or(d NodeSaveReqInboundsItemHysteria2) NodeSaveReqInboundsItemHysteria2 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNodeSaveReqInboundsItemKind returns new OptNodeSaveReqInboundsItemKind with value set to v.
+func NewOptNodeSaveReqInboundsItemKind(v NodeSaveReqInboundsItemKind) OptNodeSaveReqInboundsItemKind {
+	return OptNodeSaveReqInboundsItemKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNodeSaveReqInboundsItemKind is optional NodeSaveReqInboundsItemKind.
+type OptNodeSaveReqInboundsItemKind struct {
+	Value NodeSaveReqInboundsItemKind
+	Set   bool
+}
+
+// IsSet returns true if OptNodeSaveReqInboundsItemKind was set.
+func (o OptNodeSaveReqInboundsItemKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNodeSaveReqInboundsItemKind) Reset() {
+	var v NodeSaveReqInboundsItemKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNodeSaveReqInboundsItemKind) SetTo(v NodeSaveReqInboundsItemKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNodeSaveReqInboundsItemKind) Get() (v NodeSaveReqInboundsItemKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNodeSaveReqInboundsItemKind) Or(d NodeSaveReqInboundsItemKind) NodeSaveReqInboundsItemKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNodesGetOKNodesItemInboundsItemHysteria2 returns new OptNodesGetOKNodesItemInboundsItemHysteria2 with value set to v.
+func NewOptNodesGetOKNodesItemInboundsItemHysteria2(v NodesGetOKNodesItemInboundsItemHysteria2) OptNodesGetOKNodesItemInboundsItemHysteria2 {
+	return OptNodesGetOKNodesItemInboundsItemHysteria2{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNodesGetOKNodesItemInboundsItemHysteria2 is optional NodesGetOKNodesItemInboundsItemHysteria2.
+type OptNodesGetOKNodesItemInboundsItemHysteria2 struct {
+	Value NodesGetOKNodesItemInboundsItemHysteria2
+	Set   bool
+}
+
+// IsSet returns true if OptNodesGetOKNodesItemInboundsItemHysteria2 was set.
+func (o OptNodesGetOKNodesItemInboundsItemHysteria2) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNodesGetOKNodesItemInboundsItemHysteria2) Reset() {
+	var v NodesGetOKNodesItemInboundsItemHysteria2
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNodesGetOKNodesItemInboundsItemHysteria2) SetTo(v NodesGetOKNodesItemInboundsItemHysteria2) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNodesGetOKNodesItemInboundsItemHysteria2) Get() (v NodesGetOKNodesItemInboundsItemHysteria2, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNodesGetOKNodesItemInboundsItemHysteria2) Or(d NodesGetOKNodesItemInboundsItemHysteria2) NodesGetOKNodesItemInboundsItemHysteria2 {
 	if v, ok := o.Get(); ok {
 		return v
 	}

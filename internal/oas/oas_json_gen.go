@@ -3715,12 +3715,26 @@ func (s *NodeSaveReqInboundsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
+	{
+		if s.Kind.Set {
+			e.FieldStart("kind")
+			s.Kind.Encode(e)
+		}
+	}
+	{
+		if s.Hysteria2.Set {
+			e.FieldStart("hysteria2")
+			s.Hysteria2.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfNodeSaveReqInboundsItem = [3]string{
+var jsonFieldsNameOfNodeSaveReqInboundsItem = [5]string{
 	0: "id",
 	1: "name",
 	2: "port",
+	3: "kind",
+	4: "hysteria2",
 }
 
 // Decode decodes NodeSaveReqInboundsItem from json.
@@ -3729,6 +3743,7 @@ func (s *NodeSaveReqInboundsItem) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode NodeSaveReqInboundsItem to nil")
 	}
 	var requiredBitSet [1]uint8
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -3765,6 +3780,26 @@ func (s *NodeSaveReqInboundsItem) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"port\"")
+			}
+		case "kind":
+			if err := func() error {
+				s.Kind.Reset()
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "hysteria2":
+			if err := func() error {
+				s.Hysteria2.Reset()
+				if err := s.Hysteria2.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hysteria2\"")
 			}
 		default:
 			return d.Skip()
@@ -3818,6 +3853,194 @@ func (s *NodeSaveReqInboundsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NodeSaveReqInboundsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NodeSaveReqInboundsItemHysteria2) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NodeSaveReqInboundsItemHysteria2) encodeFields(e *jx.Encoder) {
+	{
+		if s.Password.Set {
+			e.FieldStart("password")
+			s.Password.Encode(e)
+		}
+	}
+	{
+		if s.Obfs.Set {
+			e.FieldStart("obfs")
+			s.Obfs.Encode(e)
+		}
+	}
+	{
+		if s.ObfsPassword.Set {
+			e.FieldStart("obfsPassword")
+			s.ObfsPassword.Encode(e)
+		}
+	}
+	{
+		if s.Sni.Set {
+			e.FieldStart("sni")
+			s.Sni.Encode(e)
+		}
+	}
+	{
+		if s.Up.Set {
+			e.FieldStart("up")
+			s.Up.Encode(e)
+		}
+	}
+	{
+		if s.Down.Set {
+			e.FieldStart("down")
+			s.Down.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNodeSaveReqInboundsItemHysteria2 = [6]string{
+	0: "password",
+	1: "obfs",
+	2: "obfsPassword",
+	3: "sni",
+	4: "up",
+	5: "down",
+}
+
+// Decode decodes NodeSaveReqInboundsItemHysteria2 from json.
+func (s *NodeSaveReqInboundsItemHysteria2) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NodeSaveReqInboundsItemHysteria2 to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "password":
+			if err := func() error {
+				s.Password.Reset()
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		case "obfs":
+			if err := func() error {
+				s.Obfs.Reset()
+				if err := s.Obfs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"obfs\"")
+			}
+		case "obfsPassword":
+			if err := func() error {
+				s.ObfsPassword.Reset()
+				if err := s.ObfsPassword.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"obfsPassword\"")
+			}
+		case "sni":
+			if err := func() error {
+				s.Sni.Reset()
+				if err := s.Sni.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sni\"")
+			}
+		case "up":
+			if err := func() error {
+				s.Up.Reset()
+				if err := s.Up.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"up\"")
+			}
+		case "down":
+			if err := func() error {
+				s.Down.Reset()
+				if err := s.Down.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"down\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NodeSaveReqInboundsItemHysteria2")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NodeSaveReqInboundsItemHysteria2) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NodeSaveReqInboundsItemHysteria2) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NodeSaveReqInboundsItemKind as json.
+func (s NodeSaveReqInboundsItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NodeSaveReqInboundsItemKind from json.
+func (s *NodeSaveReqInboundsItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NodeSaveReqInboundsItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NodeSaveReqInboundsItemKind(v) {
+	case NodeSaveReqInboundsItemKindVless:
+		*s = NodeSaveReqInboundsItemKindVless
+	case NodeSaveReqInboundsItemKindHysteria2:
+		*s = NodeSaveReqInboundsItemKindHysteria2
+	default:
+		*s = NodeSaveReqInboundsItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NodeSaveReqInboundsItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NodeSaveReqInboundsItemKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4178,12 +4401,26 @@ func (s *NodesGetOKNodesItemInboundsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
+	{
+		if s.Kind.Set {
+			e.FieldStart("kind")
+			s.Kind.Encode(e)
+		}
+	}
+	{
+		if s.Hysteria2.Set {
+			e.FieldStart("hysteria2")
+			s.Hysteria2.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfNodesGetOKNodesItemInboundsItem = [3]string{
+var jsonFieldsNameOfNodesGetOKNodesItemInboundsItem = [5]string{
 	0: "id",
 	1: "name",
 	2: "port",
+	3: "kind",
+	4: "hysteria2",
 }
 
 // Decode decodes NodesGetOKNodesItemInboundsItem from json.
@@ -4230,6 +4467,26 @@ func (s *NodesGetOKNodesItemInboundsItem) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"port\"")
+			}
+		case "kind":
+			if err := func() error {
+				s.Kind.Reset()
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "hysteria2":
+			if err := func() error {
+				s.Hysteria2.Reset()
+				if err := s.Hysteria2.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hysteria2\"")
 			}
 		default:
 			return d.Skip()
@@ -4283,6 +4540,120 @@ func (s *NodesGetOKNodesItemInboundsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NodesGetOKNodesItemInboundsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) encodeFields(e *jx.Encoder) {
+	{
+		if s.Obfs.Set {
+			e.FieldStart("obfs")
+			s.Obfs.Encode(e)
+		}
+	}
+	{
+		if s.Sni.Set {
+			e.FieldStart("sni")
+			s.Sni.Encode(e)
+		}
+	}
+	{
+		if s.Up.Set {
+			e.FieldStart("up")
+			s.Up.Encode(e)
+		}
+	}
+	{
+		if s.Down.Set {
+			e.FieldStart("down")
+			s.Down.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNodesGetOKNodesItemInboundsItemHysteria2 = [4]string{
+	0: "obfs",
+	1: "sni",
+	2: "up",
+	3: "down",
+}
+
+// Decode decodes NodesGetOKNodesItemInboundsItemHysteria2 from json.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NodesGetOKNodesItemInboundsItemHysteria2 to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "obfs":
+			if err := func() error {
+				s.Obfs.Reset()
+				if err := s.Obfs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"obfs\"")
+			}
+		case "sni":
+			if err := func() error {
+				s.Sni.Reset()
+				if err := s.Sni.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sni\"")
+			}
+		case "up":
+			if err := func() error {
+				s.Up.Reset()
+				if err := s.Up.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"up\"")
+			}
+		case "down":
+			if err := func() error {
+				s.Down.Reset()
+				if err := s.Down.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"down\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NodesGetOKNodesItemInboundsItemHysteria2")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NodesGetOKNodesItemInboundsItemHysteria2) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4388,6 +4759,105 @@ func (s OptInt64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInt64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NodeSaveReqInboundsItemHysteria2 as json.
+func (o OptNodeSaveReqInboundsItemHysteria2) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes NodeSaveReqInboundsItemHysteria2 from json.
+func (o *OptNodeSaveReqInboundsItemHysteria2) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNodeSaveReqInboundsItemHysteria2 to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNodeSaveReqInboundsItemHysteria2) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNodeSaveReqInboundsItemHysteria2) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NodeSaveReqInboundsItemKind as json.
+func (o OptNodeSaveReqInboundsItemKind) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes NodeSaveReqInboundsItemKind from json.
+func (o *OptNodeSaveReqInboundsItemKind) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNodeSaveReqInboundsItemKind to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNodeSaveReqInboundsItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNodeSaveReqInboundsItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NodesGetOKNodesItemInboundsItemHysteria2 as json.
+func (o OptNodesGetOKNodesItemInboundsItemHysteria2) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes NodesGetOKNodesItemInboundsItemHysteria2 from json.
+func (o *OptNodesGetOKNodesItemInboundsItemHysteria2) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNodesGetOKNodesItemInboundsItemHysteria2 to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNodesGetOKNodesItemInboundsItemHysteria2) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNodesGetOKNodesItemInboundsItemHysteria2) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

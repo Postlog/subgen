@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/postlog/subgen/internal/entity"
 )
@@ -16,7 +17,7 @@ func (r *Repository) Get(ctx context.Context, id int64) (*entity.Node, error) {
 		return nil, err
 	}
 
-	rows, err := r.db.QueryContext(ctx, `SELECT id,name,inbound_port FROM node_inbounds WHERE node_id=? ORDER BY name`, id)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,name,inbound_port,kind,settings FROM node_inbounds WHERE node_id=? ORDER BY name`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -24,11 +25,17 @@ func (r *Repository) Get(ctx context.Context, id int64) (*entity.Node, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var in entity.Inbound
-		if err := rows.Scan(&in.ID, &in.Name, &in.Port); err != nil {
+		var (
+			in       entity.Inbound
+			kind     string
+			settings sql.NullString
+		)
+
+		if err := rows.Scan(&in.ID, &in.Name, &in.Port, &kind, &settings); err != nil {
 			return nil, err
 		}
 
+		applyKindSettings(&in, kind, settings)
 		n.Inbounds = append(n.Inbounds, in)
 	}
 

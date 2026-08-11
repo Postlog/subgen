@@ -67,9 +67,11 @@ func (r *Repository) Update(ctx context.Context, id int64, n entity.Node, setTok
 			continue
 		}
 
+		kind, settings := inboundKindSettings(in)
+
 		if in.ID > 0 {
-			if _, err := tx.ExecContext(ctx, `UPDATE node_inbounds SET name=?,inbound_port=? WHERE id=? AND node_id=?`,
-				in.Name, in.Port, in.ID, id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE node_inbounds SET name=?,inbound_port=?,kind=?,settings=? WHERE id=? AND node_id=?`,
+				in.Name, in.Port, kind, settings, in.ID, id); err != nil {
 				if dberr.IsUniqueViolation(err) {
 					return entity.ErrInboundDuplicate
 				}
@@ -80,8 +82,8 @@ func (r *Repository) Update(ctx context.Context, id int64, n entity.Node, setTok
 			continue
 		}
 
-		if _, err := tx.ExecContext(ctx, `INSERT INTO node_inbounds(node_id,name,inbound_port) VALUES(?,?,?)`,
-			id, in.Name, in.Port); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO node_inbounds(node_id,name,inbound_port,kind,settings) VALUES(?,?,?,?,?)`,
+			id, in.Name, in.Port, kind, settings); err != nil {
 			if dberr.IsUniqueViolation(err) {
 				return entity.ErrInboundDuplicate
 			}

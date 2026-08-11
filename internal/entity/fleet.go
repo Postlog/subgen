@@ -2,18 +2,29 @@ package entity
 
 import "github.com/google/uuid"
 
-// Proxy is one mihomo proxy node (one 3x-ui inbound, resolved for one client).
+// Proxy is one mihomo proxy node for a subscriber. Exactly one protocol variant is set —
+// the renderer switches on it — so there is no shared "fat" struct mixing VLESS and
+// hysteria2 fields.
 type Proxy struct {
-	Name string // the inbound label "<node>-<inbound>" — used verbatim as the proxy name
-	// InboundID identifies which node inbound this proxy came from, so the renderer
-	// can resolve an inbound PolicyRef to this proxy's name by id.
+	// Name is the inbound label "<node>-<inbound>" — the proxy name, and the key the
+	// renderer resolves an inbound PolicyRef to by id.
+	Name string
+	// InboundID identifies which node inbound this proxy came from.
 	InboundID int64
-	Server    string
-	Port      int
-	UUID      uuid.UUID
-	Flow      string
-	Network   string // tcp | ws | grpc
-	Security  string // reality | tls | none
+
+	// Exactly one of the following is non-nil.
+	VLESS     *VLESSProxy
+	Hysteria2 *Hysteria2Proxy
+}
+
+// VLESSProxy is a VLESS proxy resolved from a 3x-ui inbound + one client.
+type VLESSProxy struct {
+	Server   string
+	Port     int
+	UUID     uuid.UUID
+	Flow     string
+	Network  string // tcp | ws | grpc
+	Security string // reality | tls | none
 
 	// REALITY
 	PublicKey   string
@@ -29,6 +40,20 @@ type Proxy struct {
 	WSPath      string
 	WSHost      string
 	GRPCService string
+}
+
+// Hysteria2Proxy is a plain hysteria2 proxy node (China dual-stack, Design A): identity is
+// server-side (by daemon port → Xray inbound tag), so there's no UUID. Its params come from
+// the inbound's stored creds, not a panel. See docs/hysteria2.md in the vpn-toolchain repo.
+type Hysteria2Proxy struct {
+	Server       string
+	Port         int
+	Password     string // plain (the server uses type:password)
+	Obfs         string // e.g. "salamander"
+	ObfsPassword string
+	SNI          string
+	Up           string // Brutal CC hint, e.g. "50 Mbps"
+	Down         string
 }
 
 // Subscriber is everything one subscription token resolves to: the set of

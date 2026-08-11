@@ -58,9 +58,11 @@ func buildFleet(snaps []panelSnapshot) *entity.Fleet {
 					continue
 				}
 
-				p := base // copy
-				p.UUID = cs.UUID
-				p.Flow = flowByEmail[cs.Email]
+				// per-client copy of the VLESS params — uuid/flow differ per client.
+				v := *base.VLESS
+				v.UUID = cs.UUID
+				v.Flow = flowByEmail[cs.Email]
+				p := entity.Proxy{Name: base.Name, InboundID: base.InboundID, VLESS: &v}
 
 				sub := fleet.Subs[cs.SubID]
 				if sub == nil {
@@ -87,6 +89,57 @@ func buildFleet(snaps []panelSnapshot) *entity.Fleet {
 	return fleet
 }
 
+// addHysteria2Inbounds adds proxies for hysteria2 inbounds. Access is granted exactly like
+// VLESS — via user_connections (the admin decides who gets which inbound); the ONLY
+// difference is the source of the proxy PARAMS: 3x-ui has no hysteria2, so instead of live
+// panel client stats these come from the inbound's stored creds, and the subscribers from
+// user_connections directly (subsByInbound) rather than from panel clients. One proxy per
+// (subscriber, hysteria2 inbound).
+func addHysteria2Inbounds(fleet *entity.Fleet, nodes []entity.Node, subsByInbound map[int64][]string) {
+	for _, n := range nodes {
+		for _, in := range n.Inbounds {
+			if !in.IsHysteria2() || in.Hysteria2 == nil {
+				continue
+			}
+
+			base := hysteria2Proxy(n, in)
+
+			for _, subID := range subsByInbound[in.ID] {
+				sub := fleet.Subs[subID]
+				if sub == nil {
+					sub = &entity.Subscriber{SubID: subID}
+					fleet.Subs[subID] = sub
+				}
+
+				h := *base.Hysteria2 // copy the params per subscriber
+				sub.Proxies = append(sub.Proxies, entity.Proxy{Name: base.Name, InboundID: base.InboundID, Hysteria2: &h})
+			}
+		}
+	}
+}
+
+// hysteria2Proxy renders a static hysteria2 inbound as a plain mihomo hysteria2 node
+// (Design A — identity is server-side, so no UUID). Server = the node's VPNHost, port =
+// the inbound port, SNI defaults to VPNHost.
+func hysteria2Proxy(n entity.Node, in entity.Inbound) entity.Proxy {
+	h := in.Hysteria2
+
+	sni := h.SNI
+	if sni == "" {
+		sni = n.VPNHost
+	}
+
+	return entity.Proxy{
+		Name:      n.InboundLabel(in),
+		InboundID: in.ID,
+		Hysteria2: &entity.Hysteria2Proxy{
+			Server: n.VPNHost, Port: in.Port,
+			Password: h.Password, Obfs: h.Obfs, ObfsPassword: h.ObfsPassword,
+			SNI: sni, Up: h.Up, Down: h.Down,
+		},
+	}
+}
+
 func findByPort(inbounds []entity.PanelInbound, port int) *entity.PanelInbound {
 	for i := range inbounds {
 		if inbounds[i].Port == port {
@@ -97,13 +150,16 @@ func findByPort(inbounds []entity.PanelInbound, port int) *entity.PanelInbound {
 	return nil
 }
 
-// streamToProxy maps an inbound's decoded stream info onto a proxy template.
+// streamToProxy maps an inbound's decoded stream info onto a VLESS proxy template.
 func streamToProxy(name, host string, port int, st entity.StreamInfo) entity.Proxy {
 	return entity.Proxy{
-		Name: name, Server: host, Port: port,
-		Network: st.Network, Security: st.Security,
-		PublicKey: st.PublicKey, ShortID: st.ShortID, ServerName: st.ServerName, Fingerprint: st.Fingerprint,
-		SNI: st.SNI, ALPN: st.ALPN,
-		WSPath: st.WSPath, WSHost: st.WSHost, GRPCService: st.GRPCService,
+		Name: name,
+		VLESS: &entity.VLESSProxy{
+			Server: host, Port: port,
+			Network: st.Network, Security: st.Security,
+			PublicKey: st.PublicKey, ShortID: st.ShortID, ServerName: st.ServerName, Fingerprint: st.Fingerprint,
+			SNI: st.SNI, ALPN: st.ALPN,
+			WSPath: st.WSPath, WSHost: st.WSHost, GRPCService: st.GRPCService,
+		},
 	}
 }

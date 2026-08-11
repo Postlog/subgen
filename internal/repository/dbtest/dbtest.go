@@ -66,8 +66,8 @@ func SeedNode(t *testing.T, repo *nodes.Repository) SeededNode {
 		PanelBasePath: "/",
 		Token:         "tok-ru1",
 		Inbounds: []entity.Inbound{
-			{Name: "smart", Port: 4433},
-			{Name: "force", Port: 8443},
+			{Name: "smart", Port: 4433, Kind: entity.InboundKindVLESS},
+			{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS},
 		},
 	})
 	require.NoError(t, err)

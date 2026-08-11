@@ -30,7 +30,7 @@ const (
 	MsgInboundNameUq     = "Duplicate inbound name"
 	MsgInboundPortUq     = "Duplicate inbound port"
 	MsgInboundReferenced = "Inbound is in use — first detach users and rules from it"
-	MsgHysteria2Pass     = "Hysteria2 inbound requires a password"
+	MsgHysteria2Pass     = "Hysteria2 inbound requires a password" //nolint:gosec // G101: user-facing validation message, not a credential
 )
 
 // Handler creates or updates a node from the node form.

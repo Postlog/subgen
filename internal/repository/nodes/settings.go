@@ -26,6 +26,7 @@ func inboundKindSettings(in entity.Inbound) (kind string, settings sql.NullStrin
 	kind = in.Kind
 
 	if in.Kind == entity.InboundKindHysteria2 && in.Hysteria2 != nil {
+		//nolint:gosec // G117: the hysteria2 password is intentionally persisted in the settings blob
 		b, _ := json.Marshal(hysteria2SettingsDTO{
 			Password: in.Hysteria2.Password, Obfs: in.Hysteria2.Obfs, ObfsPassword: in.Hysteria2.ObfsPassword,
 			SNI: in.Hysteria2.SNI, Up: in.Hysteria2.Up, Down: in.Hysteria2.Down,

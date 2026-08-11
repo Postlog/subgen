@@ -309,6 +309,7 @@ func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u 
 	// inbound in panelLookup). Skip them here; access to them is still recorded in
 	// user_connections by the caller, exactly like VLESS.
 	desiredByNode := map[int64][]connTarget{}
+
 	for _, t := range desired {
 		if t.Kind == entity.InboundKindHysteria2 {
 			continue
@@ -318,6 +319,7 @@ func (s *Service) syncPanels(ctx context.Context, byID map[int64]entity.Node, u 
 	}
 
 	oldByNode := map[int64][]entity.Connection{}
+
 	for _, c := range old {
 		if c.Kind == entity.InboundKindHysteria2 {
 			continue

@@ -44,7 +44,7 @@ type UserPage struct {
 	Total int64
 }
 
-// Connection is one (user, inbound) binding. Node/Name/Port are resolved by join
+// Connection is one (user, inbound) binding. Node/Name/Port/Kind are resolved by join
 // from node_inbounds; the client email/subId are the user's, not per-connection.
 // The inbound label (for display / wire-naming) is Node + "-" + Name.
 type Connection struct {
@@ -56,4 +56,5 @@ type Connection struct {
 	Node      string // node name (joined) — display / wire-naming
 	Name      string // inbound name (joined) — display / wire-naming
 	Port      int    // inbound port (joined) — bridge to the 3x-ui inbound
+	Kind      string // inbound kind (joined) — "vless" | "hysteria2"; hysteria2 is not panel-provisioned
 }

@@ -30,6 +30,7 @@ const (
 	MsgInboundNameUq     = "Duplicate inbound name"
 	MsgInboundPortUq     = "Duplicate inbound port"
 	MsgInboundReferenced = "Inbound is in use — first detach users and rules from it"
+	MsgHysteria2Pass     = "Hysteria2 inbound requires a password"
 )
 
 // Handler creates or updates a node from the node form.
@@ -57,7 +58,27 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 			continue // blank inbound row
 		}
 
-		n.Inbounds = append(n.Inbounds, entity.Inbound{ID: in.ID.Or(0), Name: strings.TrimSpace(in.Name), Port: in.Port})
+		ib := entity.Inbound{ID: in.ID.Or(0), Name: strings.TrimSpace(in.Name), Port: in.Port}
+
+		// Kind left empty = vless (the store defaults it); set it only when the request
+		// carries an explicit non-empty kind.
+		if k, ok := in.Kind.Get(); ok && string(k) != "" {
+			ib.Kind = string(k)
+		}
+
+		if ib.Kind == entity.InboundKindHysteria2 {
+			h, _ := in.Hysteria2.Get() // zero value when absent → an empty-cred hysteria2 inbound
+			ib.Hysteria2 = &entity.Hysteria2Settings{
+				Password:     strings.TrimSpace(h.Password.Or("")),
+				Obfs:         strings.TrimSpace(h.Obfs.Or("")),
+				ObfsPassword: strings.TrimSpace(h.ObfsPassword.Or("")),
+				SNI:          strings.TrimSpace(h.Sni.Or("")),
+				Up:           strings.TrimSpace(h.Up.Or("")),
+				Down:         strings.TrimSpace(h.Down.Or("")),
+			}
+		}
+
+		n.Inbounds = append(n.Inbounds, ib)
 	}
 
 	if _, err := h.svc.Save(ctx, n); err != nil {
@@ -103,6 +124,8 @@ func (h *Handler) mapErr(name string, err error) (oas.NodeSaveRes, error) {
 		return bad(MsgInboundNameUq)
 	case errors.Is(err, entity.ErrValidationInboundPortUq):
 		return bad(MsgInboundPortUq)
+	case errors.Is(err, entity.ErrValidationHysteria2Pass):
+		return bad(MsgHysteria2Pass)
 	default:
 		slog.Error("handler node_save: save failed", "name", name, "err", err)
 		return nil, err

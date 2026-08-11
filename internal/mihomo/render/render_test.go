@@ -310,6 +310,59 @@ rule-providers:
 `,
 		},
 		{
+			// China dual-stack (Design C): a hysteria2 OUTER transport + an inner VLESS
+			// proxy that rides it via dialer-proxy (carrying the per-user UUID into RU1).
+			name: "success.hysteria2_relay",
+			sub: &entity.Subscriber{SubID: "x", Proxies: []entity.Proxy{
+				{
+					Name: "RU1-hy2-outer", Protocol: "hysteria2",
+					Server: "ru1.example", Port: 443,
+					Password: "pw", Obfs: "salamander", ObfsPassword: "obfs",
+					ServerName: "ru1.example", Up: "50 Mbps", Down: "100 Mbps",
+				},
+				{
+					Name: "RU1-hy2-inner", InboundID: 40,
+					Server: "127.0.0.1", Port: 12466, UUID: uuidRU1force, Network: "tcp",
+					Security: "reality", PublicKey: "PBK", ShortID: "sid", ServerName: "ru1.example",
+					Flow: "xtls-rprx-vision", DialerProxy: "RU1-hy2-outer",
+				},
+			}},
+			opts: Options{BaseYAML: "mode: rule", Rules: []mihomo.RoutingRule{
+				{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
+			}},
+			wantYAML: `
+mode: rule
+proxies:
+  - name: RU1-hy2-outer
+    type: hysteria2
+    server: ru1.example
+    port: 443
+    password: pw
+    obfs: salamander
+    obfs-password: obfs
+    sni: ru1.example
+    up: 50 Mbps
+    down: 100 Mbps
+  - name: RU1-hy2-inner
+    type: vless
+    server: 127.0.0.1
+    port: 12466
+    uuid: 33333333-3333-3333-3333-333333333333
+    udp: true
+    network: tcp
+    flow: xtls-rprx-vision
+    tls: true
+    servername: ru1.example
+    reality-opts:
+      public-key: PBK
+      short-id: sid
+    dialer-proxy: RU1-hy2-outer
+proxy-groups: []
+rules:
+  - MATCH,DIRECT
+`,
+		},
+		{
 			name:    "error.invalid_base_yaml",
 			sub:     &entity.Subscriber{SubID: "x"},
 			opts:    Options{BaseYAML: "mode: rule\n\tbad: : indent"},

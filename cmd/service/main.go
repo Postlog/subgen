@@ -107,7 +107,7 @@ func run() error {
 
 	// Wiring: clients → services → handlers (data flows bottom-up).
 	xc := xui.New()
-	fleetSvc := fleet.New(xc, nodesRepo)
+	fleetSvc := fleet.New(xc, nodesRepo, usersRepo)
 	prov := provisioning.New(usersRepo, nodesRepo, xc)
 
 	mirror := ruleset.New(provs)

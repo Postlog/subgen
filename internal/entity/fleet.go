@@ -8,12 +8,16 @@ type Proxy struct {
 	// InboundID identifies which node inbound this proxy came from, so the renderer
 	// can resolve an inbound PolicyRef to this proxy's name by id.
 	InboundID int64
-	Server    string
-	Port      int
-	UUID      uuid.UUID
-	Flow      string
-	Network   string // tcp | ws | grpc
-	Security  string // reality | tls | none
+	// Protocol selects the mihomo proxy type. Empty (the default) and "vless" render a
+	// VLESS proxy; "hysteria2" renders the QUIC outer transport (see the hysteria2 fields
+	// below). Kept optional so every existing (panel-sourced) proxy stays VLESS untouched.
+	Protocol string
+	Server   string
+	Port     int
+	UUID     uuid.UUID
+	Flow     string
+	Network  string // tcp | ws | grpc
+	Security string // reality | tls | none
 
 	// REALITY
 	PublicKey   string
@@ -29,6 +33,22 @@ type Proxy struct {
 	WSPath      string
 	WSHost      string
 	GRPCService string
+
+	// Hysteria2 (Protocol == "hysteria2") — a plain hysteria2 node for the China dual-stack
+	// (Design A: per-user daemon on its own UDP port; identity is server-side, by inbound
+	// tag). Not sourced from 3x-ui (Xray has no hysteria2): its params live in subgen. See
+	// docs/hysteria2.md in the vpn-toolchain repo. Password is the mihomo `password:` — a
+	// plain password (the server uses type:password), no UUID / no dialer-proxy needed.
+	Password     string
+	Obfs         string // e.g. "salamander"
+	ObfsPassword string
+	Up           string // Brutal CC hint, e.g. "50 Mbps"
+	Down         string
+
+	// DialerProxy chains this proxy THROUGH another proxy/group (mihomo `dialer-proxy`).
+	// Used by the inner VLESS hop to ride the outer hysteria2 (Design C), so the inner
+	// carries the per-user UUID into in-12466 while hysteria2 crosses the GFW.
+	DialerProxy string
 }
 
 // Subscriber is everything one subscription token resolves to: the set of

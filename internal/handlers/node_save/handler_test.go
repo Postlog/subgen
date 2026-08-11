@@ -71,3 +71,44 @@ func TestHandler_NodeSave(t *testing.T) {
 		})
 	}
 }
+
+// A hysteria2 inbound in the request maps to entity.Inbound{Kind:"hysteria2", Hysteria2:…};
+// a plain inbound (no kind) stays Kind:"" (the store defaults it to vless).
+func TestHandler_NodeSave_Hysteria2(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	svc := NewMocknodesService(ctrl)
+
+	req := &oas.NodeSaveReq{
+		Name: "RU1", VpnHost: "ru1.example", PanelBaseURL: "https://p.example:8443", PanelBasePath: "/",
+		Inbounds: []oas.NodeSaveReqInboundsItem{
+			{Name: "smart", Port: 12466}, // plain vless (no kind)
+			{
+				Name: "hy2", Port: 443,
+				Kind: oas.NewOptNodeSaveReqInboundsItemKind(oas.NodeSaveReqInboundsItemKindHysteria2),
+				Hysteria2: oas.NewOptNodeSaveReqInboundsItemHysteria2(oas.NodeSaveReqInboundsItemHysteria2{
+					Password:     oas.NewOptString("pw"),
+					Obfs:         oas.NewOptString("salamander"),
+					ObfsPassword: oas.NewOptString("ob"),
+					Up:           oas.NewOptString("50 Mbps"),
+				}),
+			},
+		},
+	}
+
+	want := entity.Node{
+		Name: "RU1", VPNHost: "ru1.example", PanelBaseURL: "https://p.example:8443", PanelBasePath: "/",
+		Inbounds: []entity.Inbound{
+			{Name: "smart", Port: 12466},
+			{Name: "hy2", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: &entity.Hysteria2Settings{
+				Password: "pw", Obfs: "salamander", ObfsPassword: "ob", Up: "50 Mbps",
+			}},
+		},
+	}
+	svc.EXPECT().Save(gomock.Any(), want).Return(int64(1), nil)
+
+	res, err := New(svc).NodeSave(context.Background(), req)
+	require.NoError(t, err)
+	assert.Equal(t, &oas.MessageResponse{Message: "Node saved: RU1"}, res)
+}

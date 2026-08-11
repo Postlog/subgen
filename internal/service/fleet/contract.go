@@ -16,3 +16,9 @@ type nodesRepo interface {
 type panelClient interface {
 	ListInbounds(ctx context.Context, t entity.PanelTarget) ([]entity.PanelInbound, error)
 }
+
+// connsRepo lists per-inbound subscribers (sub_ids) — the source for STATIC (hysteria2)
+// inbounds, which are not on any panel (the users repository satisfies it).
+type connsRepo interface {
+	InboundSubscribers(ctx context.Context) (map[int64][]string, error)
+}

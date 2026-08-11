@@ -460,20 +460,41 @@ const app = createApp({
     },
 
     // ---- nodes --------------------------------------------------------------
-    openCreateNode() { this.nodeForm = { open: true, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [{ id: 0, name: "", port: "" }] }; },
+    // A blank inbound row: vless by default, with an empty hysteria2 cred bag ready for
+    // when the operator switches the kind to hysteria2.
+    blankInbound() { return { id: 0, name: "", port: "", kind: "vless", hy2: { password: "", obfs: "salamander", obfsPassword: "", sni: "", up: "", down: "" } }; },
+    openCreateNode() { this.nodeForm = { open: true, id: 0, name: "", vpnHost: "", panelBaseURL: "", panelBasePath: "", token: "", inbounds: [this.blankInbound()] }; },
     openNode(n) {
       this.nodeForm = {
         open: true, id: n.id, name: n.name, vpnHost: n.vpnHost, panelBaseURL: n.panelBaseURL,
         panelBasePath: n.panelBasePath, token: "",
-        inbounds: (n.inbounds || []).map((i) => ({ id: i.id, name: i.name, port: i.port })),
+        inbounds: (n.inbounds || []).map((i) => ({
+          id: i.id, name: i.name, port: i.port, kind: i.kind || "vless",
+          // password is write-only (never returned), so it starts blank on edit; the other
+          // hysteria2 params prefill if the API returns them.
+          hy2: {
+            password: "", obfs: (i.hysteria2 && i.hysteria2.obfs) || "salamander",
+            obfsPassword: (i.hysteria2 && i.hysteria2.obfsPassword) || "", sni: (i.hysteria2 && i.hysteria2.sni) || "",
+            up: (i.hysteria2 && i.hysteria2.up) || "", down: (i.hysteria2 && i.hysteria2.down) || "",
+          },
+        })),
       };
     },
-    addInbound() { this.nodeForm.inbounds.push({ id: 0, name: "", port: "" }); },
+    addInbound() { this.nodeForm.inbounds.push(this.blankInbound()); },
     async saveNode() {
       const f = this.nodeForm;
       const inbounds = f.inbounds
         .filter((inb) => inb.port)
-        .map((inb) => ({ id: inb.id || 0, name: inb.name, port: Number(inb.port) }));
+        .map((inb) => {
+          const o = { id: inb.id || 0, name: inb.name, port: Number(inb.port), kind: inb.kind || "vless" };
+          if (o.kind === "hysteria2") {
+            o.hysteria2 = {
+              password: inb.hy2.password, obfs: inb.hy2.obfs, obfsPassword: inb.hy2.obfsPassword,
+              sni: inb.hy2.sni, up: inb.hy2.up, down: inb.hy2.down,
+            };
+          }
+          return o;
+        });
       const d = await this.post("/admin/api/nodes/save", {
         id: f.id || 0, name: f.name, vpnHost: f.vpnHost, panelBaseURL: f.panelBaseURL,
         panelBasePath: f.panelBasePath, token: f.token, inbounds,

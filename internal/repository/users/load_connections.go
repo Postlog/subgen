@@ -13,7 +13,7 @@ import (
 func (r *Repository) loadConnections(ctx context.Context, byID map[int64]*entity.User, userID int64) error {
 	if userID > 0 {
 		rows, err := r.db.QueryContext(ctx,
-			`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+			`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port, ni.kind
 			 FROM user_connections uc
 			 JOIN node_inbounds ni ON ni.id = uc.inbound_id
 			 JOIN nodes n ON n.id = ni.node_id
@@ -29,7 +29,7 @@ func (r *Repository) loadConnections(ctx context.Context, byID map[int64]*entity
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port, ni.kind
 		 FROM user_connections uc
 		 JOIN node_inbounds ni ON ni.id = uc.inbound_id
 		 JOIN nodes n ON n.id = ni.node_id
@@ -53,7 +53,7 @@ func (r *Repository) loadConnectionsForIDs(ctx context.Context, byID map[int64]*
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port
+		`SELECT uc.id, uc.user_id, uc.inbound_id, uc.created_at, ni.node_id, n.name, ni.name, ni.inbound_port, ni.kind
 		 FROM user_connections uc
 		 JOIN node_inbounds ni ON ni.id = uc.inbound_id
 		 JOIN nodes n ON n.id = ni.node_id
@@ -73,7 +73,7 @@ func scanConnections(rows *sql.Rows, byID map[int64]*entity.User) error {
 	for rows.Next() {
 		var c entity.Connection
 		if err := rows.Scan(&c.ID, &c.UserID, &c.InboundID, &c.CreatedAt,
-			&c.NodeID, &c.Node, &c.Name, &c.Port); err != nil {
+			&c.NodeID, &c.Node, &c.Name, &c.Port, &c.Kind); err != nil {
 			return err
 		}
 

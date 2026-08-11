@@ -414,10 +414,26 @@
 
       <hr class="my-3" style="border-color:var(--bs-border-color)">
       <label class="form-label">Inbound</label>
-      <div v-for="(inb,i) in nodeForm.inbounds" :key="i" class="inb-row">
-        <input class="form-control" v-model="inb.name" placeholder="name (a-z/0-9/-)">
-        <input class="form-control" type="number" v-model="inb.port" placeholder="port">
-        <button class="btn btn-sm btn-danger-soft act" @click="nodeForm.inbounds.splice(i,1)">✕</button>
+      <div v-for="(inb,i) in nodeForm.inbounds" :key="i" class="inb-block mb-2">
+        <div class="inb-row">
+          <input class="form-control" v-model="inb.name" placeholder="name (a-z/0-9/-)">
+          <input class="form-control" type="number" v-model="inb.port" placeholder="port">
+          <select class="form-select" v-model="inb.kind" style="max-width:9rem" title="Inbound kind">
+            <option value="vless">vless</option>
+            <option value="hysteria2">hysteria2</option>
+          </select>
+          <button class="btn btn-sm btn-danger-soft act" @click="nodeForm.inbounds.splice(i,1)">✕</button>
+        </div>
+        <!-- hysteria2 has no 3x-ui inbound — its client creds are stored here. Password is
+             required; SNI defaults to the node domain. Rendered as a plain hysteria2 node. -->
+        <div v-if="inb.kind==='hysteria2'" class="row g-2 mt-1 ms-1">
+          <div class="col-md-6"><input class="form-control form-control-sm" v-model="inb.hy2.password" placeholder="password (required)"></div>
+          <div class="col-md-3"><input class="form-control form-control-sm" v-model="inb.hy2.obfs" placeholder="obfs (salamander)"></div>
+          <div class="col-md-3"><input class="form-control form-control-sm" v-model="inb.hy2.obfsPassword" placeholder="obfs password"></div>
+          <div class="col-md-6"><input class="form-control form-control-sm" v-model="inb.hy2.sni" placeholder="sni (defaults to domain)"></div>
+          <div class="col-md-3"><input class="form-control form-control-sm" v-model="inb.hy2.up" placeholder="up (e.g. 50 Mbps)"></div>
+          <div class="col-md-3"><input class="form-control form-control-sm" v-model="inb.hy2.down" placeholder="down (e.g. 100 Mbps)"></div>
+        </div>
       </div>
       <div v-if="!nodeForm.inbounds.length" class="inb-empty">add at least one inbound</div>
       <button class="btn btn-sm btn-outline-secondary" @click="addInbound()">Add inbound</button>

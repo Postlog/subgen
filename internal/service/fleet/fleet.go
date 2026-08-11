@@ -17,11 +17,12 @@ import (
 type Service struct {
 	client panelClient
 	nodes  nodesRepo
+	conns  connsRepo
 }
 
 // New builds the fleet service.
-func New(client panelClient, nodes nodesRepo) *Service {
-	return &Service{client: client, nodes: nodes}
+func New(client panelClient, nodes nodesRepo, conns connsRepo) *Service {
+	return &Service{client: client, nodes: nodes, conns: conns}
 }
 
 // Fleet lists every node's inbounds and assembles the fleet, fresh on every call.
@@ -60,7 +61,19 @@ func (s *Service) fetch(ctx context.Context) (*entity.Fleet, error) {
 		return nil, fmt.Errorf("all panels failed: %s", strings.Join(errs, "; "))
 	}
 
-	return buildFleet(snaps), nil
+	fleet := buildFleet(snaps)
+
+	// hysteria2 inbounds aren't on 3x-ui (Xray has no hysteria2), so their proxies come
+	// from the DB, not the panel: subscribers from user_connections (same access model as
+	// VLESS — the admin decides), params from the inbound's stored creds.
+	subs, err := s.conns.InboundSubscribers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("conns.InboundSubscribers: %w", err)
+	}
+
+	addHysteria2Inbounds(fleet, nodes, subs)
+
+	return fleet, nil
 }
 
 func target(n entity.Node) entity.PanelTarget {

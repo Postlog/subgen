@@ -94,3 +94,42 @@ func (mr *MockpanelClientMockRecorder) ListInbounds(ctx, t any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInbounds", reflect.TypeOf((*MockpanelClient)(nil).ListInbounds), ctx, t)
 }
+
+// MockconnsRepo is a mock of connsRepo interface.
+type MockconnsRepo struct {
+	ctrl     *gomock.Controller
+	recorder *MockconnsRepoMockRecorder
+	isgomock struct{}
+}
+
+// MockconnsRepoMockRecorder is the mock recorder for MockconnsRepo.
+type MockconnsRepoMockRecorder struct {
+	mock *MockconnsRepo
+}
+
+// NewMockconnsRepo creates a new mock instance.
+func NewMockconnsRepo(ctrl *gomock.Controller) *MockconnsRepo {
+	mock := &MockconnsRepo{ctrl: ctrl}
+	mock.recorder = &MockconnsRepoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockconnsRepo) EXPECT() *MockconnsRepoMockRecorder {
+	return m.recorder
+}
+
+// InboundSubscribers mocks base method.
+func (m *MockconnsRepo) InboundSubscribers(ctx context.Context) (map[int64][]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InboundSubscribers", ctx)
+	ret0, _ := ret[0].(map[int64][]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InboundSubscribers indicates an expected call of InboundSubscribers.
+func (mr *MockconnsRepoMockRecorder) InboundSubscribers(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InboundSubscribers", reflect.TypeOf((*MockconnsRepo)(nil).InboundSubscribers), ctx)
+}

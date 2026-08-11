@@ -52,6 +52,8 @@ func validateNode(n *entity.Node) error {
 			return entity.ErrValidationInboundNameUq
 		case seenPort[in.Port]:
 			return entity.ErrValidationInboundPortUq
+		case in.IsHysteria2() && (in.Hysteria2 == nil || strings.TrimSpace(in.Hysteria2.Password) == ""):
+			return entity.ErrValidationHysteria2Pass
 		}
 
 		seenName[in.Name] = true

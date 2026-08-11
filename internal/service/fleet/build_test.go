@@ -59,3 +59,45 @@ func TestBuildFleet_ClientsByInbound(t *testing.T) {
 	require.NotNil(t, f.Sub("s-amy"))
 	assert.Len(t, f.Sub("s-amy").Proxies, 1)
 }
+
+// TestAddHysteria2Inbounds renders a hysteria2 inbound from its stored creds for exactly
+// the subscribers connected to it (via user_connections), defaulting SNI to the node host,
+// and leaves vless inbounds alone (those are built from panel client stats).
+func TestAddHysteria2Inbounds(t *testing.T) {
+	t.Parallel()
+
+	nodes := []entity.Node{{
+		Name: "🇷🇺 RU1", VPNHost: "ru1.example",
+		Inbounds: []entity.Inbound{
+			{ID: 1, Name: "smart", Port: 12466}, // vless — NOT rendered here
+			{ID: 2, Name: "hy2-postlog", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: &entity.Hysteria2Settings{
+				Password: "pw", Obfs: "salamander", ObfsPassword: "ob", Up: "50 Mbps", Down: "100 Mbps",
+			}},
+		},
+	}}
+
+	// Subscribers per inbound id (from user_connections): s1 is on both, s2 only on the vless.
+	subs := map[int64][]string{2: {"s1"}, 1: {"s1", "s2"}}
+
+	f := &entity.Fleet{Subs: map[string]*entity.Subscriber{}}
+	addHysteria2Inbounds(f, nodes, subs)
+
+	// Only s1 (on the hy2 inbound) gets a proxy here; the vless inbound is not rendered by
+	// this path, so s2 (vless-only) gets nothing and s1 gets exactly the one hy2 proxy.
+	require.NotNil(t, f.Sub("s1"))
+	require.Len(t, f.Sub("s1").Proxies, 1)
+	assert.Nil(t, f.Sub("s2"))
+
+	p := f.Sub("s1").Proxies[0]
+	assert.Equal(t, entity.InboundKindHysteria2, p.Protocol)
+	assert.Equal(t, "🇷🇺 RU1-hy2-postlog", p.Name)
+	assert.Equal(t, "ru1.example", p.Server)
+	assert.Equal(t, 443, p.Port)
+	assert.Equal(t, int64(2), p.InboundID)
+	assert.Equal(t, "pw", p.Password)
+	assert.Equal(t, "salamander", p.Obfs)
+	assert.Equal(t, "ob", p.ObfsPassword)
+	assert.Equal(t, "ru1.example", p.SNI) // defaulted to VPNHost
+	assert.Equal(t, "50 Mbps", p.Up)
+	assert.Equal(t, "100 Mbps", p.Down)
+}

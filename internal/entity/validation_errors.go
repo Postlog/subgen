@@ -16,4 +16,5 @@ var (
 	ErrValidationInboundPort   = errors.New("invalid inbound port")
 	ErrValidationInboundNameUq = errors.New("duplicate inbound name")
 	ErrValidationInboundPortUq = errors.New("duplicate inbound port")
+	ErrValidationHysteria2Pass = errors.New("hysteria2 inbound requires a password")
 )

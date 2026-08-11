@@ -31,7 +31,22 @@ func (h *Handler) NodesGet(ctx context.Context) (oas.NodesGetRes, error) {
 	for _, n := range nodes {
 		inbounds := make([]oas.NodesGetOKNodesItemInboundsItem, 0, len(n.Inbounds))
 		for _, in := range n.Inbounds {
-			inbounds = append(inbounds, oas.NodesGetOKNodesItemInboundsItem{ID: in.ID, Name: in.Name, Port: in.Port})
+			item := oas.NodesGetOKNodesItemInboundsItem{ID: in.ID, Name: in.Name, Port: in.Port}
+			if in.Kind != "" {
+				item.Kind = oas.NewOptString(in.Kind)
+			}
+			// Return the non-secret hysteria2 params so the edit form prefills them; the
+			// password is write-only and deliberately never sent back.
+			if in.IsHysteria2() && in.Hysteria2 != nil {
+				item.Hysteria2 = oas.NewOptNodesGetOKNodesItemInboundsItemHysteria2(oas.NodesGetOKNodesItemInboundsItemHysteria2{
+					Obfs: oas.NewOptString(in.Hysteria2.Obfs),
+					Sni:  oas.NewOptString(in.Hysteria2.SNI),
+					Up:   oas.NewOptString(in.Hysteria2.Up),
+					Down: oas.NewOptString(in.Hysteria2.Down),
+				})
+			}
+
+			inbounds = append(inbounds, item)
 		}
 		// Deterministic order by name.
 		sort.Slice(inbounds, func(i, j int) bool { return inbounds[i].Name < inbounds[j].Name })

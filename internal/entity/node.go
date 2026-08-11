@@ -36,9 +36,9 @@ type Inbound struct {
 	ID   int64  // node_inbounds.id (0 until persisted); referenced by user_connections
 	Name string // ASCII letters/digits/-, unique within the node (e.g. "force")
 	Port int
-	Kind string // "" / "vless" (panel-managed) | "hysteria2" (static; Hysteria2 set)
+	Kind string // InboundKindVLESS | InboundKindHysteria2 — always explicit (never empty)
 
-	// Hysteria2 is set iff Kind == "hysteria2" — the plain hysteria2 node's creds, stored
+	// Hysteria2 is set iff Kind == InboundKindHysteria2 — the hysteria2 node's creds, stored
 	// in subgen (not sourced from any panel).
 	Hysteria2 *Hysteria2Settings
 }
@@ -46,14 +46,15 @@ type Inbound struct {
 // Hysteria2Settings are the stored creds for a hysteria2 inbound (rendered from here, since
 // there's no 3x-ui inbound to read them from). Server = the node's VPNHost, port =
 // Inbound.Port; SNI defaults to VPNHost when empty. Password is the plain hysteria2 password
-// (Design A server uses type:password; no UUID). See docs/hysteria2.md.
+// (Design A server uses type:password; no UUID). See docs/hysteria2.md. No serialization
+// tags — the DB blob is (un)marshalled through a repo-local DTO at the persistence boundary.
 type Hysteria2Settings struct {
-	Password     string `json:"password"`
-	Obfs         string `json:"obfs,omitempty"` // e.g. "salamander"
-	ObfsPassword string `json:"obfs_password,omitempty"`
-	SNI          string `json:"sni,omitempty"`
-	Up           string `json:"up,omitempty"` // Brutal hint, e.g. "50 Mbps"
-	Down         string `json:"down,omitempty"`
+	Password     string
+	Obfs         string // e.g. "salamander"
+	ObfsPassword string
+	SNI          string
+	Up           string // Brutal hint, e.g. "50 Mbps"
+	Down         string
 }
 
 // IsHysteria2 reports whether this inbound is a hysteria2 node.

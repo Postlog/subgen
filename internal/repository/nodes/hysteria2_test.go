@@ -29,7 +29,7 @@ func TestNodes_Hysteria2Inbound_RoundTrip(t *testing.T) {
 	id, err := repo.Create(t.Context(), entity.Node{
 		Name: "RU1", VPNHost: "ru1.example", PanelBaseURL: "https://ru1.example:2053", PanelBasePath: "/", Token: "tok",
 		Inbounds: []entity.Inbound{
-			{Name: "smart", Port: 12466}, // vless (default kind)
+			{Name: "smart", Port: 12466, Kind: entity.InboundKindVLESS},
 			{Name: "hy2-postlog", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: hy},
 		},
 	})
@@ -75,7 +75,7 @@ func TestNodes_Hysteria2Inbound_RoundTrip(t *testing.T) {
 	require.NoError(t, repo.Update(t.Context(), id, entity.Node{
 		Name: "RU1", VPNHost: "ru1.example", PanelBaseURL: "https://ru1.example:2053", PanelBasePath: "/",
 		Inbounds: []entity.Inbound{
-			{ID: byName["smart"].ID, Name: "smart", Port: 12466},
+			{ID: byName["smart"].ID, Name: "smart", Port: 12466, Kind: entity.InboundKindVLESS},
 			{ID: h.ID, Name: "hy2-postlog", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: &updated},
 		},
 	}, false))

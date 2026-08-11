@@ -34,8 +34,8 @@ func TestHandler_NodesGet(t *testing.T) {
 					PanelBaseURL:  "https://panel.example",
 					PanelBasePath: "/app",
 					Inbounds: []entity.Inbound{
-						{ID: 10, Name: "smart", Port: 8443},
-						{ID: 11, Name: "force", Port: 9443},
+						{ID: 10, Name: "smart", Port: 8443, Kind: entity.InboundKindVLESS},
+						{ID: 11, Name: "force", Port: 9443, Kind: entity.InboundKindVLESS},
 					},
 				}}, nil)
 			},
@@ -46,8 +46,8 @@ func TestHandler_NodesGet(t *testing.T) {
 				PanelBaseURL:  "https://panel.example",
 				PanelBasePath: "/app",
 				Inbounds: []oas.NodesGetOKNodesItemInboundsItem{
-					{ID: 11, Name: "force", Port: 9443},
-					{ID: 10, Name: "smart", Port: 8443},
+					{ID: 11, Name: "force", Port: 9443, Kind: oas.NewOptString(entity.InboundKindVLESS)},
+					{ID: 10, Name: "smart", Port: 8443, Kind: oas.NewOptString(entity.InboundKindVLESS)},
 				},
 			}}},
 		},

@@ -58,10 +58,9 @@ func (h *Handler) NodeSave(ctx context.Context, req *oas.NodeSaveReq) (oas.NodeS
 			continue // blank inbound row
 		}
 
-		ib := entity.Inbound{ID: in.ID.Or(0), Name: strings.TrimSpace(in.Name), Port: in.Port}
+		// Kind is always explicit: default to vless, override with the request's kind.
+		ib := entity.Inbound{ID: in.ID.Or(0), Name: strings.TrimSpace(in.Name), Port: in.Port, Kind: entity.InboundKindVLESS}
 
-		// Kind left empty = vless (the store defaults it); set it only when the request
-		// carries an explicit non-empty kind.
 		if k, ok := in.Kind.Get(); ok && string(k) != "" {
 			ib.Kind = string(k)
 		}

@@ -84,7 +84,12 @@ func run() error {
 		}
 
 		for _, p := range sub.Proxies {
-			fmt.Printf("    - %-18s %s:%d %s/%s\n", p.Name, p.Server, p.Port, p.Network, p.Security)
+			switch {
+			case p.Hysteria2 != nil:
+				fmt.Printf("    - %-18s %s:%d hysteria2\n", p.Name, p.Hysteria2.Server, p.Hysteria2.Port)
+			case p.VLESS != nil:
+				fmt.Printf("    - %-18s %s:%d vless %s/%s\n", p.Name, p.VLESS.Server, p.VLESS.Port, p.VLESS.Network, p.VLESS.Security)
+			}
 		}
 	}
 

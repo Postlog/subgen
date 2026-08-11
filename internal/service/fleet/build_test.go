@@ -89,15 +89,18 @@ func TestAddHysteria2Inbounds(t *testing.T) {
 	assert.Nil(t, f.Sub("s2"))
 
 	p := f.Sub("s1").Proxies[0]
-	assert.Equal(t, entity.InboundKindHysteria2, p.Protocol)
 	assert.Equal(t, "🇷🇺 RU1-hy2-postlog", p.Name)
-	assert.Equal(t, "ru1.example", p.Server)
-	assert.Equal(t, 443, p.Port)
 	assert.Equal(t, int64(2), p.InboundID)
-	assert.Equal(t, "pw", p.Password)
-	assert.Equal(t, "salamander", p.Obfs)
-	assert.Equal(t, "ob", p.ObfsPassword)
-	assert.Equal(t, "ru1.example", p.SNI) // defaulted to VPNHost
-	assert.Equal(t, "50 Mbps", p.Up)
-	assert.Equal(t, "100 Mbps", p.Down)
+	assert.Nil(t, p.VLESS)
+	require.NotNil(t, p.Hysteria2)
+
+	h := p.Hysteria2
+	assert.Equal(t, "ru1.example", h.Server)
+	assert.Equal(t, 443, h.Port)
+	assert.Equal(t, "pw", h.Password)
+	assert.Equal(t, "salamander", h.Obfs)
+	assert.Equal(t, "ob", h.ObfsPassword)
+	assert.Equal(t, "ru1.example", h.SNI) // defaulted to VPNHost
+	assert.Equal(t, "50 Mbps", h.Up)
+	assert.Equal(t, "100 Mbps", h.Down)
 }

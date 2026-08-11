@@ -2,16 +2,23 @@ package entity
 
 import "github.com/google/uuid"
 
-// Proxy is one mihomo proxy node (one 3x-ui inbound, resolved for one client).
+// Proxy is one mihomo proxy node for a subscriber. Exactly one protocol variant is set —
+// the renderer switches on it — so there is no shared "fat" struct mixing VLESS and
+// hysteria2 fields.
 type Proxy struct {
-	Name string // the inbound label "<node>-<inbound>" — used verbatim as the proxy name
-	// InboundID identifies which node inbound this proxy came from, so the renderer
-	// can resolve an inbound PolicyRef to this proxy's name by id.
+	// Name is the inbound label "<node>-<inbound>" — the proxy name, and the key the
+	// renderer resolves an inbound PolicyRef to by id.
+	Name string
+	// InboundID identifies which node inbound this proxy came from.
 	InboundID int64
-	// Protocol selects the mihomo proxy type. Empty (the default) and "vless" render a
-	// VLESS proxy; "hysteria2" renders the QUIC outer transport (see the hysteria2 fields
-	// below). Kept optional so every existing (panel-sourced) proxy stays VLESS untouched.
-	Protocol string
+
+	// Exactly one of the following is non-nil.
+	VLESS     *VLESSProxy
+	Hysteria2 *Hysteria2Proxy
+}
+
+// VLESSProxy is a VLESS proxy resolved from a 3x-ui inbound + one client.
+type VLESSProxy struct {
 	Server   string
 	Port     int
 	UUID     uuid.UUID
@@ -33,22 +40,20 @@ type Proxy struct {
 	WSPath      string
 	WSHost      string
 	GRPCService string
+}
 
-	// Hysteria2 (Protocol == "hysteria2") — a plain hysteria2 node for the China dual-stack
-	// (Design A: per-user daemon on its own UDP port; identity is server-side, by inbound
-	// tag). Not sourced from 3x-ui (Xray has no hysteria2): its params live in subgen. See
-	// docs/hysteria2.md in the vpn-toolchain repo. Password is the mihomo `password:` — a
-	// plain password (the server uses type:password), no UUID / no dialer-proxy needed.
-	Password     string
+// Hysteria2Proxy is a plain hysteria2 proxy node (China dual-stack, Design A): identity is
+// server-side (by daemon port → Xray inbound tag), so there's no UUID. Its params come from
+// the inbound's stored creds, not a panel. See docs/hysteria2.md in the vpn-toolchain repo.
+type Hysteria2Proxy struct {
+	Server       string
+	Port         int
+	Password     string // plain (the server uses type:password)
 	Obfs         string // e.g. "salamander"
 	ObfsPassword string
+	SNI          string
 	Up           string // Brutal CC hint, e.g. "50 Mbps"
 	Down         string
-
-	// DialerProxy chains this proxy THROUGH another proxy/group (mihomo `dialer-proxy`).
-	// Used by the inner VLESS hop to ride the outer hysteria2 (Design C), so the inner
-	// carries the per-user UUID into in-12466 while hysteria2 crosses the GFW.
-	DialerProxy string
 }
 
 // Subscriber is everything one subscription token resolves to: the set of

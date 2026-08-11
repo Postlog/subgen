@@ -53,21 +53,18 @@ func fullSub() *entity.Subscriber {
 	return &entity.Subscriber{
 		SubID: "abc",
 		Proxies: []entity.Proxy{
-			{
-				Name: "smart-NL2", InboundID: 30,
+			{Name: "smart-NL2", InboundID: 30, VLESS: &entity.VLESSProxy{
 				Server: "nl2.example", Port: 35740, UUID: uuidNL2smart, Network: "tcp",
 				Security: "reality", PublicKey: "PBK", ShortID: "sid", ServerName: "www.sony.com", Fingerprint: "chrome",
-			},
-			{
-				Name: "force-NL2", InboundID: 10,
+			}},
+			{Name: "force-NL2", InboundID: 10, VLESS: &entity.VLESSProxy{
 				Server: "nl2.example", Port: 35741, UUID: uuidNL2force, Network: "tcp",
 				Security: "reality", PublicKey: "PBK", ShortID: "sid", ServerName: "www.sony.com",
-			},
-			{
-				Name: "force-RU1", InboundID: 20,
+			}},
+			{Name: "force-RU1", InboundID: 20, VLESS: &entity.VLESSProxy{
 				Server: "ru1.example", Port: 8443, UUID: uuidRU1force, Network: "tcp",
 				Security: "tls", Flow: "xtls-rprx-vision", ALPN: []string{"http/1.1"},
-			},
+			}},
 		},
 	}
 }
@@ -190,7 +187,7 @@ func TestRender(t *testing.T) {
 			// inbound-30 + inbound-20 rules dropped, smart stays its DIRECT fallback.
 			name: "success.missing_one_inbound",
 			sub: &entity.Subscriber{SubID: "x", Proxies: []entity.Proxy{
-				{Name: "force-NL2", InboundID: 10, Server: "nl2", Port: 1, UUID: uuidNL2force, Network: "tcp", Security: "tls"},
+				{Name: "force-NL2", InboundID: 10, VLESS: &entity.VLESSProxy{Server: "nl2", Port: 1, UUID: uuidNL2force, Network: "tcp", Security: "tls"}},
 			}},
 			opts: partialOptions(),
 			wantYAML: `
@@ -310,22 +307,15 @@ rule-providers:
 `,
 		},
 		{
-			// China dual-stack (Design C): a hysteria2 OUTER transport + an inner VLESS
-			// proxy that rides it via dialer-proxy (carrying the per-user UUID into RU1).
-			name: "success.hysteria2_relay",
+			// A plain hysteria2 node (China dual-stack, Design A) renders as type hysteria2 —
+			// no UUID, no dialer-proxy.
+			name: "success.hysteria2",
 			sub: &entity.Subscriber{SubID: "x", Proxies: []entity.Proxy{
-				{
-					Name: "RU1-hy2-outer", Protocol: "hysteria2",
+				{Name: "RU1-hy2", InboundID: 40, Hysteria2: &entity.Hysteria2Proxy{
 					Server: "ru1.example", Port: 443,
 					Password: "pw", Obfs: "salamander", ObfsPassword: "obfs",
-					ServerName: "ru1.example", Up: "50 Mbps", Down: "100 Mbps",
-				},
-				{
-					Name: "RU1-hy2-inner", InboundID: 40,
-					Server: "127.0.0.1", Port: 12466, UUID: uuidRU1force, Network: "tcp",
-					Security: "reality", PublicKey: "PBK", ShortID: "sid", ServerName: "ru1.example",
-					Flow: "xtls-rprx-vision", DialerProxy: "RU1-hy2-outer",
-				},
+					SNI: "ru1.example", Up: "50 Mbps", Down: "100 Mbps",
+				}},
 			}},
 			opts: Options{BaseYAML: "mode: rule", Rules: []mihomo.RoutingRule{
 				{Type: mihomo.RuleMatch, Target: &mihomo.PolicyRef{Kind: mihomo.PolicyDirect}},
@@ -333,7 +323,7 @@ rule-providers:
 			wantYAML: `
 mode: rule
 proxies:
-  - name: RU1-hy2-outer
+  - name: RU1-hy2
     type: hysteria2
     server: ru1.example
     port: 443
@@ -343,20 +333,6 @@ proxies:
     sni: ru1.example
     up: 50 Mbps
     down: 100 Mbps
-  - name: RU1-hy2-inner
-    type: vless
-    server: 127.0.0.1
-    port: 12466
-    uuid: 33333333-3333-3333-3333-333333333333
-    udp: true
-    network: tcp
-    flow: xtls-rprx-vision
-    tls: true
-    servername: ru1.example
-    reality-opts:
-      public-key: PBK
-      short-id: sid
-    dialer-proxy: RU1-hy2-outer
 proxy-groups: []
 rules:
   - MATCH,DIRECT

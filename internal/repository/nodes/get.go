@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/postlog/subgen/internal/entity"
 )
@@ -25,8 +26,9 @@ func (r *Repository) Get(ctx context.Context, id int64) (*entity.Node, error) {
 
 	for rows.Next() {
 		var (
-			in             entity.Inbound
-			kind, settings string
+			in       entity.Inbound
+			kind     string
+			settings sql.NullString
 		)
 
 		if err := rows.Scan(&in.ID, &in.Name, &in.Port, &kind, &settings); err != nil {

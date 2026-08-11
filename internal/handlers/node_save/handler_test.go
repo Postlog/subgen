@@ -25,7 +25,7 @@ func nodeReq() *oas.NodeSaveReq {
 func wantNode() entity.Node {
 	return entity.Node{
 		Name: "RU1", VPNHost: "host.example", PanelBaseURL: "https://panel.example:8443", PanelBasePath: "/",
-		Inbounds: []entity.Inbound{{Name: "smart", Port: 8443}},
+		Inbounds: []entity.Inbound{{Name: "smart", Port: 8443, Kind: entity.InboundKindVLESS}},
 	}
 }
 
@@ -100,7 +100,7 @@ func TestHandler_NodeSave_Hysteria2(t *testing.T) {
 	want := entity.Node{
 		Name: "RU1", VPNHost: "ru1.example", PanelBaseURL: "https://p.example:8443", PanelBasePath: "/",
 		Inbounds: []entity.Inbound{
-			{Name: "smart", Port: 12466},
+			{Name: "smart", Port: 12466, Kind: entity.InboundKindVLESS},
 			{Name: "hy2", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: &entity.Hysteria2Settings{
 				Password: "pw", Obfs: "salamander", ObfsPassword: "ob", Up: "50 Mbps",
 			}},

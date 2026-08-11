@@ -58,9 +58,11 @@ func buildFleet(snaps []panelSnapshot) *entity.Fleet {
 					continue
 				}
 
-				p := base // copy
-				p.UUID = cs.UUID
-				p.Flow = flowByEmail[cs.Email]
+				// per-client copy of the VLESS params — uuid/flow differ per client.
+				v := *base.VLESS
+				v.UUID = cs.UUID
+				v.Flow = flowByEmail[cs.Email]
+				p := entity.Proxy{Name: base.Name, InboundID: base.InboundID, VLESS: &v}
 
 				sub := fleet.Subs[cs.SubID]
 				if sub == nil {
@@ -109,8 +111,8 @@ func addHysteria2Inbounds(fleet *entity.Fleet, nodes []entity.Node, subsByInboun
 					fleet.Subs[subID] = sub
 				}
 
-				p := base // copy
-				sub.Proxies = append(sub.Proxies, p)
+				h := *base.Hysteria2 // copy the params per subscriber
+				sub.Proxies = append(sub.Proxies, entity.Proxy{Name: base.Name, InboundID: base.InboundID, Hysteria2: &h})
 			}
 		}
 	}
@@ -130,12 +132,11 @@ func hysteria2Proxy(n entity.Node, in entity.Inbound) entity.Proxy {
 	return entity.Proxy{
 		Name:      n.InboundLabel(in),
 		InboundID: in.ID,
-		Protocol:  entity.InboundKindHysteria2,
-		Server:    n.VPNHost,
-		Port:      in.Port,
-		Password:  h.Password,
-		Obfs:      h.Obfs, ObfsPassword: h.ObfsPassword,
-		SNI: sni, Up: h.Up, Down: h.Down,
+		Hysteria2: &entity.Hysteria2Proxy{
+			Server: n.VPNHost, Port: in.Port,
+			Password: h.Password, Obfs: h.Obfs, ObfsPassword: h.ObfsPassword,
+			SNI: sni, Up: h.Up, Down: h.Down,
+		},
 	}
 }
 
@@ -149,13 +150,16 @@ func findByPort(inbounds []entity.PanelInbound, port int) *entity.PanelInbound {
 	return nil
 }
 
-// streamToProxy maps an inbound's decoded stream info onto a proxy template.
+// streamToProxy maps an inbound's decoded stream info onto a VLESS proxy template.
 func streamToProxy(name, host string, port int, st entity.StreamInfo) entity.Proxy {
 	return entity.Proxy{
-		Name: name, Server: host, Port: port,
-		Network: st.Network, Security: st.Security,
-		PublicKey: st.PublicKey, ShortID: st.ShortID, ServerName: st.ServerName, Fingerprint: st.Fingerprint,
-		SNI: st.SNI, ALPN: st.ALPN,
-		WSPath: st.WSPath, WSHost: st.WSHost, GRPCService: st.GRPCService,
+		Name: name,
+		VLESS: &entity.VLESSProxy{
+			Server: host, Port: port,
+			Network: st.Network, Security: st.Security,
+			PublicKey: st.PublicKey, ShortID: st.ShortID, ServerName: st.ServerName, Fingerprint: st.Fingerprint,
+			SNI: st.SNI, ALPN: st.ALPN,
+			WSPath: st.WSPath, WSHost: st.WSHost, GRPCService: st.GRPCService,
+		},
 	}
 }

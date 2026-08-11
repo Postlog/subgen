@@ -13,8 +13,18 @@ func TestValidateNode(t *testing.T) {
 	base := func() entity.Node {
 		return entity.Node{
 			Name: "🇷🇺 RU1", VPNHost: "1.2.3.4", PanelBaseURL: "https://1.2.3.4:2096", PanelBasePath: "/p/",
-			Inbounds: []entity.Inbound{{Name: "force", Port: 8443}},
+			Inbounds: []entity.Inbound{{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS}},
 		}
+	}
+
+	// hy2 builds a valid hysteria2 inbound; per-test mutations tweak one field.
+	hy2 := func(f func(*entity.Hysteria2Settings)) entity.Inbound {
+		s := &entity.Hysteria2Settings{Password: "pw", Obfs: "salamander", ObfsPassword: "ob", SNI: "ru1.example", Up: "50 Mbps", Down: "100 Mbps"}
+		if f != nil {
+			f(s)
+		}
+
+		return entity.Inbound{Name: "hy2", Port: 443, Kind: entity.InboundKindHysteria2, Hysteria2: s}
 	}
 
 	tt := []struct {
@@ -33,7 +43,39 @@ func TestValidateNode(t *testing.T) {
 		{
 			name: "success.multiple_inbounds",
 			mutate: func(n *entity.Node) {
-				n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443}, {Name: "alt", Port: 39129}, {Name: "smart", Port: 4433}}
+				n.Inbounds = []entity.Inbound{
+					{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS},
+					{Name: "alt", Port: 39129, Kind: entity.InboundKindVLESS},
+					{Name: "smart", Port: 4433, Kind: entity.InboundKindVLESS},
+				}
+			},
+			wantBasePat: "/p/",
+		},
+		{
+			name:        "success.hysteria2_full",
+			mutate:      func(n *entity.Node) { n.Inbounds = []entity.Inbound{hy2(nil)} },
+			wantBasePat: "/p/",
+		},
+		{
+			name: "success.hysteria2_minimal",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) {
+					s.Obfs, s.ObfsPassword, s.SNI, s.Up, s.Down = "", "", "", "", ""
+				})}
+			},
+			wantBasePat: "/p/",
+		},
+		{
+			name: "success.hysteria2_bandwidth_bare_number",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.Up, s.Down = "50", "100" })}
+			},
+			wantBasePat: "/p/",
+		},
+		{
+			name: "success.vless_with_nil_settings",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS}}
 			},
 			wantBasePat: "/p/",
 		},
@@ -49,16 +91,90 @@ func TestValidateNode(t *testing.T) {
 		{
 			name: "error.duplicate_name",
 			mutate: func(n *entity.Node) {
-				n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443}, {Name: "force", Port: 9000}}
+				n.Inbounds = []entity.Inbound{
+					{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS},
+					{Name: "force", Port: 9000, Kind: entity.InboundKindVLESS},
+				}
 			},
 			err: entity.ErrValidationInboundNameUq,
 		},
 		{
 			name: "error.duplicate_port",
 			mutate: func(n *entity.Node) {
-				n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443}, {Name: "smart", Port: 8443}}
+				n.Inbounds = []entity.Inbound{
+					{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS},
+					{Name: "smart", Port: 8443, Kind: entity.InboundKindVLESS},
+				}
 			},
 			err: entity.ErrValidationInboundPortUq,
+		},
+
+		// Inbound kind + hysteria2 settings.
+		{
+			name:   "error.unknown_kind",
+			mutate: func(n *entity.Node) { n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443, Kind: "trojan"}} },
+			err:    entity.ErrValidationInboundKind,
+		},
+		{
+			name:   "error.empty_kind",
+			mutate: func(n *entity.Node) { n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443, Kind: ""}} },
+			err:    entity.ErrValidationInboundKind,
+		},
+		{
+			name: "error.vless_with_hysteria2_settings",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{{Name: "force", Port: 8443, Kind: entity.InboundKindVLESS, Hysteria2: &entity.Hysteria2Settings{Password: "pw"}}}
+			},
+			err: entity.ErrValidationInboundSettings,
+		},
+		{
+			name: "error.hysteria2_nil_settings",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{{Name: "hy2", Port: 443, Kind: entity.InboundKindHysteria2}}
+			},
+			err: entity.ErrValidationInboundSettings,
+		},
+		{
+			name: "error.hysteria2_no_password",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.Password = "  " })}
+			},
+			err: entity.ErrValidationHysteria2Pass,
+		},
+		{
+			name: "error.hysteria2_bad_obfs",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.Obfs = "xor" })}
+			},
+			err: entity.ErrValidationHysteria2Obfs,
+		},
+		{
+			name: "error.hysteria2_obfs_without_password",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.ObfsPassword = "" })}
+			},
+			err: entity.ErrValidationHysteria2Obfs,
+		},
+		{
+			name: "error.hysteria2_obfs_password_without_obfs",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.Obfs = "" })}
+			},
+			err: entity.ErrValidationHysteria2Obfs,
+		},
+		{
+			name: "error.hysteria2_bad_bandwidth",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.Up = "fast" })}
+			},
+			err: entity.ErrValidationHysteria2Band,
+		},
+		{
+			name: "error.hysteria2_bad_sni",
+			mutate: func(n *entity.Node) {
+				n.Inbounds = []entity.Inbound{hy2(func(s *entity.Hysteria2Settings) { s.SNI = "https://x" })}
+			},
+			err: entity.ErrValidationHysteria2SNI,
 		},
 	}
 
@@ -136,6 +252,37 @@ func TestValidPanelURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.want, validPanelURL(tc.in))
+		})
+	}
+}
+
+func TestIsBandwidth(t *testing.T) {
+	tt := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "empty", in: "", want: true},
+		{name: "bare_number", in: "50", want: true},
+		{name: "mbps_space", in: "50 Mbps", want: true},
+		{name: "mbps_nospace", in: "100mbps", want: true},
+		{name: "gbps_upper", in: "1 GBPS", want: true},
+		{name: "bps", in: "500 bps", want: true},
+		{name: "kbps", in: "256kbps", want: true},
+		{name: "tbps", in: "2 tbps", want: true},
+		{name: "word", in: "fast", want: false},
+		{name: "no_number", in: "Mbps", want: false},
+		{name: "bad_unit", in: "50 gb", want: false},
+		{name: "trailing_junk", in: "50 Mbps!", want: false},
+		{name: "negative", in: "-5 Mbps", want: false},
+	}
+
+	t.Parallel()
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, isBandwidth(tc.in))
 		})
 	}
 }

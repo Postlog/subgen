@@ -20,7 +20,7 @@ var ctx = context.Background()
 func validNode() entity.Node {
 	return entity.Node{
 		Name: "RU1", VPNHost: "1.2.3.4", PanelBaseURL: "https://1.2.3.4:2096", PanelBasePath: "/p/",
-		Inbounds: []entity.Inbound{{ID: 10, Name: "force", Port: 8443}},
+		Inbounds: []entity.Inbound{{ID: 10, Name: "force", Port: 8443, Kind: entity.InboundKindVLESS}},
 	}
 }
 

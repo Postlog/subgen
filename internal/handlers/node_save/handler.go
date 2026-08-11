@@ -30,7 +30,13 @@ const (
 	MsgInboundNameUq     = "Duplicate inbound name"
 	MsgInboundPortUq     = "Duplicate inbound port"
 	MsgInboundReferenced = "Inbound is in use — first detach users and rules from it"
-	MsgHysteria2Pass     = "Hysteria2 inbound requires a password" //nolint:gosec // G101: user-facing validation message, not a credential
+
+	MsgInboundKind     = "Inbound kind must be vless or hysteria2"
+	MsgInboundSettings = "Hysteria2 settings are missing, or set on a non-hysteria2 inbound"
+	MsgHysteria2Pass   = "Hysteria2 inbound requires a password"                                //nolint:gosec // G101: user-facing validation message, not a credential
+	MsgHysteria2Obfs   = `Hysteria2 obfs must be "salamander" and paired with an obfs password` //nolint:gosec // G101: user-facing validation message, not a credential
+	MsgHysteria2Band   = `Hysteria2 up/down must be a bandwidth, e.g. "50 Mbps"`
+	MsgHysteria2SNI    = "Hysteria2 SNI must be a valid host (no scheme or port)"
 )
 
 // Handler creates or updates a node from the node form.
@@ -125,6 +131,16 @@ func (h *Handler) mapErr(name string, err error) (oas.NodeSaveRes, error) {
 		return bad(MsgInboundPortUq)
 	case errors.Is(err, entity.ErrValidationHysteria2Pass):
 		return bad(MsgHysteria2Pass)
+	case errors.Is(err, entity.ErrValidationInboundKind):
+		return bad(MsgInboundKind)
+	case errors.Is(err, entity.ErrValidationInboundSettings):
+		return bad(MsgInboundSettings)
+	case errors.Is(err, entity.ErrValidationHysteria2Obfs):
+		return bad(MsgHysteria2Obfs)
+	case errors.Is(err, entity.ErrValidationHysteria2Band):
+		return bad(MsgHysteria2Band)
+	case errors.Is(err, entity.ErrValidationHysteria2SNI):
+		return bad(MsgHysteria2SNI)
 	default:
 		slog.Error("handler node_save: save failed", "name", name, "err", err)
 		return nil, err
